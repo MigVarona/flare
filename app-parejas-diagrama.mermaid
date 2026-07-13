@@ -1,0 +1,42 @@
+flowchart TD
+    subgraph Onboarding
+        A[Registro / Login] --> B[Crear pareja]
+        B --> C[Invitar con código o link]
+        C --> D[Pareja vinculada]
+    end
+
+    D --> E{Pantalla principal}
+
+    subgraph Recordatorios
+        E --> F[Crear recordatorio para tu pareja]
+        F --> G[Fecha, hora y mensaje]
+        G --> H[Se guarda en Firestore]
+        H --> I[Push notification al móvil de la pareja]
+        I --> J[Marcar como hecho / posponer]
+    end
+
+    subgraph Fotos
+        E --> K[Subir foto]
+        K --> L[Firebase Storage]
+        L --> M[Galería compartida privada]
+        M --> N[Notificación: nueva foto]
+    end
+
+    subgraph Mensajes
+        E --> O[Enviar mensaje]
+        O --> P{¿Quedan mensajes hoy?}
+        P -- Sí --> Q[Enviar y descontar del límite diario]
+        P -- No --> R[Bloqueado hasta mañana]
+        Q --> S[Notificación a la pareja]
+    end
+
+    subgraph Backend
+        H --> T[(Cloud Firestore)]
+        L --> T
+        Q --> T
+        T --> U[Cloud Functions]
+        U --> V[Expo Push / FCM]
+        V --> I
+        V --> N
+        V --> S
+    end

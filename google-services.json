@@ -1,0 +1,39 @@
+{
+  "project_info": {
+    "project_number": "120685723840",
+    "project_id": "retiro360-51909",
+    "storage_bucket": "retiro360-51909.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:120685723840:android:e22018b822323a13baad25",
+        "android_client_info": {
+          "package_name": "com.mivarona.churriapp"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "120685723840-iu28us0u795v5d68sdcfsvrnfvtj6q3f.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCHaRSo8ZJjJuasPMC3oj3XOQQe5CWFkY0"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "120685723840-iu28us0u795v5d68sdcfsvrnfvtj6q3f.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

@@ -1,0 +1,45 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isMember(coupleId) {
+      return isSignedIn()
+        && request.auth.uid in get(/databases/$(database)/documents/couples/$(coupleId)).data.memberIds;
+    }
+
+    match /users/{uid} {
+      allow read: if isSignedIn();
+      allow write: if isSignedIn() && request.auth.uid == uid;
+    }
+
+    match /couples/{coupleId} {
+      allow get, list: if isSignedIn();
+      allow create: if isSignedIn() && request.auth.uid in request.resource.data.memberIds;
+      allow update: if isMember(coupleId)
+        || (isSignedIn()
+            && request.auth.uid in request.resource.data.memberIds
+            && resource.data.memberIds.size() == 1
+            && request.resource.data.memberIds.size() == 2);
+
+      match /reminders/{reminderId} {
+        allow read, write: if isMember(coupleId);
+      }
+
+      match /photos/{photoId} {
+        allow read, write: if isMember(coupleId);
+      }
+
+      match /messages/{messageId} {
+        allow read, write: if isMember(coupleId);
+      }
+
+      match /messageQuotas/{quotaId} {
+        allow read, write: if isMember(coupleId);
+      }
+    }
+  }
+}

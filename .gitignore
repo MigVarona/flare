@@ -33,6 +33,10 @@ yarn-error.*
 # local env files
 .env*.local
 
+# service account keys / secrets
+firebase-adminsdk*.json
+*serviceAccountKey*.json
+
 # typescript
 *.tsbuildinfo
 
@@ -41,3 +45,7 @@ example
 # generated native folders
 /ios
 /android
+
+# local build artifacts
+*.apk
+*.aab
