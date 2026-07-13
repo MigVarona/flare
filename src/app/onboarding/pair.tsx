@@ -3,6 +3,7 @@ import { Pressable, Share, StyleSheet, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { Eyebrow, GhostButton, GlowCard, GradientButton, GradientRule } from '@/components/brand';
+import { PalettePicker } from '@/components/palette-picker';
 import { ThemedText } from '@/components/themed-text';
 import {
   Colors,
@@ -12,7 +13,9 @@ import {
   Radius,
   Spacing,
 } from '@/constants/theme';
+import { DefaultPalette, paletteById } from '@/constants/palettes';
 import { useCouple } from '@/context/couple-context';
+import { usePalette } from '@/hooks/use-palette';
 
 const theme = Colors.dark;
 
@@ -33,6 +36,8 @@ export default function PairScreen() {
 }
 
 function ChooseMode({ onSelect }: { onSelect: (mode: Mode) => void }) {
+  const palette = usePalette();
+
   return (
     <View style={styles.content}>
       <View style={styles.titleBlock}>
@@ -46,14 +51,14 @@ function ChooseMode({ onSelect }: { onSelect: (mode: Mode) => void }) {
       </View>
 
       <OptionCard
-        color={theme.you}
+        color={palette.you}
         label="Lo creo yo"
         title="Crear el espacio"
         description="Genera una llave para tu pareja"
         onPress={() => onSelect('create')}
       />
       <OptionCard
-        color={theme.partner}
+        color={palette.partner}
         label="Ya tengo llave"
         title="Entrar con una llave"
         description="Tu pareja ya ha creado el espacio"
@@ -67,6 +72,9 @@ function CreateCouple({ onBack }: { onBack: () => void }) {
   const { createCouple, confirmCouple } = useCouple();
 
   const [name, setName] = useState('');
+  const [paletteId, setPaletteId] = useState(DefaultPalette.id);
+  // The screen repaints as you choose, so you're picking the thing itself, not a label.
+  const palette = paletteById(paletteId);
   const [pendingCouple, setPendingCouple] = useState<{ coupleId: string; code: string } | null>(
     null,
   );
@@ -79,7 +87,7 @@ function CreateCouple({ onBack }: { onBack: () => void }) {
     setIsCreating(true);
     setError(null);
     try {
-      setPendingCouple(await createCouple(name));
+      setPendingCouple(await createCouple(name, paletteId));
     } catch {
       setError('No se pudo crear el espacio, inténtalo de nuevo');
     } finally {
@@ -102,7 +110,7 @@ function CreateCouple({ onBack }: { onBack: () => void }) {
     return (
       <View style={styles.content}>
         <View style={styles.titleBlock}>
-          <Eyebrow color={theme.you}>Vuestro espacio</Eyebrow>
+          <Eyebrow color={palette.you}>Vuestro espacio</Eyebrow>
           <ThemedText type="subtitle" style={styles.heading}>
             Ponedle nombre
           </ThemedText>
@@ -120,8 +128,16 @@ function CreateCouple({ onBack }: { onBack: () => void }) {
           placeholder="Ej. Nuestro rincón"
           placeholderTextColor={theme.textSecondary}
           maxLength={28}
-          style={[styles.nameInput, glow(theme.you, 24, '2A')]}
+          style={[styles.nameInput, neonBorder(palette.you, '55'), glow(palette.you, 24, '2A')]}
         />
+
+        <View style={styles.paletteBlock}>
+          <Eyebrow>Vuestros colores</Eyebrow>
+          <ThemedText type="small" themeColor="textSecondary">
+            Uno es tuyo y otro es suyo. Sabrás quién ha hecho qué solo por el color.
+          </ThemedText>
+          <PalettePicker selectedId={paletteId} onSelect={setPaletteId} />
+        </View>
 
         {error && <ThemedText style={styles.error}>{error}</ThemedText>}
 
@@ -129,7 +145,8 @@ function CreateCouple({ onBack }: { onBack: () => void }) {
           <GradientButton
             title="Crear el espacio"
             onPress={handleCreate}
-            disabled={!name.trim() || isCreating}
+            disabled={!name.trim()}
+            isLoading={isCreating}
           />
           <BackLink onPress={onBack} />
         </View>
@@ -140,13 +157,13 @@ function CreateCouple({ onBack }: { onBack: () => void }) {
   return (
     <View style={styles.content}>
       <View style={styles.titleBlock}>
-        <Eyebrow color={theme.you}>La llave de {name.trim()}</Eyebrow>
+        <Eyebrow color={palette.you}>La llave de {name.trim()}</Eyebrow>
         <ThemedText type="subtitle" style={styles.heading}>
           Compártela con tu pareja
         </ThemedText>
       </View>
 
-      <View style={[styles.keyBox, glow(theme.accent, 40, '33')]}>
+      <View style={[styles.keyBox, neonBorder(palette.accent, '44'), glow(palette.accent, 40, '33')]}>
         <ThemedText selectable style={styles.keyText}>
           {pendingCouple.code}
         </ThemedText>
@@ -158,7 +175,7 @@ function CreateCouple({ onBack }: { onBack: () => void }) {
       <View style={styles.actions}>
         <GhostButton
           title="Compartir llave"
-          color={theme.partner}
+          color={palette.partner}
           onPress={() =>
             Share.share({
               message: `Entra en ${name.trim()}, nuestro espacio en Churriapp, con esta llave: ${pendingCouple.code}`,
@@ -168,7 +185,7 @@ function CreateCouple({ onBack }: { onBack: () => void }) {
         <GradientButton
           title="Ya la compartí, entrar"
           onPress={handleContinue}
-          disabled={isConfirming}
+          isLoading={isConfirming}
         />
         <BackLink onPress={onBack} />
       </View>
@@ -178,6 +195,7 @@ function CreateCouple({ onBack }: { onBack: () => void }) {
 
 function JoinCouple({ onBack }: { onBack: () => void }) {
   const { joinCouple } = useCouple();
+  const palette = usePalette();
   const [code, setCode] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -199,7 +217,7 @@ function JoinCouple({ onBack }: { onBack: () => void }) {
   return (
     <View style={styles.content}>
       <View style={styles.titleBlock}>
-        <Eyebrow color={theme.partner}>La llave de tu pareja</Eyebrow>
+        <Eyebrow color={palette.partner}>La llave de tu pareja</Eyebrow>
         <ThemedText type="subtitle" style={styles.heading}>
           Entra en el espacio
         </ThemedText>
@@ -214,13 +232,13 @@ function JoinCouple({ onBack }: { onBack: () => void }) {
         placeholder="••••••"
         placeholderTextColor={theme.textSecondary}
         autoCapitalize="characters"
-        style={[styles.keyInput, glow(theme.partner, 24, '2A')]}
+        style={[styles.keyInput, neonBorder(palette.partner, '55'), glow(palette.partner, 24, '2A')]}
       />
 
       {error && <ThemedText style={styles.error}>{error}</ThemedText>}
 
       <View style={styles.actions}>
-        <GradientButton title="Entrar" onPress={handleSubmit} disabled={isSubmitting} />
+        <GradientButton title="Entrar" onPress={handleSubmit} isLoading={isSubmitting} />
         <BackLink onPress={onBack} />
       </View>
     </View>
@@ -302,7 +320,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: Spacing.four,
     gap: Spacing.four,
     alignItems: 'center',
-    ...neonBorder(theme.accent, '44'),
   },
   keyText: {
     fontSize: 40,
@@ -320,7 +337,6 @@ const styles = StyleSheet.create({
     fontSize: 20,
     fontWeight: '600',
     color: theme.text,
-    ...neonBorder(theme.you, '55'),
   },
   keyInput: {
     backgroundColor: theme.backgroundElement,
@@ -331,9 +347,12 @@ const styles = StyleSheet.create({
     letterSpacing: 8,
     textAlign: 'center',
     color: theme.text,
-    ...neonBorder(theme.partner, '55'),
   },
   actions: {
+    gap: Spacing.two,
+    marginTop: Spacing.two,
+  },
+  paletteBlock: {
     gap: Spacing.two,
     marginTop: Spacing.two,
   },

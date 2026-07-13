@@ -7,24 +7,23 @@ import { Pressable, ScrollView, Share, StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { Eyebrow, GhostButton, GlowCard, IdentityDot } from '@/components/brand';
+import { CardSkeletons } from '@/components/loading';
 import { ThemedText } from '@/components/themed-text';
 import {
   BottomTabInset,
   Colors,
   glow,
   MaxContentWidth,
+  MessageCapacity,
   neonBorder,
   Radius,
   Spacing,
 } from '@/constants/theme';
 import { useCouple } from '@/context/couple-context';
+import { usePalette } from '@/hooks/use-palette';
 import { db } from '@/lib/firebase';
 
 const theme = Colors.dark;
-
-function todayKey() {
-  return new Date().toISOString().slice(0, 10);
-}
 
 type Reminder = { title: string; dueLabel: string; createdByUid?: string };
 type Photo = { url: string; uploadedByUid: string };
@@ -32,13 +31,15 @@ type Message = { text: string; senderId: string };
 
 export default function HomeScreen() {
   const safeAreaInsets = useSafeAreaInsets();
-  const { user, coupleId, isWaitingForPartner, inviteCode, spaceName, dailyMessageLimit } =
+  const { user, coupleId, isWaitingForPartner, inviteCode, spaceName, myName, partnerName } =
     useCouple();
+  const palette = usePalette();
 
   const [nextReminder, setNextReminder] = useState<Reminder | null>(null);
   const [lastMessage, setLastMessage] = useState<Message | null>(null);
-  const [sentToday, setSentToday] = useState(0);
+  const [messageCount, setMessageCount] = useState(0);
   const [recentPhotos, setRecentPhotos] = useState<Photo[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
     if (!coupleId) return undefined;
@@ -59,6 +60,7 @@ export default function HomeScreen() {
             }
           : null,
       );
+      setIsLoading(false);
     });
   }, [coupleId]);
 
@@ -67,7 +69,6 @@ export default function HomeScreen() {
     const messagesQuery = query(
       collection(db, 'couples', coupleId, 'messages'),
       orderBy('createdAt', 'desc'),
-      limit(1),
     );
     return onSnapshot(messagesQuery, (snapshot) => {
       const first = snapshot.docs[0];
@@ -76,18 +77,9 @@ export default function HomeScreen() {
           ? { text: first.data().text as string, senderId: first.data().senderId as string }
           : null,
       );
+      setMessageCount(snapshot.size);
     });
   }, [coupleId]);
-
-  useEffect(() => {
-    if (!coupleId || !user) return undefined;
-    return onSnapshot(
-      doc(db, 'couples', coupleId, 'messageQuotas', `${user.uid}_${todayKey()}`),
-      (snapshot) => {
-        setSentToday((snapshot.data()?.used as number | undefined) ?? 0);
-      },
-    );
-  }, [coupleId, user]);
 
   useEffect(() => {
     if (!coupleId) return undefined;
@@ -106,10 +98,9 @@ export default function HomeScreen() {
     });
   }, [coupleId]);
 
-  const remaining = dailyMessageLimit - sentToday;
   const lastPhoto = recentPhotos[0] ?? null;
   const lastPhotoColor =
-    lastPhoto?.uploadedByUid === user?.uid ? theme.you : theme.partner;
+    lastPhoto?.uploadedByUid === user?.uid ? palette.you : palette.partner;
 
   return (
     <ScrollView
@@ -135,19 +126,19 @@ export default function HomeScreen() {
           <View style={styles.presenceRow}>
             <IdentityDot isMine size={9} />
             <ThemedText type="small" themeColor="textSecondary">
-              Tú
+              {myName}
             </ThemedText>
             <View style={styles.presenceGap} />
             <IdentityDot isMine={false} size={9} />
             <ThemedText type="small" themeColor="textSecondary">
-              {isWaitingForPartner ? 'Sin llegar' : 'Tu pareja'}
+              {isWaitingForPartner ? 'Sin llegar' : partnerName}
             </ThemedText>
           </View>
         </View>
 
         {isWaitingForPartner && inviteCode && (
-          <GlowCard color={theme.accent}>
-            <Eyebrow color={theme.accent}>La llave</Eyebrow>
+          <GlowCard color={palette.accent}>
+            <Eyebrow color={palette.accent}>La llave</Eyebrow>
             <ThemedText selectable style={styles.keyText}>
               {inviteCode}
             </ThemedText>
@@ -157,7 +148,7 @@ export default function HomeScreen() {
             <View style={styles.cardAction}>
               <GhostButton
                 title="Compartir llave"
-                color={theme.partner}
+                color={palette.partner}
                 onPress={() =>
                   Share.share({
                     message: `Entra en nuestro espacio en Churriapp con esta llave: ${inviteCode}`,
@@ -168,27 +159,35 @@ export default function HomeScreen() {
           </GlowCard>
         )}
 
-        <GlowCard>
-          <Eyebrow>Lo próximo</Eyebrow>
-          {nextReminder ? (
-            <>
-              <View style={styles.authorRow}>
-                <IdentityDot isMine={nextReminder.createdByUid === user?.uid} />
-                <ThemedText type="small" themeColor="textSecondary">
-                  {nextReminder.createdByUid === user?.uid ? 'Lo pusiste tú' : 'Lo puso tu pareja'}
-                </ThemedText>
-              </View>
-              <ThemedText style={styles.cardHeadline}>{nextReminder.title}</ThemedText>
-              <ThemedText type="small" themeColor="textSecondary">
-                {nextReminder.dueLabel}
-              </ThemedText>
-            </>
-          ) : (
-            <ThemedText themeColor="textSecondary">Nada pendiente entre vosotros</ThemedText>
-          )}
-        </GlowCard>
+        {isLoading && <CardSkeletons count={3} />}
 
-        {lastPhoto ? (
+        {!isLoading && (
+          <Pressable onPress={() => router.push('/reminders')} className="active:opacity-80">
+            <GlowCard>
+              <Eyebrow>Lo próximo</Eyebrow>
+              {nextReminder ? (
+                <>
+                  <View style={styles.authorRow}>
+                    <IdentityDot isMine={nextReminder.createdByUid === user?.uid} />
+                    <ThemedText type="small" themeColor="textSecondary">
+                      {nextReminder.createdByUid === user?.uid
+                        ? 'Lo pusiste tú'
+                        : `Lo puso ${partnerName}`}
+                    </ThemedText>
+                  </View>
+                  <ThemedText style={styles.cardHeadline}>{nextReminder.title}</ThemedText>
+                  <ThemedText type="small" themeColor="textSecondary">
+                    {nextReminder.dueLabel}
+                  </ThemedText>
+                </>
+              ) : (
+                <ThemedText themeColor="textSecondary">Nada pendiente entre vosotros</ThemedText>
+              )}
+            </GlowCard>
+          </Pressable>
+        )}
+
+        {isLoading ? null : lastPhoto ? (
           <Pressable onPress={() => router.push('/gallery')}>
             <View
               style={[
@@ -206,7 +205,9 @@ export default function HomeScreen() {
                 <View style={styles.authorRow}>
                   <IdentityDot isMine={lastPhoto.uploadedByUid === user?.uid} />
                   <ThemedText type="small" themeColor="textSecondary">
-                    {lastPhoto.uploadedByUid === user?.uid ? 'La subiste tú' : 'La subió tu pareja'}
+                    {lastPhoto.uploadedByUid === user?.uid
+                      ? 'La subiste tú'
+                      : `La subió ${partnerName}`}
                   </ThemedText>
                 </View>
               </View>
@@ -219,6 +220,8 @@ export default function HomeScreen() {
           </GlowCard>
         )}
 
+        {isLoading ? null : (
+        <Pressable onPress={() => router.push('/chat')} className="active:opacity-80">
         <GlowCard>
           <Eyebrow>Lo último que os dijisteis</Eyebrow>
           {lastMessage ? (
@@ -226,7 +229,7 @@ export default function HomeScreen() {
               <View style={styles.authorRow}>
                 <IdentityDot isMine={lastMessage.senderId === user?.uid} />
                 <ThemedText type="small" themeColor="textSecondary">
-                  {lastMessage.senderId === user?.uid ? 'Tú' : 'Tu pareja'}
+                  {lastMessage.senderId === user?.uid ? myName : partnerName}
                 </ThemedText>
               </View>
               <ThemedText style={styles.cardHeadline}>{lastMessage.text}</ThemedText>
@@ -235,27 +238,9 @@ export default function HomeScreen() {
             <ThemedText themeColor="textSecondary">Aún no os habéis escrito</ThemedText>
           )}
 
-          <View style={styles.quotaBlock}>
-            <View style={styles.quotaBar}>
-              {Array.from({ length: dailyMessageLimit }).map((_, index) => (
-                <View
-                  key={index}
-                  style={[
-                    styles.quotaTick,
-                    index < remaining
-                      ? [{ backgroundColor: theme.you }, glow(theme.you, 6, 'AA')]
-                      : styles.quotaTickSpent,
-                  ]}
-                />
-              ))}
-            </View>
-            <ThemedText type="small" themeColor="textSecondary">
-              {remaining > 0
-                ? `Te quedan ${remaining} de ${dailyMessageLimit} mensajes hoy`
-                : 'Has gastado tus mensajes de hoy'}
-            </ThemedText>
-          </View>
         </GlowCard>
+        </Pressable>
+        )}
       </View>
     </ScrollView>
   );

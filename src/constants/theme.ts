@@ -92,3 +92,9 @@ export const Radius = {
 
 export const BottomTabInset = Platform.select({ ios: 50, android: 80 }) ?? 0;
 export const MaxContentWidth = 800;
+
+/**
+ * How many messages the space holds. Not a setting — it's the rule the app is built on:
+ * only what's present exists, so what you say has to be worth the room it takes.
+ */
+export const MessageCapacity = 5;

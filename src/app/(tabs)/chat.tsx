@@ -2,40 +2,42 @@ import { LinearGradient } from 'expo-linear-gradient';
 import {
   addDoc,
   collection,
+  deleteDoc,
+  deleteField,
   doc,
-  increment,
+  getDoc,
   onSnapshot,
   orderBy,
   query,
   serverTimestamp,
-  setDoc,
+  updateDoc,
 } from 'firebase/firestore';
-import { useEffect, useState } from 'react';
-import {
-  KeyboardAvoidingView,
-  Platform,
-  Pressable,
-  ScrollView,
-  StyleSheet,
-  TextInput,
-  View,
-} from 'react-native';
+import { useEffect, useRef, useState } from 'react';
+import { Keyboard, Pressable, ScrollView, TextInput, View } from 'react-native';
+// React Native's own keyboard handling broke on Android once Expo turned on edge-to-edge.
+import { KeyboardAvoidingView } from 'react-native-keyboard-controller';
+import { Gesture, GestureDetector } from 'react-native-gesture-handler';
+import Animated, { FadeIn, FadeOut, LinearTransition } from 'react-native-reanimated';
+import { scheduleOnRN } from 'react-native-worklets';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { Eyebrow } from '@/components/brand';
+import { LightSignal, isSignalId, type SignalId } from '@/components/light-signals';
+import { MessageSkeletons } from '@/components/loading';
+import { SignalPicker } from '@/components/signal-picker';
 import { ThemedText } from '@/components/themed-text';
 import {
   BottomTabInset,
-  BrandGradient,
   Colors,
   glow,
-  MaxContentWidth,
+  MessageCapacity,
   neonBorder,
-  Radius,
   Spacing,
 } from '@/constants/theme';
 import { useCouple } from '@/context/couple-context';
+import { usePalette } from '@/hooks/use-palette';
 import { db } from '@/lib/firebase';
+import { sendPushNotification } from '@/lib/push';
 
 const theme = Colors.dark;
 
@@ -43,19 +45,30 @@ type Message = {
   id: string;
   text: string;
   senderId: string;
+  /** Who answered with light, and with which signal. */
+  reactions: Record<string, SignalId>;
 };
-
-function todayKey() {
-  return new Date().toISOString().slice(0, 10);
-}
 
 export default function ChatScreen() {
   const insets = useSafeAreaInsets();
-  const { user, coupleId, dailyMessageLimit } = useCouple();
+  const { user, coupleId, partnerUid } = useCouple();
+  const palette = usePalette();
+  const scrollRef = useRef<ScrollView>(null);
 
   const [messages, setMessages] = useState<Message[]>([]);
-  const [sentToday, setSentToday] = useState(0);
+  const [isLoading, setIsLoading] = useState(true);
   const [draft, setDraft] = useState('');
+  const [isKeyboardOpen, setIsKeyboardOpen] = useState(false);
+  const [reactingTo, setReactingTo] = useState<Message | null>(null);
+
+  useEffect(() => {
+    const shown = Keyboard.addListener('keyboardDidShow', () => setIsKeyboardOpen(true));
+    const hidden = Keyboard.addListener('keyboardDidHide', () => setIsKeyboardOpen(false));
+    return () => {
+      shown.remove();
+      hidden.remove();
+    };
+  }, []);
 
   useEffect(() => {
     if (!coupleId) return undefined;
@@ -69,249 +82,177 @@ export default function ChatScreen() {
           id: docSnapshot.id,
           text: docSnapshot.data().text as string,
           senderId: docSnapshot.data().senderId as string,
+          reactions: (docSnapshot.data().reactions as Record<string, SignalId>) ?? {},
         })),
       );
+      setIsLoading(false);
     });
   }, [coupleId]);
 
-  useEffect(() => {
-    if (!coupleId || !user) return undefined;
-    const quotaRef = doc(db, 'couples', coupleId, 'messageQuotas', `${user.uid}_${todayKey()}`);
-    return onSnapshot(quotaRef, (snapshot) => {
-      setSentToday((snapshot.data()?.used as number | undefined) ?? 0);
+  const react = async (message: Message, signal: SignalId | null) => {
+    if (!coupleId || !user) return;
+    setReactingTo(null);
+    await updateDoc(doc(db, 'couples', coupleId, 'messages', message.id), {
+      [`reactions.${user.uid}`]: signal ?? deleteField(),
     });
-  }, [coupleId, user]);
+  };
 
-  const remaining = dailyMessageLimit - sentToday;
-  const canSend = remaining > 0 && draft.trim().length > 0;
+  const canSend = draft.trim().length > 0;
 
   const sendMessage = async () => {
-    if (!coupleId || !user || remaining <= 0 || !draft.trim()) return;
+    if (!coupleId || !user || !draft.trim()) return;
     const text = draft.trim();
     setDraft('');
+
     await addDoc(collection(db, 'couples', coupleId, 'messages'), {
       text,
       senderId: user.uid,
       createdAt: serverTimestamp(),
     });
-    await setDoc(
-      doc(db, 'couples', coupleId, 'messageQuotas', `${user.uid}_${todayKey()}`),
-      { userId: user.uid, date: todayKey(), used: increment(1) },
-      { merge: true },
-    );
+
+    // The space only holds so much. Anything older than that stops existing —
+    // for both of you, at the same time.
+    const overflow = messages.length + 1 - MessageCapacity;
+    if (overflow > 0) {
+      await Promise.all(
+        messages
+          .slice(0, overflow)
+          .map((message) => deleteDoc(doc(db, 'couples', coupleId, 'messages', message.id))),
+      );
+    }
+
+    if (partnerUid) {
+      const partnerSnapshot = await getDoc(doc(db, 'users', partnerUid));
+      const partnerToken = partnerSnapshot.data()?.expoPushToken as string | undefined;
+      if (partnerToken) {
+        sendPushNotification(partnerToken, 'Mensaje nuevo', text);
+      }
+    }
   };
 
   return (
-    <KeyboardAvoidingView
-      style={styles.screen}
-      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-      keyboardVerticalOffset={insets.top}>
-      <View style={[styles.inner, { paddingTop: insets.top + Spacing.four }]}>
-        <View style={styles.header}>
-          <Eyebrow>Contadas, por eso importan</Eyebrow>
-          <ThemedText type="title" style={styles.title}>
+    <KeyboardAvoidingView className="flex-1 bg-background" behavior="padding">
+      <View
+        className="w-full max-w-200 flex-1 self-center"
+        style={{ paddingTop: insets.top + Spacing.four }}>
+        <View className="gap-2 px-6 pb-4">
+          <Eyebrow>Solo cabe lo de ahora</Eyebrow>
+          <ThemedText type="title" className="text-[34px] leading-10 font-extrabold tracking-tight">
             Mensajes
-          </ThemedText>
-
-          <View style={styles.quotaBar}>
-            {Array.from({ length: dailyMessageLimit }).map((_, index) => (
-              <View
-                key={index}
-                style={[
-                  styles.quotaTick,
-                  index < remaining
-                    ? [{ backgroundColor: theme.you }, glow(theme.you, 6, 'AA')]
-                    : styles.quotaTickSpent,
-                ]}
-              />
-            ))}
-          </View>
-          <ThemedText type="small" themeColor="textSecondary">
-            {remaining > 0
-              ? `Te quedan ${remaining} de ${dailyMessageLimit} hoy`
-              : 'Has gastado los de hoy'}
           </ThemedText>
         </View>
 
         <ScrollView
-          style={styles.flex}
-          contentContainerStyle={styles.messages}
-          showsVerticalScrollIndicator={false}>
-          {messages.length === 0 && (
-            <ThemedText themeColor="textSecondary" style={styles.empty}>
+          ref={scrollRef}
+          className="flex-1"
+          contentContainerClassName="gap-3 px-6 py-6"
+          showsVerticalScrollIndicator={false}
+          keyboardShouldPersistTaps="handled"
+          onContentSizeChange={() => scrollRef.current?.scrollToEnd({ animated: true })}>
+          {isLoading ? (
+            <MessageSkeletons />
+          ) : messages.length === 0 ? (
+            <ThemedText className="py-16 text-center leading-6 text-muted-foreground">
               Aquí no cabe el ruido. Solo lo que de verdad le quieras decir.
             </ThemedText>
-          )}
+          ) : (
+            messages.map((message, index) => {
+              const isMine = message.senderId === user?.uid;
+              const color = isMine ? palette.you : palette.partner;
 
-          {messages.map((message) => {
-            const isMine = message.senderId === user?.uid;
-            const color = isMine ? theme.you : theme.partner;
-            return (
-              <View
-                key={message.id}
-                style={[
-                  styles.bubble,
-                  isMine ? styles.bubbleMine : styles.bubbleTheirs,
-                  { backgroundColor: `${color}1A` },
-                  neonBorder(color, '77'),
-                  glow(color, 14, '33'),
-                ]}>
-                <ThemedText style={styles.bubbleText}>{message.text}</ThemedText>
-              </View>
-            );
-          })}
+              // The oldest message is the faintest: it is already on its way out.
+              // The rule is shown as light, not explained in a label.
+              const age = messages.length - 1 - index;
+              const fade = Math.max(0.35, 1 - age * (0.65 / Math.max(1, MessageCapacity - 1)));
+
+              const signals = Object.entries(message.reactions);
+              const doubleTap = Gesture.Tap()
+                .numberOfTaps(2)
+                .onEnd(() => scheduleOnRN(setReactingTo, message));
+
+              return (
+                <Animated.View
+                  key={message.id}
+                  entering={FadeIn.duration(260)}
+                  exiting={FadeOut.duration(420)}
+                  layout={LinearTransition.duration(260)}
+                  className={isMine ? 'max-w-[82%] self-end' : 'max-w-[82%] self-start'}>
+                  <GestureDetector gesture={doubleTap}>
+                    <View
+                      className={`rounded-3xl px-4 py-4 ${
+                        isMine ? 'rounded-br-lg' : 'rounded-bl-lg'
+                      }`}
+                      style={[
+                        { opacity: fade, backgroundColor: `${color}1A` },
+                        neonBorder(color, '77'),
+                        glow(color, 14, '33'),
+                      ]}>
+                      <ThemedText className="text-base leading-6">{message.text}</ThemedText>
+                    </View>
+                  </GestureDetector>
+
+                  {signals.length > 0 && (
+                    <View
+                      className={`mt-1 flex-row gap-2 ${isMine ? 'justify-end pr-3' : 'pl-3'}`}>
+                      {signals.map(([uid, signal]) =>
+                        isSignalId(signal) ? (
+                          <LightSignal
+                            key={uid}
+                            id={signal}
+                            color={uid === user?.uid ? palette.you : palette.partner}
+                            size={20}
+                          />
+                        ) : null,
+                      )}
+                    </View>
+                  )}
+                </Animated.View>
+              );
+            })
+          )}
         </ScrollView>
 
-        <View style={[styles.composer, { paddingBottom: insets.bottom + BottomTabInset }]}>
-          {remaining > 0 ? (
-            <View style={styles.composerRow}>
-              <TextInput
-                value={draft}
-                onChangeText={setDraft}
-                placeholder="Escribe…"
-                placeholderTextColor={theme.textSecondary}
-                style={styles.input}
-                onSubmitEditing={sendMessage}
-              />
-              <Pressable
-                onPress={canSend ? sendMessage : undefined}
-                disabled={!canSend}
-                style={({ pressed }) => [
-                  styles.sendWrapper,
-                  canSend && glow(theme.accent, 18, '66'),
-                  pressed && styles.pressed,
-                  !canSend && styles.disabled,
-                ]}>
-                <LinearGradient
-                  colors={BrandGradient}
-                  start={{ x: 0, y: 0 }}
-                  end={{ x: 1, y: 1 }}
-                  style={styles.sendFill}>
-                  <ThemedText type="smallBold" style={styles.sendLabel}>
-                    Enviar
-                  </ThemedText>
-                </LinearGradient>
-              </Pressable>
-            </View>
-          ) : (
-            <ThemedText themeColor="textSecondary" style={styles.blocked}>
-              Vuelve mañana. Guárdate lo que le quieras decir.
-            </ThemedText>
-          )}
+        <View
+          className="border-t border-border px-6 pt-4"
+          style={{
+            paddingBottom: isKeyboardOpen ? Spacing.three : insets.bottom + BottomTabInset,
+          }}>
+          <View className="flex-row items-center gap-2">
+            <TextInput
+              value={draft}
+              onChangeText={setDraft}
+              placeholder="Escribe…"
+              placeholderTextColor={theme.textSecondary}
+              className="flex-1 rounded-full border border-border bg-card px-6 py-4 text-base text-foreground"
+              onSubmitEditing={sendMessage}
+            />
+            <Pressable
+              onPress={canSend ? sendMessage : undefined}
+              disabled={!canSend}
+              className={`overflow-hidden rounded-full active:opacity-75 ${
+                canSend ? '' : 'opacity-35'
+              }`}
+              style={canSend ? glow(palette.accent, 18, '66') : undefined}>
+              <LinearGradient
+                colors={palette.gradient}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 1 }}
+                style={{ paddingHorizontal: Spacing.four, paddingVertical: Spacing.three }}>
+                <ThemedText type="smallBold" style={{ color: theme.background }}>
+                  Enviar
+                </ThemedText>
+              </LinearGradient>
+            </Pressable>
+          </View>
         </View>
       </View>
+
+      <SignalPicker
+        isOpen={Boolean(reactingTo)}
+        current={reactingTo && user ? reactingTo.reactions[user.uid] : null}
+        onPick={(signal) => reactingTo && react(reactingTo, signal)}
+        onClose={() => setReactingTo(null)}
+      />
     </KeyboardAvoidingView>
   );
 }
-
-const styles = StyleSheet.create({
-  screen: {
-    flex: 1,
-    backgroundColor: theme.background,
-  },
-  flex: {
-    flex: 1,
-  },
-  inner: {
-    flex: 1,
-    width: '100%',
-    maxWidth: MaxContentWidth,
-    alignSelf: 'center',
-  },
-  header: {
-    gap: Spacing.two,
-    paddingHorizontal: Spacing.four,
-    paddingBottom: Spacing.three,
-  },
-  title: {
-    fontSize: 34,
-    lineHeight: 40,
-    fontWeight: '800',
-    letterSpacing: -0.8,
-  },
-  quotaBar: {
-    flexDirection: 'row',
-    gap: Spacing.one,
-    marginTop: Spacing.one,
-  },
-  quotaTick: {
-    flex: 1,
-    height: 3,
-    borderRadius: 2,
-  },
-  quotaTickSpent: {
-    backgroundColor: theme.backgroundSelected,
-  },
-  messages: {
-    gap: Spacing.three,
-    paddingHorizontal: Spacing.four,
-    paddingVertical: Spacing.four,
-  },
-  bubble: {
-    maxWidth: '82%',
-    paddingHorizontal: Spacing.three,
-    paddingVertical: Spacing.three,
-    borderRadius: Radius.large,
-  },
-  bubbleMine: {
-    alignSelf: 'flex-end',
-    borderBottomRightRadius: Radius.small,
-  },
-  bubbleTheirs: {
-    alignSelf: 'flex-start',
-    borderBottomLeftRadius: Radius.small,
-  },
-  bubbleText: {
-    fontSize: 16,
-    lineHeight: 23,
-  },
-  empty: {
-    textAlign: 'center',
-    lineHeight: 22,
-    paddingVertical: Spacing.six,
-  },
-  composer: {
-    paddingHorizontal: Spacing.four,
-    paddingTop: Spacing.three,
-    borderTopWidth: 1,
-    borderTopColor: theme.border,
-  },
-  composerRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: Spacing.two,
-  },
-  input: {
-    flex: 1,
-    backgroundColor: theme.backgroundElement,
-    borderRadius: Radius.pill,
-    paddingHorizontal: Spacing.four,
-    paddingVertical: Spacing.three,
-    fontSize: 16,
-    color: theme.text,
-    ...neonBorder(theme.border, 'FF'),
-  },
-  sendWrapper: {
-    borderRadius: Radius.pill,
-    overflow: 'hidden',
-  },
-  sendFill: {
-    paddingHorizontal: Spacing.four,
-    paddingVertical: Spacing.three,
-  },
-  sendLabel: {
-    color: '#0B0710',
-    fontWeight: '800',
-  },
-  blocked: {
-    textAlign: 'center',
-    lineHeight: 22,
-    paddingVertical: Spacing.two,
-  },
-  pressed: {
-    opacity: 0.75,
-  },
-  disabled: {
-    opacity: 0.35,
-  },
-});

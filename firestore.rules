@@ -36,10 +36,6 @@ service cloud.firestore {
       match /messages/{messageId} {
         allow read, write: if isMember(coupleId);
       }
-
-      match /messageQuotas/{quotaId} {
-        allow read, write: if isMember(coupleId);
-      }
     }
   }
 }

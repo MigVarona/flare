@@ -6,7 +6,8 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { ThemedText } from './themed-text';
 
-import { BrandGradient, Colors, glow, neonBorder, Radius, Spacing } from '@/constants/theme';
+import { Colors, glow, neonBorder, Radius, Spacing } from '@/constants/theme';
+import { usePalette } from '@/hooks/use-palette';
 
 const theme = Colors.dark;
 
@@ -40,11 +41,17 @@ export default function AppTabs() {
   );
 }
 
-const TabButton = forwardRef<View, TabTriggerSlotProps>(({ children, isFocused, ...props }, ref) => (
+const TabButton = forwardRef<View, TabTriggerSlotProps>(function TabButton(
+  { children, isFocused, ...props },
+  ref,
+) {
+  const palette = usePalette();
+
+  return (
   <Pressable ref={ref} {...props} style={({ pressed }) => [styles.tab, pressed && styles.pressed]}>
     {isFocused ? (
       <LinearGradient
-        colors={BrandGradient}
+        colors={palette.gradient}
         start={{ x: 0, y: 0 }}
         end={{ x: 1, y: 1 }}
         style={styles.fill}>
@@ -64,9 +71,8 @@ const TabButton = forwardRef<View, TabTriggerSlotProps>(({ children, isFocused, 
       </View>
     )}
   </Pressable>
-));
-
-TabButton.displayName = 'TabButton';
+  );
+});
 
 const styles = StyleSheet.create({
   bar: {

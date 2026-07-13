@@ -1,16 +1,24 @@
 import { router } from 'expo-router';
-import { useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, TextInput, View } from 'react-native';
+import { useEffect, useState } from 'react';
+import { Pressable, ScrollView, TextInput, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { Eyebrow, GhostButton, GlowCard, IdentityDot } from '@/components/brand';
+import { PalettePicker } from '@/components/palette-picker';
 import { ThemedText } from '@/components/themed-text';
-import { Colors, glow, MaxContentWidth, neonBorder, Radius, Spacing } from '@/constants/theme';
+import {
+  AlertDialog,
+  AlertDialogBackdrop,
+  AlertDialogBody,
+  AlertDialogContent,
+  AlertDialogFooter,
+  AlertDialogHeader,
+} from '@/components/ui/alert-dialog';
+import { Colors, glow } from '@/constants/theme';
 import { useCouple } from '@/context/couple-context';
+import { useNotice } from '@/hooks/use-notice';
 
 const theme = Colors.dark;
-
-const LIMIT_OPTIONS = [3, 5, 10, 20, 50];
 
 export default function SettingsScreen() {
   const insets = useSafeAreaInsets();
@@ -19,59 +27,84 @@ export default function SettingsScreen() {
     spaceName,
     inviteCode,
     isWaitingForPartner,
-    dailyMessageLimit,
+    myName,
+    partnerName,
     renameSpace,
-    setDailyMessageLimit,
+    renameMe,
+    palette,
+    setPalette,
     signOutUser,
   } = useCouple();
 
+  const notice = useNotice();
+
   const [name, setName] = useState(spaceName ?? '');
+  const [ownName, setOwnName] = useState(myName);
   const [isSaving, setIsSaving] = useState(false);
-  const [savedAt, setSavedAt] = useState<number | null>(null);
+  const [isSavingOwn, setIsSavingOwn] = useState(false);
+  const [isSigningOut, setIsSigningOut] = useState(false);
+
+  // The names arrive from Firestore after the first render, so the fields have to catch up.
+  useEffect(() => setName(spaceName ?? ''), [spaceName]);
+  useEffect(() => setOwnName(myName), [myName]);
 
   const hasNameChanged = name.trim().length > 0 && name.trim() !== (spaceName ?? '');
+  const hasOwnNameChanged = ownName.trim().length > 0 && ownName.trim() !== myName;
 
   const handleRename = async () => {
     setIsSaving(true);
     try {
       await renameSpace(name);
-      setSavedAt(Date.now());
+      notice('Vuestro espacio ya se llama así', 'both');
     } finally {
       setIsSaving(false);
     }
   };
 
+  const handlePalette = async (id: string) => {
+    await setPalette(id);
+    notice('Vuestros colores', 'both');
+  };
+
+  const handleRenameMe = async () => {
+    setIsSavingOwn(true);
+    try {
+      await renameMe(ownName);
+      notice(`Ahora te llamas ${ownName.trim()}`);
+    } finally {
+      setIsSavingOwn(false);
+    }
+  };
+
   return (
     <ScrollView
-      style={styles.screen}
-      contentContainerStyle={[
-        styles.content,
-        { paddingTop: insets.top + Spacing.four, paddingBottom: insets.bottom + Spacing.six },
-      ]}>
-      <View style={styles.inner}>
-        <View style={styles.header}>
+      className="flex-1 bg-background"
+      contentContainerClassName="flex-row justify-center px-6"
+      contentContainerStyle={{ paddingTop: insets.top + 24, paddingBottom: insets.bottom + 64 }}>
+      <View className="w-full max-w-[800px] gap-4">
+        <View className="mb-2 gap-2">
           <Eyebrow>Ajustes</Eyebrow>
-          <ThemedText type="title" style={styles.title}>
+          <ThemedText type="title" className="text-[34px] leading-10 font-extrabold tracking-tight">
             {spaceName ?? 'Vuestro espacio'}
           </ThemedText>
         </View>
 
         <GlowCard>
           <Eyebrow>Quiénes sois</Eyebrow>
-          <View style={styles.memberRow}>
+          <View className="flex-row items-center gap-4 py-1">
             <IdentityDot isMine />
-            <View style={styles.memberText}>
-              <ThemedText type="smallBold">Tú</ThemedText>
-              <ThemedText type="small" themeColor="textSecondary">
+            <View className="gap-0.5">
+              <ThemedText type="smallBold">{myName}</ThemedText>
+              <ThemedText type="small" className="text-muted-foreground">
                 {user?.email ?? '—'}
               </ThemedText>
             </View>
           </View>
-          <View style={styles.memberRow}>
+          <View className="flex-row items-center gap-4 py-1">
             <IdentityDot isMine={false} />
-            <View style={styles.memberText}>
-              <ThemedText type="smallBold">Tu pareja</ThemedText>
-              <ThemedText type="small" themeColor="textSecondary">
+            <View className="gap-0.5">
+              <ThemedText type="smallBold">{partnerName}</ThemedText>
+              <ThemedText type="small" className="text-muted-foreground">
                 {isWaitingForPartner ? 'Todavía no ha entrado' : 'Dentro del espacio'}
               </ThemedText>
             </View>
@@ -79,166 +112,108 @@ export default function SettingsScreen() {
         </GlowCard>
 
         <GlowCard>
+          <Eyebrow>Cómo te llamas</Eyebrow>
+          <TextInput
+            value={ownName}
+            onChangeText={setOwnName}
+            placeholder="Tu nombre"
+            placeholderTextColor={theme.textSecondary}
+            maxLength={20}
+            className="rounded-2xl border border-border bg-background px-4 py-4 text-base text-foreground"
+          />
+          {hasOwnNameChanged && (
+            <View className="mt-1">
+              <GhostButton
+                title={isSavingOwn ? 'Guardando…' : 'Guardar'}
+                color={palette.you}
+                disabled={isSavingOwn}
+                onPress={handleRenameMe}
+              />
+            </View>
+          )}
+        </GlowCard>
+
+        <GlowCard>
           <Eyebrow>Nombre del espacio</Eyebrow>
           <TextInput
             value={name}
-            onChangeText={(value) => {
-              setName(value);
-              setSavedAt(null);
-            }}
+            onChangeText={setName}
             placeholder="Ej. Nuestro rincón"
             placeholderTextColor={theme.textSecondary}
             maxLength={28}
-            style={styles.input}
+            className="rounded-2xl border border-border bg-background px-4 py-4 text-base text-foreground"
           />
           {hasNameChanged && (
-            <View style={styles.cardAction}>
+            <View className="mt-1">
               <GhostButton
                 title={isSaving ? 'Guardando…' : 'Guardar nombre'}
-                color={theme.you}
+                color={palette.you}
                 disabled={isSaving}
                 onPress={handleRename}
               />
             </View>
           )}
-          {savedAt && !hasNameChanged && (
-            <ThemedText type="small" style={{ color: theme.partner }}>
-              Guardado
-            </ThemedText>
-          )}
         </GlowCard>
 
         <GlowCard>
-          <Eyebrow>Mensajes al día</Eyebrow>
-          <ThemedText type="small" themeColor="textSecondary">
-            Cuántos podéis enviaros cada uno. Menos es más.
+          <Eyebrow>Vuestros colores</Eyebrow>
+          <ThemedText type="small" className="text-muted-foreground">
+            Uno es tuyo y otro es suyo. Cambiarlos los cambia para los dos.
           </ThemedText>
-          <View style={styles.limitRow}>
-            {LIMIT_OPTIONS.map((limit) => {
-              const isActive = limit === dailyMessageLimit;
-              return (
-                <Pressable
-                  key={limit}
-                  onPress={() => setDailyMessageLimit(limit)}
-                  style={({ pressed }) => [
-                    styles.limitChip,
-                    isActive
-                      ? [
-                          { backgroundColor: `${theme.you}26` },
-                          neonBorder(theme.you, 'AA'),
-                          glow(theme.you, 14, '44'),
-                        ]
-                      : neonBorder(theme.border, 'FF'),
-                    pressed && styles.pressed,
-                  ]}>
-                  <ThemedText
-                    type="smallBold"
-                    style={isActive ? { color: theme.you } : { color: theme.textSecondary }}>
-                    {limit}
-                  </ThemedText>
-                </Pressable>
-              );
-            })}
-          </View>
+          <PalettePicker selectedId={palette.id} onSelect={handlePalette} />
         </GlowCard>
 
         {isWaitingForPartner && inviteCode && (
-          <GlowCard color={theme.accent}>
-            <Eyebrow color={theme.accent}>La llave</Eyebrow>
-            <ThemedText selectable style={styles.keyText}>
+          <GlowCard color={palette.accent}>
+            <Eyebrow color={palette.accent}>La llave</Eyebrow>
+            <ThemedText selectable className="text-[28px] leading-9 font-extrabold tracking-[8px]">
               {inviteCode}
             </ThemedText>
-            <ThemedText type="small" themeColor="textSecondary">
+            <ThemedText type="small" className="text-muted-foreground">
               Tu pareja la necesita para entrar
             </ThemedText>
           </GlowCard>
         )}
 
-        <View style={styles.footer}>
-          <GhostButton title="Cerrar sesión" onPress={signOutUser} />
-          <Pressable onPress={() => router.back()} style={({ pressed }) => pressed && styles.pressed}>
-            <ThemedText type="small" themeColor="textSecondary" style={styles.back}>
+        <View className="mt-6 gap-2">
+          <GhostButton title="Cerrar sesión" onPress={() => setIsSigningOut(true)} />
+          <Pressable onPress={() => router.back()} className="active:opacity-70">
+            <ThemedText type="small" className="py-2 text-center text-muted-foreground">
               Volver
             </ThemedText>
           </Pressable>
         </View>
       </View>
+
+      <AlertDialog isOpen={isSigningOut} onClose={() => setIsSigningOut(false)}>
+        <AlertDialogBackdrop />
+        <AlertDialogContent className="rounded-3xl border border-border bg-card">
+          <AlertDialogHeader>
+            <ThemedText className="text-lg font-bold">¿Cerrar sesión?</ThemedText>
+          </AlertDialogHeader>
+          <AlertDialogBody className="mt-2 mb-4">
+            <ThemedText type="small" className="leading-6 text-muted-foreground">
+              El espacio y todo lo que hay dentro sigue ahí. Podrás volver a entrar con tu correo.
+            </ThemedText>
+          </AlertDialogBody>
+          <AlertDialogFooter className="gap-2">
+            <Pressable
+              onPress={() => setIsSigningOut(false)}
+              className="flex-1 items-center rounded-full border border-border py-3 active:opacity-70">
+              <ThemedText type="smallBold" className="text-muted-foreground">
+                Quedarme
+              </ThemedText>
+            </Pressable>
+            <Pressable
+              onPress={signOutUser}
+              className="flex-1 items-center rounded-full border border-destructive/60 py-3 active:opacity-70">
+              <ThemedText type="smallBold" className="text-destructive">
+                Salir
+              </ThemedText>
+            </Pressable>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </ScrollView>
   );
 }
-
-const styles = StyleSheet.create({
-  screen: {
-    flex: 1,
-    backgroundColor: theme.background,
-  },
-  content: {
-    flexDirection: 'row',
-    justifyContent: 'center',
-    paddingHorizontal: Spacing.four,
-  },
-  inner: {
-    width: '100%',
-    maxWidth: MaxContentWidth,
-    gap: Spacing.three,
-  },
-  header: {
-    gap: Spacing.two,
-    marginBottom: Spacing.two,
-  },
-  title: {
-    fontSize: 34,
-    lineHeight: 40,
-    fontWeight: '800',
-    letterSpacing: -0.8,
-  },
-  memberRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: Spacing.three,
-    paddingVertical: Spacing.one,
-  },
-  memberText: {
-    gap: Spacing.half,
-  },
-  input: {
-    backgroundColor: theme.background,
-    borderRadius: Radius.medium,
-    paddingHorizontal: Spacing.three,
-    paddingVertical: Spacing.three,
-    fontSize: 16,
-    color: theme.text,
-    ...neonBorder(theme.border, 'FF'),
-  },
-  cardAction: {
-    marginTop: Spacing.one,
-  },
-  limitRow: {
-    flexDirection: 'row',
-    gap: Spacing.two,
-    marginTop: Spacing.two,
-  },
-  limitChip: {
-    flex: 1,
-    alignItems: 'center',
-    paddingVertical: Spacing.three,
-    borderRadius: Radius.medium,
-  },
-  keyText: {
-    fontSize: 28,
-    lineHeight: 34,
-    fontWeight: '800',
-    letterSpacing: 8,
-  },
-  footer: {
-    gap: Spacing.two,
-    marginTop: Spacing.four,
-  },
-  back: {
-    textAlign: 'center',
-    paddingVertical: Spacing.two,
-  },
-  pressed: {
-    opacity: 0.7,
-  },
-});

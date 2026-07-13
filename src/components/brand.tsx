@@ -1,31 +1,49 @@
-import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
 import type { ReactNode } from 'react';
 import { Pressable, StyleSheet, View, type ViewStyle } from 'react-native';
+import Svg, { Circle, ClipPath, Defs, G } from 'react-native-svg';
 
 import { ThemedText } from './themed-text';
 
-import { BrandGradient, Colors, glow, neonBorder, Radius, Spacing } from '@/constants/theme';
+import { Spinner } from '@/components/ui/spinner';
+import { Colors, glow, neonBorder, Radius, Spacing } from '@/constants/theme';
+import { usePalette } from '@/hooks/use-palette';
 
 const theme = Colors.dark;
 
 /**
- * The mark: two lights, overlapping. Rose is you, cyan is them, and the place
- * they overlap is the app itself.
+ * The mark: two lights, overlapping — and the lens between them, which only exists
+ * because both are there. Drawn rather than shipped as an image, so it repaints when
+ * the couple changes their colours.
  */
 export function BrandMark({ size = 128 }: { size?: number }) {
+  const palette = usePalette();
+
+  const center = size / 2;
+  const radius = size * 0.155;
+  const offset = radius * 0.58;
+
   return (
-    <Image
-      source={require('@/assets/images/splash-icon.png')}
-      style={{ width: size, height: size }}
-      contentFit="contain"
-    />
+    <Svg width={size} height={size} viewBox={`0 0 ${size} ${size}`}>
+      <Defs>
+        <ClipPath id="left">
+          <Circle cx={center - offset} cy={center} r={radius} />
+        </ClipPath>
+      </Defs>
+      <Circle cx={center - offset} cy={center} r={radius} fill={palette.you} />
+      <Circle cx={center + offset} cy={center} r={radius} fill={palette.partner} />
+      <G clipPath="url(#left)">
+        <Circle cx={center + offset} cy={center} r={radius} fill={palette.accent} />
+      </G>
+    </Svg>
   );
 }
 
 /** A single light standing for one person. */
 export function IdentityDot({ isMine, size = 8 }: { isMine: boolean; size?: number }) {
-  const color = isMine ? theme.you : theme.partner;
+  const palette = usePalette();
+  const color = isMine ? palette.you : palette.partner;
+
   return (
     <View
       style={[
@@ -55,14 +73,15 @@ export function GlowCard({
   color?: string;
   style?: ViewStyle;
 }) {
-  const edge = color ?? theme.accent;
+  const palette = usePalette();
+
+  const edge = color ?? palette.accent;
   const wash: readonly [string, string, string] = color
     ? [`${color}2E`, `${color}0D`, 'transparent']
-    : [`${theme.you}1F`, `${theme.accent}12`, `${theme.partner}1A`];
+    : [`${palette.you}1F`, `${palette.accent}12`, `${palette.partner}1A`];
 
   return (
-    <View
-      style={[styles.card, neonBorder(edge, color ? '66' : '33'), glow(edge, 26, '1F'), style]}>
+    <View style={[styles.card, neonBorder(edge, color ? '66' : '33'), glow(edge, 26, '1F'), style]}>
       <LinearGradient
         colors={wash}
         start={{ x: 0, y: 0 }}
@@ -74,32 +93,41 @@ export function GlowCard({
   );
 }
 
-/** The brand gradient as a button. Reserved for the one action that matters most. */
+/** The brand gradient as a button: the two of you, in the shape of an action. */
 export function GradientButton({
   title,
   onPress,
   disabled,
+  isLoading,
 }: {
   title: string;
   onPress: () => void;
   disabled?: boolean;
+  /** Shows a spinner in place of the label, so the wait is visible instead of dead. */
+  isLoading?: boolean;
 }) {
+  const palette = usePalette();
+
   return (
     <Pressable
       onPress={onPress}
-      disabled={disabled}
+      disabled={disabled || isLoading}
       style={({ pressed }) => [
         styles.gradientWrapper,
-        glow(theme.accent, 24, '66'),
+        glow(palette.accent, 24, '66'),
         pressed && styles.pressed,
-        disabled && styles.disabled,
+        (disabled || isLoading) && styles.disabled,
       ]}>
       <LinearGradient
-        colors={BrandGradient}
+        colors={palette.gradient}
         start={{ x: 0, y: 0 }}
         end={{ x: 1, y: 0 }}
         style={styles.gradientFill}>
-        <ThemedText style={styles.gradientLabel}>{title}</ThemedText>
+        {isLoading ? (
+          <Spinner color={theme.background} />
+        ) : (
+          <ThemedText style={styles.gradientLabel}>{title}</ThemedText>
+        )}
       </LinearGradient>
     </Pressable>
   );
@@ -118,6 +146,7 @@ export function GhostButton({
   disabled?: boolean;
 }) {
   const edge = color ?? theme.border;
+
   return (
     <Pressable
       onPress={onPress}
@@ -137,9 +166,11 @@ export function GhostButton({
 
 /** A one-pixel line of brand gradient. Used to divide without adding weight. */
 export function GradientRule() {
+  const palette = usePalette();
+
   return (
     <LinearGradient
-      colors={BrandGradient}
+      colors={palette.gradient}
       start={{ x: 0, y: 0 }}
       end={{ x: 1, y: 0 }}
       style={styles.rule}

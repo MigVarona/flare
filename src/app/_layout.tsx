@@ -1,8 +1,16 @@
 import { DarkTheme, Stack, ThemeProvider } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import { useEffect } from 'react';
+import { GestureHandlerRootView } from 'react-native-gesture-handler';
+import { KeyboardProvider } from 'react-native-keyboard-controller';
+import { SafeAreaListener } from 'react-native-safe-area-context';
+import { Uniwind } from 'uniwind';
+
+import '@/global.css';
 
 import { PushTokenRegistrar } from '@/components/push-token-registrar';
+import { ReminderAlarms } from '@/components/reminder-alarms';
+import { GluestackUIProvider } from '@/components/ui/gluestack-ui-provider';
 import { Colors } from '@/constants/theme';
 import { CoupleProvider, useCouple } from '@/context/couple-context';
 
@@ -24,12 +32,20 @@ const navigationTheme = {
 
 export default function RootLayout() {
   return (
-    <CoupleProvider>
-      <ThemeProvider value={navigationTheme}>
-        <PushTokenRegistrar />
-        <RootNavigator />
-      </ThemeProvider>
-    </CoupleProvider>
+    <SafeAreaListener onChange={({ insets }) => Uniwind.updateInsets(insets)}>
+      <GestureHandlerRootView className="flex-1 bg-background">
+        <KeyboardProvider>
+          <GluestackUIProvider mode="dark">
+            <CoupleProvider>
+              <ThemeProvider value={navigationTheme}>
+                <PushTokenRegistrar />
+                <RootNavigator />
+              </ThemeProvider>
+            </CoupleProvider>
+          </GluestackUIProvider>
+        </KeyboardProvider>
+      </GestureHandlerRootView>
+    </SafeAreaListener>
   );
 }
 

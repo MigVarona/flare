@@ -11,7 +11,11 @@ export function PushTokenRegistrar() {
 
   useEffect(() => {
     if (!user || !token) return;
-    updateDoc(doc(db, 'users', user.uid), { expoPushToken: token }).catch(() => {});
+    // Without this token the other phone can't reach yours, so a failure here is worth
+    // surfacing rather than swallowing.
+    updateDoc(doc(db, 'users', user.uid), { expoPushToken: token }).catch((error) =>
+      console.warn('[push] no se pudo guardar el token', error),
+    );
   }, [user, token]);
 
   return null;
