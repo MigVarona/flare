@@ -361,7 +361,7 @@ export default function HomeScreen() {
                         </View>
                         <View
                           style={[
-                            styles.identityPoint,
+                            styles.messagePoint,
                             { backgroundColor: messageColor },
                             glow(messageColor, 12, '77'),
                           ]}
@@ -520,11 +520,18 @@ const styles = StyleSheet.create({
     paddingHorizontal: Spacing[20],
     paddingVertical: Spacing[16],
     flexDirection: 'row',
-    alignItems: 'center',
+    alignItems: 'stretch',
     gap: Spacing[16],
   },
   messageCopy: {
     flex: 1,
     gap: Spacing[4],
+  },
+  messagePoint: {
+    width: 11,
+    height: 11,
+    alignSelf: 'flex-end',
+    borderRadius: Radius.pill,
+    marginBottom: Spacing[8],
   },
 });
