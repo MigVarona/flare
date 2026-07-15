@@ -9,18 +9,13 @@ import {
   onSnapshot,
   orderBy,
   query,
-  serverTimestamp,
   Timestamp,
   updateDoc,
 } from "firebase/firestore";
 import { Linking } from "react-native";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import { Pressable, ScrollView, TextInput, View } from "react-native";
-import Animated, {
-  FadeIn,
-  FadeOut,
-  LinearTransition,
-} from "react-native-reanimated";
+import Animated from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import {
@@ -28,22 +23,12 @@ import {
   GhostButton,
   GlowCard,
   GradientButton,
-  IdentityDot,
   ScreenHeader,
 } from "@/components/brand";
 import Svg, { Circle, Path, Rect } from "react-native-svg";
 
 import { CardSkeletons } from "@/components/loading";
 import { ThemedText } from "@/components/themed-text";
-import {
-  Actionsheet,
-  ActionsheetBackdrop,
-  ActionsheetContent,
-  ActionsheetDragIndicator,
-  ActionsheetDragIndicatorWrapper,
-  ActionsheetItem,
-  ActionsheetItemText,
-} from "@/components/ui/actionsheet";
 import {
   DateTimePicker,
   DateTimePickerTrigger,
@@ -89,22 +74,14 @@ function CalendarGlyph({ color, size = 18 }: { color: string; size?: number }) {
   );
 }
 
-type ReminderStatus = "pending" | "done";
-
 type Reminder = {
   id: string;
   title: string;
   /** Human-readable fallback for reminders created before dates were real. */
   dueLabel: string;
   dueAt: Date | null;
-  status: ReminderStatus;
   createdByUid?: string;
-  /** When it was marked done — which is what decides who leaves the history first. */
-  completedAt: Date | null;
 };
-
-/** How much history "Ya está" keeps. Like the messages: what's present is what exists. */
-const DoneCapacity = 7;
 
 export default function RemindersScreen() {
   const insets = useSafeAreaInsets();
@@ -118,7 +95,6 @@ export default function RemindersScreen() {
   const [isSending, setIsSending] = useState(false);
   const [title, setTitle] = useState("");
   const [dueAt, setDueAt] = useState<Date | undefined>(undefined);
-  const [actingOn, setActingOn] = useState<Reminder | null>(null);
   const [canNotify, setCanNotify] = useState<boolean | null>(null);
   /** Where each reminder sits. The field needs to know where its sources are. */
 
@@ -136,21 +112,18 @@ export default function RemindersScreen() {
     );
     return onSnapshot(remindersQuery, (snapshot) => {
       setReminders(
-        snapshot.docs.map((docSnapshot) => {
+        snapshot.docs.flatMap((docSnapshot) => {
           const data = docSnapshot.data();
+          if (data.status === "done") return [];
+
           const dueAtValue = data.dueAt as Timestamp | undefined;
-          return {
+          return [{
             id: docSnapshot.id,
             title: data.title as string,
             dueLabel: (data.dueLabel as string | undefined) ?? "Sin fecha",
             dueAt: dueAtValue ? dueAtValue.toDate() : null,
-            // Anything that isn't finished is still waiting, including the old 'postponed'.
-            status: data.status === "done" ? "done" : "pending",
             createdByUid: data.createdByUid as string | undefined,
-            completedAt:
-              ((data.completedAt as Timestamp | null) ?? null)?.toDate() ??
-              null,
-          };
+          }];
         }),
       );
       setIsLoading(false);
@@ -170,7 +143,7 @@ export default function RemindersScreen() {
         dueLabel: dueAt ? formatDueDate(dueAt) : "Sin fecha",
         status: "pending",
         createdByUid: user.uid,
-        createdAt: serverTimestamp(),
+        createdAt: Timestamp.now(),
       });
       setTitle("");
       setDueAt(undefined);
@@ -195,34 +168,11 @@ export default function RemindersScreen() {
     setCanNotify(permission.granted);
   };
 
-  /** History already asked to be forgotten, so a second snapshot doesn't ask again. */
-  const trimmedDone = useRef(new Set<string>());
-
-  useEffect(() => {
-    if (!coupleId) return;
-    const finished = reminders
-      .filter((reminder) => reminder.status === "done")
-      .sort(
-        (a, b) =>
-          (b.completedAt?.getTime() ?? 0) - (a.completedAt?.getTime() ?? 0),
-      );
-
-    for (const old of finished.slice(DoneCapacity)) {
-      if (trimmedDone.current.has(old.id)) continue;
-      trimmedDone.current.add(old.id);
-      void deleteDoc(doc(db, "couples", coupleId, "reminders", old.id));
-    }
-  }, [reminders, coupleId]);
-
   const markDone = async (reminder: Reminder) => {
     if (!coupleId) return;
-    setActingOn(null);
     // Putting a light out is a physical act, so it lands in the wrist too.
     void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-    await updateDoc(doc(db, "couples", coupleId, "reminders", reminder.id), {
-      status: "done",
-      completedAt: serverTimestamp(),
-    });
+    await deleteDoc(doc(db, "couples", coupleId, "reminders", reminder.id));
   };
 
   // Postponing used to mark the reminder 'postponed', which silenced its alarm for good and
@@ -248,7 +198,6 @@ export default function RemindersScreen() {
    * doing it ourselves is how events end up an hour off twice a year.
    */
   const sendToCalendar = async (reminder: Reminder) => {
-    setActingOn(null);
     if (!reminder.dueAt) return;
 
     const stamp = (date: Date) =>
@@ -269,26 +218,16 @@ export default function RemindersScreen() {
 
   const remove = async (reminder: Reminder) => {
     if (!coupleId) return;
-    setActingOn(null);
     await deleteDoc(doc(db, "couples", coupleId, "reminders", reminder.id));
   };
 
   // What's waiting is ordered by when it comes due, soonest first; the ones without a date
-  // wait at the back. What's done stays newest first, as it arrived.
+  // wait at the back.
   const pending = reminders
-    .filter((reminder) => reminder.status !== "done")
     .sort(
       (a, b) =>
         (a.dueAt?.getTime() ?? Number.MAX_SAFE_INTEGER) -
         (b.dueAt?.getTime() ?? Number.MAX_SAFE_INTEGER),
-    );
-  // Newest finished first. The ones without a completion time are from before it existed,
-  // which makes them the oldest by definition.
-  const done = reminders
-    .filter((reminder) => reminder.status === "done")
-    .sort(
-      (a, b) =>
-        (b.completedAt?.getTime() ?? 0) - (a.completedAt?.getTime() ?? 0),
     );
 
   return (
@@ -407,14 +346,6 @@ export default function RemindersScreen() {
                 return (
                   <View key={reminder.id}>
                     <GlowCard color={color}>
-                      <View className="flex-row items-center gap-2">
-                        <IdentityDot isMine={isMine} />
-                        <Eyebrow color={color}>
-                          {isMine
-                            ? "Lo pusiste tú"
-                            : `Te lo puso ${partnerName}`}
-                        </Eyebrow>
-                      </View>
                       <ThemedText type="headline">{reminder.title}</ThemedText>
                       <View className="flex-row items-center gap-2">
                         <ThemedText
@@ -487,34 +418,6 @@ export default function RemindersScreen() {
                   </View>
                 );
               })}
-
-              {done.length > 0 && (
-                <View className="mt-4 gap-2 px-1">
-                  <Eyebrow>Ya está</Eyebrow>
-                  {done.map((reminder) => (
-                    <Animated.View
-                      key={reminder.id}
-                      entering={FadeIn.duration(220)}
-                      exiting={FadeOut.duration(420)}
-                      layout={LinearTransition.duration(220)}
-                    >
-                      <Pressable
-                        onPress={() => setActingOn(reminder)}
-                        onLongPress={() => setActingOn(reminder)}
-                        className="flex-row items-center gap-2 active:opacity-70"
-                      >
-                        <View className="h-1.5 w-1.5 rounded-full bg-secondary" />
-                        <ThemedText
-                          type="small"
-                          className="flex-1 text-muted-foreground line-through"
-                        >
-                          {reminder.title}
-                        </ThemedText>
-                      </Pressable>
-                    </Animated.View>
-                  ))}
-                </View>
-              )}
             </>
           )}
         </View>
@@ -555,22 +458,6 @@ export default function RemindersScreen() {
         </Fab>
       )}
 
-      <Actionsheet isOpen={Boolean(actingOn)} onClose={() => setActingOn(null)}>
-        <ActionsheetBackdrop />
-        <ActionsheetContent>
-          <ActionsheetDragIndicatorWrapper>
-            <ActionsheetDragIndicator />
-          </ActionsheetDragIndicatorWrapper>
-          <ActionsheetItem onPress={() => actingOn && remove(actingOn)}>
-            <ActionsheetItemText className="text-destructive">
-              Borrar
-            </ActionsheetItemText>
-          </ActionsheetItem>
-          <ActionsheetItem onPress={() => setActingOn(null)}>
-            <ActionsheetItemText>Cancelar</ActionsheetItemText>
-          </ActionsheetItem>
-        </ActionsheetContent>
-      </Actionsheet>
     </>
   );
 }
