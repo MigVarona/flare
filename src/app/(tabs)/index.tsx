@@ -233,7 +233,7 @@ export default function HomeScreen() {
                           <ThemedText type="default" style={styles.homeItemTitle}>
                             {reminder.title}
                           </ThemedText>
-                          <ThemedText type="small" themeColor="textSecondary">
+                          <ThemedText type="small" style={styles.homeItemTime}>
                             {reminder.dueLabel}
                           </ThemedText>
                         </View>
@@ -290,7 +290,7 @@ export default function HomeScreen() {
                           <ThemedText type="default" style={styles.homeItemTitle}>
                             {previewText(message.text, 86)}
                           </ThemedText>
-                          <ThemedText type="small" themeColor="textSecondary">
+                          <ThemedText type="small" style={styles.homeItemTime}>
                             {messageTime(message.createdAt)}
                           </ThemedText>
                         </View>
@@ -378,9 +378,13 @@ const styles = StyleSheet.create({
     lineHeight: 26,
   },
   homeItemTitle: {
-    fontFamily: 'Outfit_500Medium',
-    fontSize: 16,
-    lineHeight: 22,
+    color: '#D8DBE8',
+    fontFamily: 'Outfit_400Regular',
+    fontSize: 15,
+    lineHeight: 21,
+  },
+  homeItemTime: {
+    color: '#7E849A',
   },
   reminderCarousel: {
     gap: Spacing[12],
