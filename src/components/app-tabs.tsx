@@ -98,25 +98,24 @@ const TabButton = forwardRef<View, TabTriggerSlotProps>(function TabButton(
 });
 
 function TabIcon({ name, color, focused }: { name: TabName; color: string; focused?: boolean }) {
-  // The Espacio icon is the two of you — the same two circles as the mark — so it wears the
-  // pair you chose, not the brand's. Everything else here is a plain shape and takes the
-  // active colour like any other.
-  const palette = usePalette();
-  const strokeWidth = focused ? 2.35 : 2;
+  const strokeWidth = focused ? 1.8 : 1.55;
 
   return (
-    <Svg width={22} height={22} viewBox="0 0 24 24">
+    <Svg width={21} height={21} viewBox="0 0 24 24">
       {name === 'Espacio' && (
-        <>
-          <Circle cx={9.2} cy={12} r={5.2} fill={focused ? palette.you : 'none'} stroke={color} strokeWidth={strokeWidth} />
-          <Circle cx={14.8} cy={12} r={5.2} fill={focused ? palette.partner : 'none'} stroke={color} strokeWidth={strokeWidth} />
-          <Circle cx={12} cy={12} r={2.2} fill={focused ? palette.accent : color} opacity={focused ? 0.9 : 0.55} />
-        </>
+        <Path
+          d="M5.4 11.1 12 5.4l6.6 5.7v6.1a2 2 0 0 1-2 2h-2.5v-4.8H9.9v4.8H7.4a2 2 0 0 1-2-2v-6.1Z"
+          fill="none"
+          stroke={color}
+          strokeWidth={strokeWidth}
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        />
       )}
       {name === 'Avisos' && (
         <>
           <Path
-            d="M7.2 10.5a4.8 4.8 0 0 1 9.6 0v3.1l1.5 2.3H5.7l1.5-2.3v-3.1Z"
+            d="M7.3 10.3a4.7 4.7 0 0 1 9.4 0v3.3l1.5 2.2H5.8l1.5-2.2v-3.3Z"
             fill="none"
             stroke={color}
             strokeWidth={strokeWidth}
@@ -124,7 +123,7 @@ function TabIcon({ name, color, focused }: { name: TabName; color: string; focus
             strokeLinejoin="round"
           />
           <Path
-            d="M10 18.1a2.15 2.15 0 0 0 4 0M12 4.9V3.7"
+            d="M10.1 18.1a2.05 2.05 0 0 0 3.8 0M12 5.1V3.9"
             fill="none"
             stroke={color}
             strokeWidth={strokeWidth}
@@ -135,18 +134,18 @@ function TabIcon({ name, color, focused }: { name: TabName; color: string; focus
       {name === 'Fotos' && (
         <>
           <Rect
-            x={4.2}
-            y={5.8}
-            width={15.6}
-            height={12.8}
-            rx={3.4}
+            x={4.6}
+            y={6.1}
+            width={14.8}
+            height={11.8}
+            rx={2.6}
             fill="none"
             stroke={color}
             strokeWidth={strokeWidth}
           />
-          <Circle cx={15.7} cy={9.5} r={1.25} fill={color} />
+          <Circle cx={15.4} cy={9.5} r={1.1} fill={color} />
           <Path
-            d="m6.7 16.1 3.4-3.5 2.8 2.6 1.6-1.5 2.9 2.4"
+            d="m6.9 16 3.1-3.2 2.6 2.5 1.5-1.4 3 2.1"
             fill="none"
             stroke={color}
             strokeWidth={strokeWidth}
@@ -158,19 +157,12 @@ function TabIcon({ name, color, focused }: { name: TabName; color: string; focus
       {name === 'Mensajes' && (
         <>
           <Path
-            d="M5 8.1A2.6 2.6 0 0 1 7.6 5.5h8.8A2.6 2.6 0 0 1 19 8.1v4.8a2.6 2.6 0 0 1-2.6 2.6h-3.7L8.6 18.7v-3.2h-1A2.6 2.6 0 0 1 5 12.9V8.1Z"
+            d="M5.2 8.5A2.5 2.5 0 0 1 7.7 6h8.6a2.5 2.5 0 0 1 2.5 2.5v4.7a2.5 2.5 0 0 1-2.5 2.5h-3.4l-4.2 3v-3h-1A2.5 2.5 0 0 1 5.2 13.2V8.5Z"
             fill="none"
             stroke={color}
             strokeWidth={strokeWidth}
             strokeLinecap="round"
             strokeLinejoin="round"
-          />
-          <Path
-            d="M8.6 10.1h6.8M8.6 12.8h4.2"
-            fill="none"
-            stroke={color}
-            strokeWidth={strokeWidth}
-            strokeLinecap="round"
           />
         </>
       )}
