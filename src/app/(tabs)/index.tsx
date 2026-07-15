@@ -480,8 +480,8 @@ const styles = StyleSheet.create({
     gap: Spacing[8],
   },
   identityPoint: {
-    width: 8,
-    height: 8,
+    width: 11,
+    height: 11,
     borderRadius: Radius.pill,
   },
   carouselDots: {
