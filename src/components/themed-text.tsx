@@ -44,10 +44,10 @@ const styles = StyleSheet.create({
   },
   /** What every screen is called. */
   title: {
-    fontFamily: 'Outfit_800ExtraBold',
-    fontSize: 34,
-    lineHeight: 40,
-    letterSpacing: -0.8,
+    fontFamily: 'Outfit_700Bold',
+    fontSize: 31,
+    lineHeight: 37,
+    letterSpacing: 0,
   },
   /** The thing a card is actually about: a reminder, a message, a name. */
   headline: {
