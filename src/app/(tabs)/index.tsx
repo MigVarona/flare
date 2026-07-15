@@ -1,5 +1,3 @@
-import { Image } from 'expo-image';
-import { LinearGradient } from 'expo-linear-gradient';
 import { router } from 'expo-router';
 import {
   collection,
@@ -11,7 +9,16 @@ import {
   where,
 } from 'firebase/firestore';
 import { useEffect, useState } from 'react';
-import { Pressable, Share, StyleSheet, View } from 'react-native';
+import {
+  NativeScrollEvent,
+  NativeSyntheticEvent,
+  Pressable,
+  ScrollView,
+  Share,
+  StyleSheet,
+  useWindowDimensions,
+  View,
+} from 'react-native';
 import Animated from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -22,6 +29,7 @@ import {
   BottomTabInset,
   Colors,
   MaxContentWidth,
+  glow,
   neonBorder,
   Radius,
   Spacing,
@@ -32,29 +40,38 @@ import { db } from '@/lib/firebase';
 
 const theme = Colors.dark;
 
-type Reminder = { title: string; dueLabel: string; createdByUid?: string };
+type Reminder = { id: string; title: string; dueLabel: string; createdByUid?: string };
+type Message = { id: string; text: string; senderId: string; createdAt: Date | null };
 
 /** A reminder with no date isn't due before anything: it waits at the end. */
 function dueTime(dueAt: Timestamp | null | undefined) {
   return dueAt ? dueAt.toMillis() : Number.MAX_SAFE_INTEGER;
 }
-type Photo = { url: string; uploadedByUid: string };
-type Message = { text: string; senderId: string };
 
 function previewText(text: string, max = 92) {
-  return text.length > max ? `${text.slice(0, max - 1).trim()}…` : text;
+  return text.length > max ? `${text.slice(0, max - 1).trim()}...` : text;
+}
+
+function messageTime(date: Date | null) {
+  if (!date) return '';
+
+  return date.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' });
 }
 
 export default function HomeScreen() {
   const safeAreaInsets = useSafeAreaInsets();
+  const { width } = useWindowDimensions();
   const { user, coupleId, isWaitingForPartner, inviteCode, spaceName, myName, partnerName } =
     useCouple();
   const palette = usePalette();
 
-  const [nextReminder, setNextReminder] = useState<Reminder | null>(null);
-  const [lastMessage, setLastMessage] = useState<Message | null>(null);
-  const [recentPhotos, setRecentPhotos] = useState<Photo[]>([]);
+  const [pendingReminders, setPendingReminders] = useState<Reminder[]>([]);
+  const [activeReminderIndex, setActiveReminderIndex] = useState(0);
+  const [recentMessages, setRecentMessages] = useState<Message[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+
+  const reminderCardWidth = Math.min(MaxContentWidth - Spacing[48], width - Spacing[48]);
+  const reminderSnapWidth = reminderCardWidth + Spacing[12];
 
   useEffect(() => {
     if (!coupleId) return undefined;
@@ -66,20 +83,22 @@ export default function HomeScreen() {
       // "Next" means the one that comes due first — not the one written first. Sorting
       // here rather than in the query keeps the dateless ones, which have nowhere to
       // fall in an ordered query, at the back instead of at the front.
-      const first = snapshot.docs
-        .map((docSnapshot) => docSnapshot.data())
-        .sort((a, b) => dueTime(a.dueAt as Timestamp | null) - dueTime(b.dueAt as Timestamp | null))
-        .at(0);
+      const next = snapshot.docs
+        .map((docSnapshot) => ({ id: docSnapshot.id, data: docSnapshot.data() }))
+        .sort(
+          (a, b) =>
+            dueTime(a.data.dueAt as Timestamp | null) -
+            dueTime(b.data.dueAt as Timestamp | null),
+        )
+        .map(({ id, data }) => ({
+          id,
+          title: data.title as string,
+          dueLabel: data.dueLabel as string,
+          createdByUid: data.createdByUid as string | undefined,
+        }));
 
-      setNextReminder(
-        first
-          ? {
-              title: first.title as string,
-              dueLabel: first.dueLabel as string,
-              createdByUid: first.createdByUid as string | undefined,
-            }
-          : null,
-      );
+      setPendingReminders(next);
+      setActiveReminderIndex((index) => Math.min(index, Math.max(next.length - 1, 0)));
       setIsLoading(false);
     });
   }, [coupleId]);
@@ -89,48 +108,33 @@ export default function HomeScreen() {
     const messagesQuery = query(
       collection(db, 'couples', coupleId, 'messages'),
       orderBy('createdAt', 'desc'),
-      limit(1),
+      limit(5),
     );
     return onSnapshot(messagesQuery, (snapshot) => {
-      const first = snapshot.docs[0];
-      setLastMessage(
-        first
-          ? { text: first.data().text as string, senderId: first.data().senderId as string }
-          : null,
+      setRecentMessages(
+        snapshot.docs
+          .map((docSnapshot) => {
+            const data = docSnapshot.data();
+            const createdAt = data.createdAt as Timestamp | undefined;
+
+            return {
+              id: docSnapshot.id,
+              text: data.text as string,
+              senderId: data.senderId as string,
+              createdAt: createdAt ? createdAt.toDate() : null,
+            };
+          })
+          .reverse(),
       );
     });
   }, [coupleId]);
 
-  useEffect(() => {
-    if (!coupleId) return undefined;
-    const photosQuery = query(
-      collection(db, 'couples', coupleId, 'photos'),
-      orderBy('createdAt', 'desc'),
-      limit(1),
-    );
-    return onSnapshot(photosQuery, (snapshot) => {
-      setRecentPhotos(
-        snapshot.docs.map((docSnapshot) => ({
-          url: docSnapshot.data().imageUrl as string,
-          uploadedByUid: docSnapshot.data().uploadedByUid as string,
-        })),
-      );
-    });
-  }, [coupleId]);
+  const colorForUid = (uid?: string) => (uid === user?.uid ? palette.you : palette.partner);
 
-  const lastPhoto = recentPhotos[0] ?? null;
-  const lastPhotoColor =
-    lastPhoto?.uploadedByUid === user?.uid ? palette.you : palette.partner;
-  const nextReminderColor = nextReminder
-    ? nextReminder.createdByUid === user?.uid
-      ? palette.you
-      : palette.partner
-    : undefined;
-  const lastMessageColor = lastMessage
-    ? lastMessage.senderId === user?.uid
-      ? palette.you
-      : palette.partner
-    : undefined;
+  function handleReminderScroll(event: NativeSyntheticEvent<NativeScrollEvent>) {
+    const nextIndex = Math.round(event.nativeEvent.contentOffset.x / reminderSnapWidth);
+    setActiveReminderIndex(Math.min(Math.max(nextIndex, 0), pendingReminders.length - 1));
+  }
 
   return (
     <View style={styles.screen}>
@@ -190,70 +194,124 @@ export default function HomeScreen() {
           </GlowCard>
         )}
 
-        {isLoading && <CardSkeletons count={3} />}
+        {isLoading && <CardSkeletons count={2} />}
 
         {!isLoading && (
-          <Pressable onPress={() => router.push('/reminders')} className="active:opacity-80">
-            <GlowCard color={nextReminderColor} style={styles.compactCard}>
-              <Eyebrow>Avisos</Eyebrow>
-              {nextReminder ? (
-                <>
-                  <ThemedText type="headline">{nextReminder.title}</ThemedText>
-                  <ThemedText type="small" themeColor="textSecondary">
-                    {nextReminder.dueLabel}
-                  </ThemedText>
-                </>
-              ) : (
-                <>
+          <View style={styles.section}>
+            <ThemedText type="headline" style={styles.sectionTitle}>
+              Avisos
+            </ThemedText>
+            {pendingReminders.length > 0 ? (
+              <>
+                <ScrollView
+                  horizontal
+                  showsHorizontalScrollIndicator={false}
+                  decelerationRate="fast"
+                  snapToInterval={reminderSnapWidth}
+                  snapToAlignment="start"
+                  contentContainerStyle={styles.reminderCarousel}
+                  onMomentumScrollEnd={handleReminderScroll}>
+                  {pendingReminders.map((reminder) => {
+                    const reminderColor = colorForUid(reminder.createdByUid);
+
+                    return (
+                      <Pressable
+                        key={reminder.id}
+                        onPress={() => router.push('/reminders')}
+                        style={({ pressed }) => [styles.reminderPressable, pressed && styles.pressed]}>
+                        <GlowCard
+                          color={reminderColor}
+                          style={{ ...styles.reminderCard, width: reminderCardWidth }}>
+                          <View style={styles.reminderMeta}>
+                            <View
+                              style={[
+                                styles.identityPoint,
+                                { backgroundColor: reminderColor },
+                                glow(reminderColor, 12, '77'),
+                              ]}
+                            />
+                            <Eyebrow>Próximo</Eyebrow>
+                          </View>
+                          <ThemedText type="headline">{reminder.title}</ThemedText>
+                          <ThemedText type="small" themeColor="textSecondary">
+                            {reminder.dueLabel}
+                          </ThemedText>
+                        </GlowCard>
+                      </Pressable>
+                    );
+                  })}
+                </ScrollView>
+                {pendingReminders.length > 1 && (
+                  <View style={styles.carouselDots}>
+                    {pendingReminders.map((reminder, index) => (
+                      <View
+                        key={reminder.id}
+                        style={[
+                          styles.carouselDot,
+                          index === activeReminderIndex && styles.carouselDotActive,
+                        ]}
+                      />
+                    ))}
+                  </View>
+                )}
+              </>
+            ) : (
+              <Pressable onPress={() => router.push('/reminders')} className="active:opacity-80">
+                <GlowCard style={styles.emptyCard}>
                   <ThemedText type="small" themeColor="textSecondary">
                     Nada pendiente por ahora.
                   </ThemedText>
-                </>
-              )}
-            </GlowCard>
-          </Pressable>
+                </GlowCard>
+              </Pressable>
+            )}
+          </View>
         )}
 
-        {isLoading ? null : lastPhoto ? (
-          <Pressable onPress={() => router.push('/gallery')}>
-            <View style={[styles.photoCard, neonBorder(lastPhotoColor, 'BB')]}>
-              <Image source={{ uri: lastPhoto.url }} style={styles.photoHero} />
-              <LinearGradient
-                colors={['transparent', 'rgba(1,3,15,0.55)', 'rgba(1,3,15,0.95)']}
-                style={styles.photoScrim}
-              />
-              <View style={styles.photoOverlay}>
-                <Eyebrow>Fotos</Eyebrow>
-              </View>
+        {!isLoading && (
+          <Pressable onPress={() => router.push('/chat')} className="active:opacity-80">
+            <View style={styles.section}>
+              <ThemedText type="headline" style={styles.sectionTitle}>
+                Mensajes
+              </ThemedText>
+              {recentMessages.length > 0 ? (
+                <View style={styles.messageStack}>
+                  {recentMessages.map((message) => {
+                    const messageColor = colorForUid(message.senderId);
+
+                    return (
+                      <View
+                        key={message.id}
+                        style={[
+                          styles.messageBubble,
+                          neonBorder(messageColor, '99'),
+                          { backgroundColor: `${messageColor}0D` },
+                        ]}>
+                        <View style={styles.messageCopy}>
+                          <ThemedText type="headline">{previewText(message.text, 86)}</ThemedText>
+                          <ThemedText type="small" themeColor="textSecondary">
+                            {messageTime(message.createdAt)}
+                          </ThemedText>
+                        </View>
+                        <View
+                          style={[
+                            styles.identityPoint,
+                            { backgroundColor: messageColor },
+                            glow(messageColor, 12, '77'),
+                          ]}
+                        />
+                      </View>
+                    );
+                  })}
+                </View>
+              ) : (
+                <GlowCard style={styles.emptyCard}>
+                  <ThemedText type="small" themeColor="textSecondary">
+                    Caben cinco. El primero sigue libre.
+                  </ThemedText>
+                </GlowCard>
+              )}
             </View>
           </Pressable>
-        ) : (
-          <Pressable onPress={() => router.push('/gallery')} className="active:opacity-80">
-            <GlowCard style={styles.compactCard}>
-              <Eyebrow>Fotos</Eyebrow>
-              <ThemedText type="small" themeColor="textSecondary">
-                Todavía no hay fotos.
-              </ThemedText>
-            </GlowCard>
-          </Pressable>
-        )}
-
-        {isLoading ? null : (
-        <Pressable onPress={() => router.push('/chat')} className="active:opacity-80">
-        <GlowCard color={lastMessageColor} style={styles.compactCard}>
-          <Eyebrow>Mensajes</Eyebrow>
-          {lastMessage ? (
-            <>
-              <ThemedText type="headline">{previewText(lastMessage.text)}</ThemedText>
-            </>
-          ) : (
-            <ThemedText type="small" themeColor="textSecondary">
-              Caben cinco. El primero sigue libre.
-            </ThemedText>
-          )}
-
-        </GlowCard>
-        </Pressable>
         )}
       </View>
     </Animated.ScrollView>
@@ -305,25 +363,65 @@ const styles = StyleSheet.create({
   cardAction: {
     marginTop: Spacing[8],
   },
-  compactCard: {
+  section: {
+    gap: Spacing[12],
+  },
+  sectionTitle: {
+    marginTop: Spacing[8],
+  },
+  reminderCarousel: {
+    gap: Spacing[12],
+    paddingRight: Spacing[4],
+  },
+  reminderPressable: {
+    flexShrink: 0,
+  },
+  reminderCard: {
+    minHeight: 154,
+    justifyContent: 'center',
+  },
+  reminderMeta: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing[8],
+  },
+  identityPoint: {
+    width: 8,
+    height: 8,
+    borderRadius: Radius.pill,
+  },
+  carouselDots: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    gap: Spacing[8],
+  },
+  carouselDot: {
+    width: 6,
+    height: 6,
+    borderRadius: Radius.pill,
+    backgroundColor: theme.border,
+  },
+  carouselDotActive: {
+    width: 18,
+    backgroundColor: theme.text,
+  },
+  emptyCard: {
     marginTop: 0,
   },
-  photoCard: {
-    height: 240,
+  messageStack: {
+    gap: Spacing[12],
+  },
+  messageBubble: {
+    minHeight: 76,
     borderRadius: Radius.large,
-    overflow: 'hidden',
-    justifyContent: 'flex-end',
-    backgroundColor: theme.backgroundElement,
+    paddingHorizontal: Spacing[20],
+    paddingVertical: Spacing[16],
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing[16],
   },
-  photoHero: {
-    ...StyleSheet.absoluteFill,
-  },
-  photoScrim: {
-    ...StyleSheet.absoluteFill,
-    top: '35%',
-  },
-  photoOverlay: {
-    gap: Spacing[8],
-    padding: Spacing[24],
+  messageCopy: {
+    flex: 1,
+    gap: Spacing[4],
   },
 });
