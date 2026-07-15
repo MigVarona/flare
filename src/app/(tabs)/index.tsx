@@ -195,12 +195,7 @@ export default function HomeScreen() {
         {!isLoading && (
           <Pressable onPress={() => router.push('/reminders')} className="active:opacity-80">
             <GlowCard color={nextReminderColor} style={styles.compactCard}>
-              <View style={styles.cardHeaderRow}>
-                <Eyebrow>Avisos</Eyebrow>
-                <ThemedText type="smallBold" style={{ color: palette.accent }}>
-                  Abrir
-                </ThemedText>
-              </View>
+              <Eyebrow>Avisos</Eyebrow>
               {nextReminder ? (
                 <>
                   <ThemedText type="headline">{nextReminder.title}</ThemedText>
@@ -228,24 +223,14 @@ export default function HomeScreen() {
                 style={styles.photoScrim}
               />
               <View style={styles.photoOverlay}>
-                <View style={styles.cardHeaderRow}>
-                  <Eyebrow>Fotos</Eyebrow>
-                  <ThemedText type="smallBold" style={{ color: lastPhotoColor }}>
-                    Ver
-                  </ThemedText>
-                </View>
+                <Eyebrow>Fotos</Eyebrow>
               </View>
             </View>
           </Pressable>
         ) : (
           <Pressable onPress={() => router.push('/gallery')} className="active:opacity-80">
             <GlowCard style={styles.compactCard}>
-              <View style={styles.cardHeaderRow}>
-                <Eyebrow>Fotos</Eyebrow>
-                <ThemedText type="smallBold" style={{ color: palette.partner }}>
-                  Subir
-                </ThemedText>
-              </View>
+              <Eyebrow>Fotos</Eyebrow>
               <ThemedText type="small" themeColor="textSecondary">
                 Todavía no hay fotos.
               </ThemedText>
@@ -256,12 +241,7 @@ export default function HomeScreen() {
         {isLoading ? null : (
         <Pressable onPress={() => router.push('/chat')} className="active:opacity-80">
         <GlowCard color={lastMessageColor} style={styles.compactCard}>
-          <View style={styles.cardHeaderRow}>
-            <Eyebrow>Mensajes</Eyebrow>
-            <ThemedText type="smallBold" style={{ color: lastMessageColor ?? palette.you }}>
-              Escribir
-            </ThemedText>
-          </View>
+          <Eyebrow>Mensajes</Eyebrow>
           {lastMessage ? (
             <>
               <ThemedText type="headline">{previewText(lastMessage.text)}</ThemedText>
@@ -327,12 +307,6 @@ const styles = StyleSheet.create({
   },
   compactCard: {
     marginTop: 0,
-  },
-  cardHeaderRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    gap: Spacing[12],
   },
   photoCard: {
     height: 240,
