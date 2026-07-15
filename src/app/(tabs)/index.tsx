@@ -219,9 +219,7 @@ export default function HomeScreen() {
                         key={reminder.id}
                         onPress={() => router.push('/reminders')}
                         style={({ pressed }) => [styles.reminderPressable, pressed && styles.pressed]}>
-                        <GlowCard
-                          color={reminderColor}
-                          style={{ ...styles.reminderCard, width: reminderCardWidth }}>
+                        <View style={[styles.reminderCard, { width: reminderCardWidth }]}>
                           <View style={styles.reminderMeta}>
                             <View
                               style={[
@@ -238,7 +236,7 @@ export default function HomeScreen() {
                           <ThemedText type="small" themeColor="textSecondary">
                             {reminder.dueLabel}
                           </ThemedText>
-                        </GlowCard>
+                        </View>
                       </Pressable>
                     );
                   })}
@@ -394,6 +392,10 @@ const styles = StyleSheet.create({
   reminderCard: {
     minHeight: 142,
     justifyContent: 'center',
+    gap: Spacing[8],
+    borderRadius: Radius.large,
+    backgroundColor: theme.backgroundElement,
+    padding: Spacing[24],
   },
   reminderMeta: {
     flexDirection: 'row',
