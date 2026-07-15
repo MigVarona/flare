@@ -299,7 +299,7 @@ export default function HomeScreen() {
                             accessibilityRole="button"
                             accessibilityLabel="Añadir aviso al calendario"
                             style={({ pressed }) => [styles.bellButton, pressed && styles.pressed]}>
-                            <BellGlyph color={theme.textSecondary} size={18} />
+                            <BellGlyph color={theme.textSecondary} size={21} />
                           </Pressable>
                         </View>
                       </Pressable>
@@ -503,11 +503,12 @@ const styles = StyleSheet.create({
     marginTop: 0,
   },
   bellButton: {
-    width: 32,
-    height: 32,
+    width: 36,
+    height: 36,
     alignItems: 'center',
     justifyContent: 'center',
     borderRadius: Radius.pill,
+    transform: [{ translateY: -8 }],
   },
   messageStack: {
     gap: Spacing[12],
