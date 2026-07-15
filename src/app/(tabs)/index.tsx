@@ -121,6 +121,16 @@ export default function HomeScreen() {
   const lastPhoto = recentPhotos[0] ?? null;
   const lastPhotoColor =
     lastPhoto?.uploadedByUid === user?.uid ? palette.you : palette.partner;
+  const nextReminderColor = nextReminder
+    ? nextReminder.createdByUid === user?.uid
+      ? palette.you
+      : palette.partner
+    : undefined;
+  const lastMessageColor = lastMessage
+    ? lastMessage.senderId === user?.uid
+      ? palette.you
+      : palette.partner
+    : undefined;
 
   return (
     <View style={styles.screen}>
@@ -184,7 +194,7 @@ export default function HomeScreen() {
 
         {!isLoading && (
           <Pressable onPress={() => router.push('/reminders')} className="active:opacity-80">
-            <GlowCard style={styles.compactCard}>
+            <GlowCard color={nextReminderColor} style={styles.compactCard}>
               <View style={styles.cardHeaderRow}>
                 <Eyebrow>Avisos</Eyebrow>
                 <ThemedText type="smallBold" style={{ color: palette.accent }}>
@@ -193,14 +203,6 @@ export default function HomeScreen() {
               </View>
               {nextReminder ? (
                 <>
-                  <View style={styles.authorRow}>
-                    <IdentityDot isMine={nextReminder.createdByUid === user?.uid} />
-                    <ThemedText type="small" themeColor="textSecondary">
-                      {nextReminder.createdByUid === user?.uid
-                        ? 'Lo pusiste tú'
-                        : `Lo puso ${partnerName}`}
-                    </ThemedText>
-                  </View>
                   <ThemedText type="headline">{nextReminder.title}</ThemedText>
                   <ThemedText type="small" themeColor="textSecondary">
                     {nextReminder.dueLabel}
@@ -232,14 +234,6 @@ export default function HomeScreen() {
                     Ver
                   </ThemedText>
                 </View>
-                <View style={styles.authorRow}>
-                  <IdentityDot isMine={lastPhoto.uploadedByUid === user?.uid} />
-                  <ThemedText type="small" themeColor="textSecondary">
-                    {lastPhoto.uploadedByUid === user?.uid
-                      ? 'La subiste tú'
-                      : `La subió ${partnerName}`}
-                  </ThemedText>
-                </View>
               </View>
             </View>
           </Pressable>
@@ -261,21 +255,15 @@ export default function HomeScreen() {
 
         {isLoading ? null : (
         <Pressable onPress={() => router.push('/chat')} className="active:opacity-80">
-        <GlowCard style={styles.compactCard}>
+        <GlowCard color={lastMessageColor} style={styles.compactCard}>
           <View style={styles.cardHeaderRow}>
             <Eyebrow>Mensajes</Eyebrow>
-            <ThemedText type="smallBold" style={{ color: palette.you }}>
+            <ThemedText type="smallBold" style={{ color: lastMessageColor ?? palette.you }}>
               Escribir
             </ThemedText>
           </View>
           {lastMessage ? (
             <>
-              <View style={styles.authorRow}>
-                <IdentityDot isMine={lastMessage.senderId === user?.uid} />
-                <ThemedText type="small" themeColor="textSecondary">
-                  {lastMessage.senderId === user?.uid ? myName : partnerName}
-                </ThemedText>
-              </View>
               <ThemedText type="headline">{previewText(lastMessage.text)}</ThemedText>
             </>
           ) : (
@@ -333,11 +321,6 @@ const styles = StyleSheet.create({
   },
   presenceGap: {
     width: Spacing[8],
-  },
-  authorRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: Spacing[8],
   },
   cardAction: {
     marginTop: Spacing[8],
