@@ -155,7 +155,7 @@ export default function HomeScreen() {
               <Eyebrow>Ajustes</Eyebrow>
             </Pressable>
           </View>
-          <ThemedText type="title" style={styles.spaceTitle}>
+          <ThemedText type="default" style={styles.spaceTitle}>
             {spaceName ?? 'Vuestro espacio'}
           </ThemedText>
           <View style={styles.presenceRow}>
@@ -232,7 +232,9 @@ export default function HomeScreen() {
                             />
                             <Eyebrow>Próximo</Eyebrow>
                           </View>
-                          <ThemedText type="headline">{reminder.title}</ThemedText>
+                          <ThemedText type="default" style={styles.homeItemTitle}>
+                            {reminder.title}
+                          </ThemedText>
                           <ThemedText type="small" themeColor="textSecondary">
                             {reminder.dueLabel}
                           </ThemedText>
@@ -287,7 +289,9 @@ export default function HomeScreen() {
                           { backgroundColor: `${messageColor}0D` },
                         ]}>
                         <View style={styles.messageCopy}>
-                          <ThemedText type="headline">{previewText(message.text, 86)}</ThemedText>
+                          <ThemedText type="default" style={styles.homeItemTitle}>
+                            {previewText(message.text, 86)}
+                          </ThemedText>
                           <ThemedText type="small" themeColor="textSecondary">
                             {messageTime(message.createdAt)}
                           </ThemedText>
@@ -351,6 +355,9 @@ const styles = StyleSheet.create({
   },
   spaceTitle: {
     marginTop: Spacing[12],
+    fontFamily: 'Outfit_700Bold',
+    fontSize: 30,
+    lineHeight: 36,
   },
   presenceRow: {
     flexDirection: 'row',
@@ -368,6 +375,14 @@ const styles = StyleSheet.create({
   },
   sectionTitle: {
     marginTop: Spacing[8],
+    fontFamily: 'Outfit_600SemiBold',
+    fontSize: 20,
+    lineHeight: 26,
+  },
+  homeItemTitle: {
+    fontFamily: 'Outfit_500Medium',
+    fontSize: 16,
+    lineHeight: 22,
   },
   reminderCarousel: {
     gap: Spacing[12],
@@ -377,7 +392,7 @@ const styles = StyleSheet.create({
     flexShrink: 0,
   },
   reminderCard: {
-    minHeight: 154,
+    minHeight: 142,
     justifyContent: 'center',
   },
   reminderMeta: {
