@@ -506,9 +506,10 @@ const styles = StyleSheet.create({
     width: 36,
     height: 36,
     alignItems: 'center',
+    alignSelf: 'flex-start',
     justifyContent: 'center',
     borderRadius: Radius.pill,
-    transform: [{ translateY: -8 }],
+    transform: [{ translateY: -6 }],
   },
   messageStack: {
     gap: Spacing[12],
