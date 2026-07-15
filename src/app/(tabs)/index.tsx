@@ -12,6 +12,7 @@ import { useEffect, useState } from 'react';
 import {
   NativeScrollEvent,
   NativeSyntheticEvent,
+  Linking,
   Pressable,
   ScrollView,
   Share,
@@ -21,6 +22,7 @@ import {
 } from 'react-native';
 import Animated from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import Svg, { Path } from 'react-native-svg';
 
 import { BrandLockup, Eyebrow, GhostButton, GlowCard, IdentityDot } from '@/components/brand';
 import { CardSkeletons } from '@/components/loading';
@@ -40,7 +42,13 @@ import { db } from '@/lib/firebase';
 
 const theme = Colors.dark;
 
-type Reminder = { id: string; title: string; dueLabel: string; createdByUid?: string };
+type Reminder = {
+  id: string;
+  title: string;
+  dueLabel: string;
+  dueAt: Date | null;
+  createdByUid?: string;
+};
 type Message = { id: string; text: string; senderId: string; createdAt: Date | null };
 
 /** A reminder with no date isn't due before anything: it waits at the end. */
@@ -56,6 +64,28 @@ function messageTime(date: Date | null) {
   if (!date) return '';
 
   return date.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' });
+}
+
+function BellGlyph({ color, size = 18 }: { color: string; size?: number }) {
+  return (
+    <Svg width={size} height={size} viewBox="0 0 24 24">
+      <Path
+        d="M7.2 10.5a4.8 4.8 0 0 1 9.6 0v3.1l1.5 2.3H5.7l1.5-2.3v-3.1Z"
+        fill="none"
+        stroke={color}
+        strokeWidth={1.8}
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+      <Path
+        d="M10 18.1a2.15 2.15 0 0 0 4 0M12 4.9V3.7"
+        fill="none"
+        stroke={color}
+        strokeWidth={1.8}
+        strokeLinecap="round"
+      />
+    </Svg>
+  );
 }
 
 export default function HomeScreen() {
@@ -94,6 +124,7 @@ export default function HomeScreen() {
           id,
           title: data.title as string,
           dueLabel: data.dueLabel as string,
+          dueAt: (data.dueAt as Timestamp | undefined)?.toDate() ?? null,
           createdByUid: data.createdByUid as string | undefined,
         }));
 
@@ -134,6 +165,27 @@ export default function HomeScreen() {
   function handleReminderScroll(event: NativeSyntheticEvent<NativeScrollEvent>) {
     const nextIndex = Math.round(event.nativeEvent.contentOffset.x / reminderSnapWidth);
     setActiveReminderIndex(Math.min(Math.max(nextIndex, 0), pendingReminders.length - 1));
+  }
+
+  async function sendReminderToCalendar(reminder: Reminder) {
+    if (!reminder.dueAt) {
+      router.push('/reminders');
+      return;
+    }
+
+    const stamp = (date: Date) => date.toISOString().replace(/[-:]|\.\d{3}/g, '');
+    const end = new Date(reminder.dueAt.getTime() + 30 * 60 * 1000);
+    const url =
+      'https://calendar.google.com/calendar/render?action=TEMPLATE' +
+      `&text=${encodeURIComponent(reminder.title)}` +
+      `&dates=${stamp(reminder.dueAt)}/${stamp(end)}` +
+      `&details=${encodeURIComponent('Aviso de Churri')}`;
+
+    try {
+      await Linking.openURL(url);
+    } catch {
+      router.push('/reminders');
+    }
   }
 
   return (
@@ -220,22 +272,35 @@ export default function HomeScreen() {
                         onPress={() => router.push('/reminders')}
                         style={({ pressed }) => [styles.reminderPressable, pressed && styles.pressed]}>
                         <View style={[styles.reminderCard, { width: reminderCardWidth }]}>
-                          <View style={styles.reminderMeta}>
-                            <View
-                              style={[
-                                styles.identityPoint,
-                                { backgroundColor: reminderColor },
-                                glow(reminderColor, 12, '77'),
-                              ]}
-                            />
-                            <Eyebrow>Próximo</Eyebrow>
+                          <View style={styles.reminderBody}>
+                            <View style={styles.reminderMeta}>
+                              <View
+                                style={[
+                                  styles.identityPoint,
+                                  { backgroundColor: reminderColor },
+                                  glow(reminderColor, 12, '77'),
+                                ]}
+                              />
+                              <Eyebrow>Próximo</Eyebrow>
+                            </View>
+                            <ThemedText type="default" style={styles.homeItemTitle}>
+                              {reminder.title}
+                            </ThemedText>
+                            <ThemedText type="small" style={styles.homeItemTime}>
+                              {reminder.dueLabel}
+                            </ThemedText>
                           </View>
-                          <ThemedText type="default" style={styles.homeItemTitle}>
-                            {reminder.title}
-                          </ThemedText>
-                          <ThemedText type="small" style={styles.homeItemTime}>
-                            {reminder.dueLabel}
-                          </ThemedText>
+                          <Pressable
+                            onPress={(event) => {
+                              event.stopPropagation();
+                              void sendReminderToCalendar(reminder);
+                            }}
+                            hitSlop={12}
+                            accessibilityRole="button"
+                            accessibilityLabel="Añadir aviso al calendario"
+                            style={({ pressed }) => [styles.bellButton, pressed && styles.pressed]}>
+                            <BellGlyph color={theme.textSecondary} size={18} />
+                          </Pressable>
                         </View>
                       </Pressable>
                     );
@@ -395,11 +460,19 @@ const styles = StyleSheet.create({
   },
   reminderCard: {
     minHeight: 142,
-    justifyContent: 'center',
-    gap: Spacing[8],
+    alignItems: 'center',
     borderRadius: Radius.large,
     backgroundColor: theme.backgroundElement,
+    borderWidth: 1,
+    borderColor: `${theme.textSecondary}35`,
+    flexDirection: 'row',
+    gap: Spacing[16],
+    justifyContent: 'space-between',
     padding: Spacing[24],
+  },
+  reminderBody: {
+    flex: 1,
+    gap: Spacing[8],
   },
   reminderMeta: {
     flexDirection: 'row',
@@ -428,6 +501,13 @@ const styles = StyleSheet.create({
   },
   emptyCard: {
     marginTop: 0,
+  },
+  bellButton: {
+    width: 32,
+    height: 32,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: Radius.pill,
   },
   messageStack: {
     gap: Spacing[12],
