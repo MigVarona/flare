@@ -1,0 +1,11 @@
+name = "churri-photos"
+main = "src/index.ts"
+compatibility_date = "2026-07-01"
+
+[vars]
+FIREBASE_PROJECT_ID = "retiro360-51909"
+CLOUDINARY_CLOUD_NAME = "dyji6w7iu"
+
+# CLOUDINARY_API_KEY and CLOUDINARY_API_SECRET are not here on purpose: they go in with
+#   npx wrangler secret put CLOUDINARY_API_SECRET
+# so they never touch the repository.

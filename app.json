@@ -1,6 +1,6 @@
 {
   "expo": {
-    "name": "churriapp",
+    "name": "Churri",
     "slug": "churriapp",
     "version": "1.0.0",
     "orientation": "portrait",
@@ -13,8 +13,12 @@
     "android": {
       "package": "com.mivarona.churriapp",
       "googleServicesFile": "./google-services.json",
+      "permissions": [
+        "SCHEDULE_EXACT_ALARM",
+        "com.android.alarm.permission.SET_ALARM"
+      ],
       "adaptiveIcon": {
-        "backgroundColor": "#0B0710",
+        "backgroundColor": "#01030F",
         "foregroundImage": "./assets/images/android-icon-foreground.png",
         "backgroundImage": "./assets/images/android-icon-background.png",
         "monochromeImage": "./assets/images/android-icon-monochrome.png"
@@ -33,12 +37,19 @@
       [
         "expo-splash-screen",
         {
-          "backgroundColor": "#0B0710",
+          "backgroundColor": "#01030F",
           "image": "./assets/images/splash-icon.png",
-          "imageWidth": 76
+          "imageWidth": 160
         }
       ],
-      "expo-notifications",
+      [
+        "expo-notifications",
+        {
+          "defaultChannel": "reminders",
+          "icon": "./assets/images/notification-icon.png",
+          "color": "#F72E79"
+        }
+      ],
       [
         "expo-image-picker",
         {
@@ -46,7 +57,10 @@
         }
       ],
       "@react-native-community/datetimepicker",
-      "@react-native-google-signin/google-signin"
+      "@react-native-google-signin/google-signin",
+      "expo-image",
+      "expo-status-bar",
+      "expo-web-browser"
     ],
     "experiments": {
       "typedRoutes": true,

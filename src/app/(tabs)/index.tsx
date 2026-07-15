@@ -1,20 +1,27 @@
 import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
 import { router } from 'expo-router';
-import { collection, doc, limit, onSnapshot, orderBy, query, where } from 'firebase/firestore';
+import {
+  collection,
+  limit,
+  onSnapshot,
+  orderBy,
+  query,
+  Timestamp,
+  where,
+} from 'firebase/firestore';
 import { useEffect, useState } from 'react';
-import { Pressable, ScrollView, Share, StyleSheet, View } from 'react-native';
+import { Pressable, Share, StyleSheet, View } from 'react-native';
+import Animated from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { Eyebrow, GhostButton, GlowCard, IdentityDot } from '@/components/brand';
+import { BrandLockup, Eyebrow, GhostButton, GlowCard, IdentityDot } from '@/components/brand';
 import { CardSkeletons } from '@/components/loading';
 import { ThemedText } from '@/components/themed-text';
 import {
   BottomTabInset,
   Colors,
-  glow,
   MaxContentWidth,
-  MessageCapacity,
   neonBorder,
   Radius,
   Spacing,
@@ -26,8 +33,17 @@ import { db } from '@/lib/firebase';
 const theme = Colors.dark;
 
 type Reminder = { title: string; dueLabel: string; createdByUid?: string };
+
+/** A reminder with no date isn't due before anything: it waits at the end. */
+function dueTime(dueAt: Timestamp | null | undefined) {
+  return dueAt ? dueAt.toMillis() : Number.MAX_SAFE_INTEGER;
+}
 type Photo = { url: string; uploadedByUid: string };
 type Message = { text: string; senderId: string };
+
+function previewText(text: string, max = 92) {
+  return text.length > max ? `${text.slice(0, max - 1).trim()}…` : text;
+}
 
 export default function HomeScreen() {
   const safeAreaInsets = useSafeAreaInsets();
@@ -37,7 +53,6 @@ export default function HomeScreen() {
 
   const [nextReminder, setNextReminder] = useState<Reminder | null>(null);
   const [lastMessage, setLastMessage] = useState<Message | null>(null);
-  const [messageCount, setMessageCount] = useState(0);
   const [recentPhotos, setRecentPhotos] = useState<Photo[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
@@ -46,17 +61,22 @@ export default function HomeScreen() {
     const remindersQuery = query(
       collection(db, 'couples', coupleId, 'reminders'),
       where('status', '==', 'pending'),
-      orderBy('createdAt', 'asc'),
-      limit(1),
     );
     return onSnapshot(remindersQuery, (snapshot) => {
-      const first = snapshot.docs[0];
+      // "Next" means the one that comes due first — not the one written first. Sorting
+      // here rather than in the query keeps the dateless ones, which have nowhere to
+      // fall in an ordered query, at the back instead of at the front.
+      const first = snapshot.docs
+        .map((docSnapshot) => docSnapshot.data())
+        .sort((a, b) => dueTime(a.dueAt as Timestamp | null) - dueTime(b.dueAt as Timestamp | null))
+        .at(0);
+
       setNextReminder(
         first
           ? {
-              title: first.data().title as string,
-              dueLabel: first.data().dueLabel as string,
-              createdByUid: first.data().createdByUid as string | undefined,
+              title: first.title as string,
+              dueLabel: first.dueLabel as string,
+              createdByUid: first.createdByUid as string | undefined,
             }
           : null,
       );
@@ -69,6 +89,7 @@ export default function HomeScreen() {
     const messagesQuery = query(
       collection(db, 'couples', coupleId, 'messages'),
       orderBy('createdAt', 'desc'),
+      limit(1),
     );
     return onSnapshot(messagesQuery, (snapshot) => {
       const first = snapshot.docs[0];
@@ -77,7 +98,6 @@ export default function HomeScreen() {
           ? { text: first.data().text as string, senderId: first.data().senderId as string }
           : null,
       );
-      setMessageCount(snapshot.size);
     });
   }, [coupleId]);
 
@@ -103,16 +123,17 @@ export default function HomeScreen() {
     lastPhoto?.uploadedByUid === user?.uid ? palette.you : palette.partner;
 
   return (
-    <ScrollView
-      style={styles.screen}
+    <View style={styles.screen}>
+    <Animated.ScrollView
+      style={styles.scroll}
       contentContainerStyle={[
         styles.content,
-        { paddingTop: safeAreaInsets.top + Spacing.four, paddingBottom: BottomTabInset + Spacing.five },
+        { paddingTop: safeAreaInsets.top + Spacing[24], paddingBottom: BottomTabInset + Spacing[32] },
       ]}>
       <View style={styles.inner}>
         <View style={styles.header}>
           <View style={styles.headerTop}>
-            <Eyebrow>{isWaitingForPartner ? 'Falta tu pareja' : 'Estáis los dos'}</Eyebrow>
+            <BrandLockup size={34} />
             <Pressable
               onPress={() => router.push('/settings')}
               hitSlop={12}
@@ -120,16 +141,16 @@ export default function HomeScreen() {
               <Eyebrow>Ajustes</Eyebrow>
             </Pressable>
           </View>
-          <ThemedText type="title" style={styles.title}>
+          <ThemedText type="title" style={styles.spaceTitle}>
             {spaceName ?? 'Vuestro espacio'}
           </ThemedText>
           <View style={styles.presenceRow}>
-            <IdentityDot isMine size={9} />
+            <IdentityDot isMine size={12} />
             <ThemedText type="small" themeColor="textSecondary">
               {myName}
             </ThemedText>
             <View style={styles.presenceGap} />
-            <IdentityDot isMine={false} size={9} />
+            <IdentityDot isMine={false} size={12} />
             <ThemedText type="small" themeColor="textSecondary">
               {isWaitingForPartner ? 'Sin llegar' : partnerName}
             </ThemedText>
@@ -139,11 +160,11 @@ export default function HomeScreen() {
         {isWaitingForPartner && inviteCode && (
           <GlowCard color={palette.accent}>
             <Eyebrow color={palette.accent}>La llave</Eyebrow>
-            <ThemedText selectable style={styles.keyText}>
+            <ThemedText type="key" selectable>
               {inviteCode}
             </ThemedText>
             <ThemedText type="small" themeColor="textSecondary">
-              Tu pareja la necesita para entrar
+              Hace falta para entrar
             </ThemedText>
             <View style={styles.cardAction}>
               <GhostButton
@@ -151,7 +172,7 @@ export default function HomeScreen() {
                 color={palette.partner}
                 onPress={() =>
                   Share.share({
-                    message: `Entra en nuestro espacio en Churriapp con esta llave: ${inviteCode}`,
+                    message: `Esta es la llave de nuestro espacio en Churri: ${inviteCode}`,
                   })
                 }
               />
@@ -163,8 +184,13 @@ export default function HomeScreen() {
 
         {!isLoading && (
           <Pressable onPress={() => router.push('/reminders')} className="active:opacity-80">
-            <GlowCard>
-              <Eyebrow>Lo próximo</Eyebrow>
+            <GlowCard style={styles.compactCard}>
+              <View style={styles.cardHeaderRow}>
+                <Eyebrow>Avisos</Eyebrow>
+                <ThemedText type="smallBold" style={{ color: palette.accent }}>
+                  Abrir
+                </ThemedText>
+              </View>
               {nextReminder ? (
                 <>
                   <View style={styles.authorRow}>
@@ -175,13 +201,17 @@ export default function HomeScreen() {
                         : `Lo puso ${partnerName}`}
                     </ThemedText>
                   </View>
-                  <ThemedText style={styles.cardHeadline}>{nextReminder.title}</ThemedText>
+                  <ThemedText type="headline">{nextReminder.title}</ThemedText>
                   <ThemedText type="small" themeColor="textSecondary">
                     {nextReminder.dueLabel}
                   </ThemedText>
                 </>
               ) : (
-                <ThemedText themeColor="textSecondary">Nada pendiente entre vosotros</ThemedText>
+                <>
+                  <ThemedText type="small" themeColor="textSecondary">
+                    Nada pendiente por ahora.
+                  </ThemedText>
+                </>
               )}
             </GlowCard>
           </Pressable>
@@ -189,19 +219,19 @@ export default function HomeScreen() {
 
         {isLoading ? null : lastPhoto ? (
           <Pressable onPress={() => router.push('/gallery')}>
-            <View
-              style={[
-                styles.photoCard,
-                neonBorder(lastPhotoColor, '77'),
-                glow(lastPhotoColor, 26, '33'),
-              ]}>
+            <View style={[styles.photoCard, neonBorder(lastPhotoColor, 'BB')]}>
               <Image source={{ uri: lastPhoto.url }} style={styles.photoHero} />
               <LinearGradient
-                colors={['transparent', 'rgba(11,7,16,0.55)', 'rgba(11,7,16,0.95)']}
+                colors={['transparent', 'rgba(1,3,15,0.55)', 'rgba(1,3,15,0.95)']}
                 style={styles.photoScrim}
               />
               <View style={styles.photoOverlay}>
-                <Eyebrow>Lo último que visteis</Eyebrow>
+                <View style={styles.cardHeaderRow}>
+                  <Eyebrow>Fotos</Eyebrow>
+                  <ThemedText type="smallBold" style={{ color: lastPhotoColor }}>
+                    Ver
+                  </ThemedText>
+                </View>
                 <View style={styles.authorRow}>
                   <IdentityDot isMine={lastPhoto.uploadedByUid === user?.uid} />
                   <ThemedText type="small" themeColor="textSecondary">
@@ -214,16 +244,30 @@ export default function HomeScreen() {
             </View>
           </Pressable>
         ) : (
-          <GlowCard>
-            <Eyebrow>Lo último que visteis</Eyebrow>
-            <ThemedText themeColor="textSecondary">Todavía no habéis subido nada</ThemedText>
-          </GlowCard>
+          <Pressable onPress={() => router.push('/gallery')} className="active:opacity-80">
+            <GlowCard style={styles.compactCard}>
+              <View style={styles.cardHeaderRow}>
+                <Eyebrow>Fotos</Eyebrow>
+                <ThemedText type="smallBold" style={{ color: palette.partner }}>
+                  Subir
+                </ThemedText>
+              </View>
+              <ThemedText type="small" themeColor="textSecondary">
+                Todavía no hay fotos.
+              </ThemedText>
+            </GlowCard>
+          </Pressable>
         )}
 
         {isLoading ? null : (
         <Pressable onPress={() => router.push('/chat')} className="active:opacity-80">
-        <GlowCard>
-          <Eyebrow>Lo último que os dijisteis</Eyebrow>
+        <GlowCard style={styles.compactCard}>
+          <View style={styles.cardHeaderRow}>
+            <Eyebrow>Mensajes</Eyebrow>
+            <ThemedText type="smallBold" style={{ color: palette.you }}>
+              Escribir
+            </ThemedText>
+          </View>
           {lastMessage ? (
             <>
               <View style={styles.authorRow}>
@@ -232,17 +276,20 @@ export default function HomeScreen() {
                   {lastMessage.senderId === user?.uid ? myName : partnerName}
                 </ThemedText>
               </View>
-              <ThemedText style={styles.cardHeadline}>{lastMessage.text}</ThemedText>
+              <ThemedText type="headline">{previewText(lastMessage.text)}</ThemedText>
             </>
           ) : (
-            <ThemedText themeColor="textSecondary">Aún no os habéis escrito</ThemedText>
+            <ThemedText type="small" themeColor="textSecondary">
+              Caben cinco. El primero sigue libre.
+            </ThemedText>
           )}
 
         </GlowCard>
         </Pressable>
         )}
       </View>
-    </ScrollView>
+    </Animated.ScrollView>
+    </View>
   );
 }
 
@@ -251,19 +298,22 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: theme.background,
   },
+  scroll: {
+    flex: 1,
+  },
   content: {
     flexDirection: 'row',
     justifyContent: 'center',
-    paddingHorizontal: Spacing.four,
+    paddingHorizontal: Spacing[24],
   },
   inner: {
     width: '100%',
     maxWidth: MaxContentWidth,
-    gap: Spacing.three,
+    gap: Spacing[16],
   },
   header: {
-    gap: Spacing.two,
-    marginBottom: Spacing.two,
+    gap: Spacing[8],
+    marginBottom: Spacing[4],
   },
   headerTop: {
     flexDirection: 'row',
@@ -273,41 +323,36 @@ const styles = StyleSheet.create({
   pressed: {
     opacity: 0.6,
   },
-  title: {
-    fontSize: 34,
-    lineHeight: 40,
-    fontWeight: '800',
-    letterSpacing: -0.8,
+  spaceTitle: {
+    marginTop: Spacing[12],
   },
   presenceRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: Spacing.two,
+    gap: Spacing[8],
   },
   presenceGap: {
-    width: Spacing.two,
+    width: Spacing[8],
   },
   authorRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: Spacing.two,
-  },
-  cardHeadline: {
-    fontSize: 18,
-    lineHeight: 25,
-    fontWeight: '600',
-  },
-  keyText: {
-    fontSize: 30,
-    lineHeight: 36,
-    fontWeight: '800',
-    letterSpacing: 8,
+    gap: Spacing[8],
   },
   cardAction: {
-    marginTop: Spacing.two,
+    marginTop: Spacing[8],
+  },
+  compactCard: {
+    marginTop: 0,
+  },
+  cardHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: Spacing[12],
   },
   photoCard: {
-    height: 280,
+    height: 240,
     borderRadius: Radius.large,
     overflow: 'hidden',
     justifyContent: 'flex-end',
@@ -321,23 +366,7 @@ const styles = StyleSheet.create({
     top: '35%',
   },
   photoOverlay: {
-    gap: Spacing.two,
-    padding: Spacing.four,
-  },
-  quotaBlock: {
-    gap: Spacing.two,
-    marginTop: Spacing.three,
-  },
-  quotaBar: {
-    flexDirection: 'row',
-    gap: Spacing.one,
-  },
-  quotaTick: {
-    flex: 1,
-    height: 3,
-    borderRadius: 2,
-  },
-  quotaTickSpent: {
-    backgroundColor: theme.backgroundSelected,
+    gap: Spacing[8],
+    padding: Spacing[24],
   },
 });

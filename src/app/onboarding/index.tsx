@@ -1,10 +1,10 @@
 import { router } from 'expo-router';
 import { FirebaseError } from 'firebase/app';
 import { useState } from 'react';
-import { Pressable, StyleSheet, TextInput, View } from 'react-native';
+import { Pressable, ScrollView, StyleSheet, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-import { BrandMark, Eyebrow, GradientButton } from '@/components/brand';
+import { BrandLockup, Eyebrow, GradientButton } from '@/components/brand';
 import { GoogleMark } from '@/components/google-mark';
 import { ThemedText } from '@/components/themed-text';
 import { Colors, MaxContentWidth, neonBorder, Radius, Spacing } from '@/constants/theme';
@@ -30,6 +30,10 @@ export default function WelcomeScreen() {
   const [error, setError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isGoogleSubmitting, setIsGoogleSubmitting] = useState(false);
+  const canSubmit =
+    email.trim().length > 0 &&
+    password.length >= 6 &&
+    (mode === 'signIn' || name.trim().length > 0);
 
   const handleGoogle = async () => {
     setError(null);
@@ -68,89 +72,92 @@ export default function WelcomeScreen() {
   return (
     <View style={styles.screen}>
       <SafeAreaView style={styles.safeArea}>
-        <View style={styles.hero}>
-          <BrandMark size={140} />
-          <ThemedText type="title" style={styles.wordmark}>
-            Churriapp
-          </ThemedText>
-          <ThemedText themeColor="textSecondary" style={styles.tagline}>
-            Vuestro espacio. Solo vosotros dos.
-          </ThemedText>
-        </View>
+        <ScrollView
+          keyboardShouldPersistTaps="handled"
+          showsVerticalScrollIndicator={false}
+          style={styles.scroller}
+          contentContainerStyle={styles.content}>
+          <View style={styles.hero}>
+            <BrandLockup size={84} />
+          </View>
 
-        <View style={styles.form}>
-          <Eyebrow>{mode === 'signUp' ? 'Crear cuenta' : 'Entrar'}</Eyebrow>
+          <View style={styles.form}>
+            <Eyebrow>{mode === 'signUp' ? 'Crear cuenta' : 'Entrar'}</Eyebrow>
 
-          {mode === 'signUp' && (
+            {mode === 'signUp' && (
+              <>
+                <TextInput
+                  value={name}
+                  onChangeText={setName}
+                  placeholder="Tu nombre"
+                  placeholderTextColor={theme.textSecondary}
+                  maxLength={20}
+                  style={styles.input}
+                />
+              </>
+            )}
+
             <TextInput
-              value={name}
-              onChangeText={setName}
-              placeholder="¿Cómo te llama?"
+              value={email}
+              onChangeText={setEmail}
+              placeholder="Correo electrónico"
               placeholderTextColor={theme.textSecondary}
-              maxLength={20}
+              autoCapitalize="none"
+              keyboardType="email-address"
               style={styles.input}
             />
-          )}
-
-          <TextInput
-            value={email}
-            onChangeText={setEmail}
-            placeholder="Correo electrónico"
-            placeholderTextColor={theme.textSecondary}
-            autoCapitalize="none"
-            keyboardType="email-address"
-            style={styles.input}
-          />
-          <TextInput
-            value={password}
-            onChangeText={setPassword}
-            placeholder="Contraseña"
-            placeholderTextColor={theme.textSecondary}
-            secureTextEntry
-            style={styles.input}
-          />
-
-          {error && <ThemedText style={styles.error}>{error}</ThemedText>}
-
-          <View style={styles.buttonWrapper}>
-            <GradientButton
-              title={mode === 'signUp' ? 'Crear cuenta' : 'Iniciar sesión'}
-              onPress={handleSubmit}
-              disabled={mode === 'signUp' && !name.trim()}
-              isLoading={isSubmitting}
+            <TextInput
+              value={password}
+              onChangeText={setPassword}
+              placeholder="Contraseña"
+              placeholderTextColor={theme.textSecondary}
+              secureTextEntry
+              style={styles.input}
             />
+
+            {error && <ThemedText style={styles.error}>{error}</ThemedText>}
+
+            <View style={styles.buttonWrapper}>
+              <GradientButton
+                title={mode === 'signUp' ? 'Crear cuenta' : 'Iniciar sesión'}
+                onPress={handleSubmit}
+                disabled={!canSubmit}
+                isLoading={isSubmitting}
+              />
+            </View>
+
+            <Pressable
+              onPress={() => setMode(mode === 'signUp' ? 'signIn' : 'signUp')}
+              style={({ pressed }) => pressed && styles.pressed}>
+              <ThemedText type="small" themeColor="textSecondary" style={styles.switchMode}>
+                {mode === 'signUp' ? 'Ya tengo cuenta' : 'Crear una cuenta nueva'}
+              </ThemedText>
+            </Pressable>
+
+            <View style={styles.dividerRow}>
+              <View style={styles.dividerLine} />
+              <ThemedText type="small" themeColor="textSecondary">
+                o
+              </ThemedText>
+              <View style={styles.dividerLine} />
+            </View>
+
+            <Pressable
+              onPress={handleGoogle}
+              disabled={isGoogleSubmitting}
+              style={({ pressed }) => [
+                styles.googleButton,
+                pressed && styles.pressed,
+                isGoogleSubmitting && styles.disabled,
+              ]}>
+              <GoogleMark size={18} />
+              <ThemedText type="smallBold">
+                {isGoogleSubmitting ? 'Entrando…' : 'Continuar con Google'}
+              </ThemedText>
+            </Pressable>
           </View>
 
-          <Pressable
-            onPress={() => setMode(mode === 'signUp' ? 'signIn' : 'signUp')}
-            style={({ pressed }) => pressed && styles.pressed}>
-            <ThemedText type="small" themeColor="textSecondary" style={styles.switchMode}>
-              {mode === 'signUp' ? 'Ya tengo cuenta' : 'Crear una cuenta nueva'}
-            </ThemedText>
-          </Pressable>
-
-          <View style={styles.dividerRow}>
-            <View style={styles.dividerLine} />
-            <ThemedText type="small" themeColor="textSecondary">
-              o
-            </ThemedText>
-            <View style={styles.dividerLine} />
-          </View>
-
-          <Pressable
-            onPress={handleGoogle}
-            disabled={isGoogleSubmitting}
-            style={({ pressed }) => [
-              styles.googleButton,
-              pressed && styles.pressed,
-              isGoogleSubmitting && styles.disabled,
-            ]}>
-            <GoogleMark size={18} />
-            <ThemedText type="smallBold">
-              {isGoogleSubmitting ? 'Entrando…' : 'Continuar con Google'}
-            </ThemedText>
-          </Pressable>
-        </View>
+        </ScrollView>
       </SafeAreaView>
     </View>
   );
@@ -166,36 +173,32 @@ const styles = StyleSheet.create({
     width: '100%',
     maxWidth: MaxContentWidth,
     alignSelf: 'center',
-    paddingHorizontal: Spacing.four,
-    paddingBottom: Spacing.five,
-    justifyContent: 'flex-end',
-    gap: Spacing.six,
+  },
+  scroller: {
+    flex: 1,
+  },
+  content: {
+    flexGrow: 1,
+    paddingHorizontal: Spacing[24],
+    paddingTop: Spacing[16],
+    paddingBottom: Spacing[32],
+    justifyContent: 'center',
+    gap: Spacing[16],
   },
   hero: {
-    flex: 1,
     alignItems: 'center',
-    justifyContent: 'center',
-    gap: Spacing.four,
-  },
-  wordmark: {
-    fontSize: 44,
-    lineHeight: 50,
-    fontWeight: '800',
-    letterSpacing: -1,
-    textAlign: 'center',
-  },
-  tagline: {
-    textAlign: 'center',
-    fontSize: 15,
+    gap: Spacing[8],
+    paddingTop: Spacing[32],
+    paddingBottom: Spacing[16],
   },
   form: {
-    gap: Spacing.two,
+    gap: Spacing[8],
   },
   input: {
     backgroundColor: theme.backgroundElement,
     borderRadius: Radius.medium,
-    paddingHorizontal: Spacing.three,
-    paddingVertical: Spacing.three,
+    paddingHorizontal: Spacing[16],
+    paddingVertical: Spacing[16],
     fontSize: 16,
     color: theme.text,
     ...neonBorder(theme.border, 'FF'),
@@ -205,17 +208,17 @@ const styles = StyleSheet.create({
     fontSize: 14,
   },
   buttonWrapper: {
-    marginTop: Spacing.three,
+    marginTop: Spacing[16],
   },
   switchMode: {
     textAlign: 'center',
-    paddingVertical: Spacing.two,
+    paddingVertical: Spacing[8],
   },
   dividerRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: Spacing.three,
-    marginVertical: Spacing.two,
+    gap: Spacing[16],
+    marginVertical: Spacing[8],
   },
   dividerLine: {
     flex: 1,
@@ -226,9 +229,9 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: Spacing.two,
+    gap: Spacing[8],
     borderRadius: Radius.pill,
-    paddingVertical: Spacing.three,
+    paddingVertical: Spacing[16],
     ...neonBorder(theme.border, 'FF'),
   },
   disabled: {

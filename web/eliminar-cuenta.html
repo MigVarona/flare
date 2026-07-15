@@ -1,0 +1,111 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Churri — Eliminar tu cuenta</title>
+    <style>
+      :root {
+        --ink: #01030f;
+        --card: #070b19;
+        --line: #1e2540;
+        --text: #f2f3f5;
+        --muted: #8a90a6;
+        --left: #f72e79;
+        --lens: #bd66dd;
+        --right: #17a9f5;
+        --danger: #ff6467;
+      }
+      * { box-sizing: border-box; }
+      body {
+        margin: 0;
+        padding: 4rem 1.5rem 6rem;
+        background: var(--ink);
+        color: var(--text);
+        font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+        font-size: 17px;
+        line-height: 1.7;
+      }
+      main { max-width: 44rem; margin: 0 auto; }
+      .rule {
+        height: 3px;
+        border-radius: 2px;
+        background: linear-gradient(90deg, var(--left), var(--lens), var(--right));
+      }
+      h1 { font-size: 2.4rem; letter-spacing: -0.03em; margin: 1.5rem 0 0.5rem; }
+      h2 { font-size: 1.15rem; margin: 2.75rem 0 0.75rem; }
+      .eyebrow {
+        text-transform: uppercase;
+        letter-spacing: 0.14em;
+        font-size: 0.72rem;
+        font-weight: 700;
+        color: var(--muted);
+      }
+      p, li { color: #d7d9de; }
+      strong { color: var(--text); }
+      ol, ul { padding-left: 1.2rem; }
+      li { margin-bottom: 0.5rem; }
+      a { color: var(--right); }
+      .card {
+        background: var(--card);
+        border: 1px solid var(--line);
+        border-radius: 18px;
+        padding: 1.25rem 1.5rem;
+        margin-top: 2rem;
+      }
+      .card.warn { border-color: rgba(255, 100, 103, 0.45); }
+      .card.warn .eyebrow { color: var(--danger); }
+      footer { margin-top: 4rem; color: var(--muted); font-size: 0.85rem; }
+    </style>
+  </head>
+  <body>
+    <main>
+      <div class="rule"></div>
+      <p class="eyebrow" style="margin-top: 1.5rem">Churri</p>
+      <h1>Eliminar tu cuenta</h1>
+
+      <h2>Desde la app</h2>
+      <p>Es la forma más rápida, y es inmediata:</p>
+      <ol>
+        <li>Abre Churri.</li>
+        <li>Entra en <strong>Ajustes</strong>.</li>
+        <li>Abajo del todo, pulsa <strong>Eliminar mi cuenta</strong>.</li>
+        <li>Confirma con tu contraseña, o con Google si entraste así.</li>
+      </ol>
+
+      <div class="card warn">
+        <p class="eyebrow">Qué se borra</p>
+        <p>
+          Tu cuenta, tu nombre, tu correo y tu color. Y con ellos <strong>el espacio entero</strong>:
+          las fotos (también los archivos, no solo las fichas), los recordatorios y los mensajes.
+        </p>
+        <p style="margin-bottom: 0">
+          El espacio es de dos y no sigue sin los dos, así que <strong>también desaparece para la
+          otra persona</strong>. Su cuenta se queda, y podrá empezar otro espacio. No hay vuelta
+          atrás.
+        </p>
+      </div>
+
+      <h2>Si ya no tienes la app</h2>
+      <p>
+        Escribe a <a href="mailto:migvaronag@gmail.com?subject=Eliminar%20mi%20cuenta%20de%20Churri">migvaronag@gmail.com</a>
+        desde <strong>el mismo correo con el que te registraste</strong> — es la única forma de
+        comprobar que la cuenta es tuya — y pide que se elimine.
+      </p>
+      <p>
+        Se hará en un plazo máximo de <strong>30 días</strong>, y se borra lo mismo que se
+        describe arriba. No se conserva ninguna copia.
+      </p>
+
+      <div class="card">
+        <p class="eyebrow">Contacto</p>
+        <p style="margin-bottom: 0">
+          Miguel Varona — <a href="mailto:migvaronag@gmail.com">migvaronag@gmail.com</a> ·
+          <a href="/">Política de privacidad</a>
+        </p>
+      </div>
+
+      <footer>Churri — un espacio para dos.</footer>
+    </main>
+  </body>
+</html>

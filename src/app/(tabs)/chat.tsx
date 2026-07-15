@@ -1,43 +1,40 @@
-import { LinearGradient } from 'expo-linear-gradient';
+import * as Haptics from "expo-haptics";
+import { LinearGradient } from "expo-linear-gradient";
 import {
   addDoc,
   collection,
   deleteDoc,
-  deleteField,
-  doc,
-  getDoc,
   onSnapshot,
   orderBy,
   query,
   serverTimestamp,
-  updateDoc,
-} from 'firebase/firestore';
-import { useEffect, useRef, useState } from 'react';
-import { Keyboard, Pressable, ScrollView, TextInput, View } from 'react-native';
+} from "firebase/firestore";
+import { useEffect, useRef, useState } from "react";
+import { Keyboard, Pressable, ScrollView, TextInput, View } from "react-native";
 // React Native's own keyboard handling broke on Android once Expo turned on edge-to-edge.
-import { KeyboardAvoidingView } from 'react-native-keyboard-controller';
-import { Gesture, GestureDetector } from 'react-native-gesture-handler';
-import Animated, { FadeIn, FadeOut, LinearTransition } from 'react-native-reanimated';
-import { scheduleOnRN } from 'react-native-worklets';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { KeyboardAvoidingView } from "react-native-keyboard-controller";
+import Animated, {
+  FadeIn,
+  FadeOut,
+  LinearTransition,
+} from "react-native-reanimated";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 
-import { Eyebrow } from '@/components/brand';
-import { LightSignal, isSignalId, type SignalId } from '@/components/light-signals';
-import { MessageSkeletons } from '@/components/loading';
-import { SignalPicker } from '@/components/signal-picker';
-import { ThemedText } from '@/components/themed-text';
+import { ScreenHeader } from "@/components/brand";
+import { MessageSkeletons } from "@/components/loading";
+import { DeathMs, MessageLight, StepMs } from "@/components/message-light";
+import { ThemedText } from "@/components/themed-text";
 import {
   BottomTabInset,
   Colors,
   glow,
   MessageCapacity,
-  neonBorder,
   Spacing,
-} from '@/constants/theme';
-import { useCouple } from '@/context/couple-context';
-import { usePalette } from '@/hooks/use-palette';
-import { db } from '@/lib/firebase';
-import { sendPushNotification } from '@/lib/push';
+} from "@/constants/theme";
+import { useCouple } from "@/context/couple-context";
+import { usePalette } from "@/hooks/use-palette";
+import { db } from "@/lib/firebase";
+import { sendPushNotification } from "@/lib/push";
 
 const theme = Colors.dark;
 
@@ -45,25 +42,34 @@ type Message = {
   id: string;
   text: string;
   senderId: string;
-  /** Who answered with light, and with which signal. */
-  reactions: Record<string, SignalId>;
 };
 
 export default function ChatScreen() {
   const insets = useSafeAreaInsets();
-  const { user, coupleId, partnerUid } = useCouple();
+  const { user, coupleId, partnerUid, myName } = useCouple();
   const palette = usePalette();
   const scrollRef = useRef<ScrollView>(null);
 
   const [messages, setMessages] = useState<Message[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [draft, setDraft] = useState('');
+  const [draft, setDraft] = useState("");
   const [isKeyboardOpen, setIsKeyboardOpen] = useState(false);
-  const [reactingTo, setReactingTo] = useState<Message | null>(null);
+  /** Messages we've already asked to delete, so a second snapshot doesn't ask again. */
+  const trimmed = useRef(new Set<string>());
+  /** The ones the surge is on its way to put out. They're still here; they just aren't for long. */
+  const [dying, setDying] = useState<string[]>([]);
+  /** Bumped by every arrival. The bubbles watch it to know when to carry the surge. */
+  const [surge, setSurge] = useState(0);
+  const newest = useRef<string | null>(null);
+
 
   useEffect(() => {
-    const shown = Keyboard.addListener('keyboardDidShow', () => setIsKeyboardOpen(true));
-    const hidden = Keyboard.addListener('keyboardDidHide', () => setIsKeyboardOpen(false));
+    const shown = Keyboard.addListener("keyboardDidShow", () =>
+      setIsKeyboardOpen(true),
+    );
+    const hidden = Keyboard.addListener("keyboardDidHide", () =>
+      setIsKeyboardOpen(false),
+    );
     return () => {
       shown.remove();
       hidden.remove();
@@ -73,8 +79,8 @@ export default function ChatScreen() {
   useEffect(() => {
     if (!coupleId) return undefined;
     const messagesQuery = query(
-      collection(db, 'couples', coupleId, 'messages'),
-      orderBy('createdAt', 'asc'),
+      collection(db, "couples", coupleId, "messages"),
+      orderBy("createdAt", "asc"),
     );
     return onSnapshot(messagesQuery, (snapshot) => {
       setMessages(
@@ -82,51 +88,55 @@ export default function ChatScreen() {
           id: docSnapshot.id,
           text: docSnapshot.data().text as string,
           senderId: docSnapshot.data().senderId as string,
-          reactions: (docSnapshot.data().reactions as Record<string, SignalId>) ?? {},
         })),
       );
       setIsLoading(false);
+
+      // An arrival sends a surge up the conversation. Not on first load, though: opening the
+      // chat is not an event, and lighting the whole screen up would say something happened.
+      const arrived = snapshot.docs.at(-1)?.id ?? null;
+      if (newest.current && arrived && arrived !== newest.current) {
+        setSurge((count) => count + 1);
+      }
+      newest.current = arrived;
+
+      // The space holds five. Trimming used to be the sender's job, done against their own
+      // copy of the list — so two people writing at the same moment could each count five,
+      // and leave six standing, or throw the same one out twice.
+      //
+      // Whoever *sees* too many trims instead. Both phones may reach for the same message,
+      // and that's fine: deleting what's already gone changes nothing. They converge on five
+      // without having to agree on anything.
+      //
+      // The delay is the point: the light has to go out before the record does, or the
+      // message would simply blink out of existence and the rule would stay invisible.
+      const overflow = snapshot.docs.length - MessageCapacity;
+      for (const oldest of snapshot.docs.slice(0, Math.max(0, overflow))) {
+        if (trimmed.current.has(oldest.id)) continue;
+        trimmed.current.add(oldest.id);
+        setDying((ids) => [...ids, oldest.id]);
+        // A light going out is felt, not just seen. It's the one thing here you can't undo.
+        void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
+        setTimeout(() => void deleteDoc(oldest.ref), DeathMs);
+      }
     });
   }, [coupleId]);
-
-  const react = async (message: Message, signal: SignalId | null) => {
-    if (!coupleId || !user) return;
-    setReactingTo(null);
-    await updateDoc(doc(db, 'couples', coupleId, 'messages', message.id), {
-      [`reactions.${user.uid}`]: signal ?? deleteField(),
-    });
-  };
 
   const canSend = draft.trim().length > 0;
 
   const sendMessage = async () => {
     if (!coupleId || !user || !draft.trim()) return;
     const text = draft.trim();
-    setDraft('');
+    setDraft("");
 
-    await addDoc(collection(db, 'couples', coupleId, 'messages'), {
+    await addDoc(collection(db, "couples", coupleId, "messages"), {
       text,
       senderId: user.uid,
       createdAt: serverTimestamp(),
     });
 
-    // The space only holds so much. Anything older than that stops existing —
-    // for both of you, at the same time.
-    const overflow = messages.length + 1 - MessageCapacity;
-    if (overflow > 0) {
-      await Promise.all(
-        messages
-          .slice(0, overflow)
-          .map((message) => deleteDoc(doc(db, 'couples', coupleId, 'messages', message.id))),
-      );
-    }
-
     if (partnerUid) {
-      const partnerSnapshot = await getDoc(doc(db, 'users', partnerUid));
-      const partnerToken = partnerSnapshot.data()?.expoPushToken as string | undefined;
-      if (partnerToken) {
-        sendPushNotification(partnerToken, 'Mensaje nuevo', text);
-      }
+      sendPushNotification(coupleId, partnerUid, myName, text, "/chat");
     }
   };
 
@@ -134,26 +144,27 @@ export default function ChatScreen() {
     <KeyboardAvoidingView className="flex-1 bg-background" behavior="padding">
       <View
         className="w-full max-w-200 flex-1 self-center"
-        style={{ paddingTop: insets.top + Spacing.four }}>
-        <View className="gap-2 px-6 pb-4">
-          <Eyebrow>Solo cabe lo de ahora</Eyebrow>
-          <ThemedText type="title" className="text-[34px] leading-10 font-extrabold tracking-tight">
-            Mensajes
-          </ThemedText>
+        style={{ paddingTop: insets.top + Spacing[24] }}
+      >
+        <View className="px-6">
+          <ScreenHeader title="Mensajes" />
         </View>
 
-        <ScrollView
+        <Animated.ScrollView
           ref={scrollRef}
           className="flex-1"
           contentContainerClassName="gap-3 px-6 py-6"
           showsVerticalScrollIndicator={false}
           keyboardShouldPersistTaps="handled"
-          onContentSizeChange={() => scrollRef.current?.scrollToEnd({ animated: true })}>
+          onContentSizeChange={() =>
+            scrollRef.current?.scrollToEnd({ animated: true })
+          }
+        >
           {isLoading ? (
             <MessageSkeletons />
           ) : messages.length === 0 ? (
             <ThemedText className="py-16 text-center leading-6 text-muted-foreground">
-              Aquí no cabe el ruido. Solo lo que de verdad le quieras decir.
+              Dejad el primer mensaje encendido.
             </ThemedText>
           ) : (
             messages.map((message, index) => {
@@ -162,61 +173,49 @@ export default function ChatScreen() {
 
               // The oldest message is the faintest: it is already on its way out.
               // The rule is shown as light, not explained in a label.
-              const age = messages.length - 1 - index;
-              const fade = Math.max(0.35, 1 - age * (0.65 / Math.max(1, MessageCapacity - 1)));
-
-              const signals = Object.entries(message.reactions);
-              const doubleTap = Gesture.Tap()
-                .numberOfTaps(2)
-                .onEnd(() => scheduleOnRN(setReactingTo, message));
+              const distance = messages.length - 1 - index;
+              const rest = Math.max(
+                0.35,
+                1 - distance * (0.65 / Math.max(1, MessageCapacity - 1)),
+              );
 
               return (
                 <Animated.View
                   key={message.id}
                   entering={FadeIn.duration(260)}
-                  exiting={FadeOut.duration(420)}
+                  exiting={FadeOut.duration(220)}
                   layout={LinearTransition.duration(260)}
-                  className={isMine ? 'max-w-[82%] self-end' : 'max-w-[82%] self-start'}>
-                  <GestureDetector gesture={doubleTap}>
-                    <View
-                      className={`rounded-3xl px-4 py-4 ${
-                        isMine ? 'rounded-br-lg' : 'rounded-bl-lg'
-                      }`}
-                      style={[
-                        { opacity: fade, backgroundColor: `${color}1A` },
-                        neonBorder(color, '77'),
-                        glow(color, 14, '33'),
-                      ]}>
-                      <ThemedText className="text-base leading-6">{message.text}</ThemedText>
-                    </View>
-                  </GestureDetector>
-
-                  {signals.length > 0 && (
-                    <View
-                      className={`mt-1 flex-row gap-2 ${isMine ? 'justify-end pr-3' : 'pl-3'}`}>
-                      {signals.map(([uid, signal]) =>
-                        isSignalId(signal) ? (
-                          <LightSignal
-                            key={uid}
-                            id={signal}
-                            color={uid === user?.uid ? palette.you : palette.partner}
-                            size={20}
-                          />
-                        ) : null,
-                      )}
-                    </View>
-                  )}
+                  className={
+                    isMine ? "max-w-[82%] self-end" : "max-w-[82%] self-start"
+                  }
+                >
+                    <MessageLight
+                        color={color}
+                        isMine={isMine}
+                        rest={rest}
+                        delay={distance * StepMs}
+                        isDying={dying.includes(message.id)}
+                      >
+                        <ThemedText className="text-base leading-6">
+                          {message.text}
+                        </ThemedText>
+                    </MessageLight>
                 </Animated.View>
               );
             })
           )}
-        </ScrollView>
+        </Animated.ScrollView>
 
         <View
           className="border-t border-border px-6 pt-4"
           style={{
-            paddingBottom: isKeyboardOpen ? Spacing.three : insets.bottom + BottomTabInset,
-          }}>
+            // The bar ends 68px up from the bottom; clearing it by the inset alone left twelve
+            // pixels between the two, which reads as a collision rather than a layout.
+            paddingBottom: isKeyboardOpen
+              ? Spacing[16]
+              : insets.bottom + BottomTabInset + Spacing[16],
+          }}
+        >
           <View className="flex-row items-center gap-2">
             <TextInput
               value={draft}
@@ -230,15 +229,23 @@ export default function ChatScreen() {
               onPress={canSend ? sendMessage : undefined}
               disabled={!canSend}
               className={`overflow-hidden rounded-full active:opacity-75 ${
-                canSend ? '' : 'opacity-35'
+                canSend ? "" : "opacity-35"
               }`}
-              style={canSend ? glow(palette.accent, 18, '66') : undefined}>
+              style={canSend ? glow(palette.accent, 18, "66") : undefined}
+            >
               <LinearGradient
                 colors={palette.gradient}
                 start={{ x: 0, y: 0 }}
                 end={{ x: 1, y: 1 }}
-                style={{ paddingHorizontal: Spacing.four, paddingVertical: Spacing.three }}>
-                <ThemedText type="smallBold" style={{ color: theme.background }}>
+                style={{
+                  paddingHorizontal: Spacing[24],
+                  paddingVertical: Spacing[16],
+                }}
+              >
+                <ThemedText
+                  type="smallBold"
+                  style={{ color: theme.background }}
+                >
                   Enviar
                 </ThemedText>
               </LinearGradient>
@@ -246,13 +253,6 @@ export default function ChatScreen() {
           </View>
         </View>
       </View>
-
-      <SignalPicker
-        isOpen={Boolean(reactingTo)}
-        current={reactingTo && user ? reactingTo.reactions[user.uid] : null}
-        onPick={(signal) => reactingTo && react(reactingTo, signal)}
-        onClose={() => setReactingTo(null)}
-      />
     </KeyboardAvoidingView>
   );
 }

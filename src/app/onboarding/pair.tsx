@@ -2,8 +2,15 @@ import { useState } from 'react';
 import { Pressable, Share, StyleSheet, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-import { Eyebrow, GhostButton, GlowCard, GradientButton, GradientRule } from '@/components/brand';
-import { PalettePicker } from '@/components/palette-picker';
+import {
+  BrandLockup,
+  Eyebrow,
+  GhostButton,
+  GlowCard,
+  GradientButton,
+  GradientRule,
+  IdentityDot,
+} from '@/components/brand';
 import { ThemedText } from '@/components/themed-text';
 import {
   Colors,
@@ -13,7 +20,6 @@ import {
   Radius,
   Spacing,
 } from '@/constants/theme';
-import { DefaultPalette, paletteById } from '@/constants/palettes';
 import { useCouple } from '@/context/couple-context';
 import { usePalette } from '@/hooks/use-palette';
 
@@ -40,13 +46,16 @@ function ChooseMode({ onSelect }: { onSelect: (mode: Mode) => void }) {
 
   return (
     <View style={styles.content}>
+      <View style={styles.brandLine}>
+        <BrandLockup size={40} />
+      </View>
       <View style={styles.titleBlock}>
         <Eyebrow>Paso 2 de 2</Eyebrow>
-        <ThemedText type="subtitle" style={styles.heading}>
+        <ThemedText type="title">
           Abre el espacio
         </ThemedText>
         <ThemedText themeColor="textSecondary">
-          Uno de los dos lo crea y comparte la llave. El otro entra con ella.
+          Uno lo crea y comparte la llave. La otra persona entra con ella.
         </ThemedText>
       </View>
 
@@ -54,14 +63,14 @@ function ChooseMode({ onSelect }: { onSelect: (mode: Mode) => void }) {
         color={palette.you}
         label="Lo creo yo"
         title="Crear el espacio"
-        description="Genera una llave para tu pareja"
+        description="Genera una llave para la otra persona"
         onPress={() => onSelect('create')}
       />
       <OptionCard
         color={palette.partner}
         label="Ya tengo llave"
         title="Entrar con una llave"
-        description="Tu pareja ya ha creado el espacio"
+        description="El espacio ya existe y tienes la llave"
         onPress={() => onSelect('join')}
       />
     </View>
@@ -72,9 +81,7 @@ function CreateCouple({ onBack }: { onBack: () => void }) {
   const { createCouple, confirmCouple } = useCouple();
 
   const [name, setName] = useState('');
-  const [paletteId, setPaletteId] = useState(DefaultPalette.id);
-  // The screen repaints as you choose, so you're picking the thing itself, not a label.
-  const palette = paletteById(paletteId);
+  const palette = usePalette();
   const [pendingCouple, setPendingCouple] = useState<{ coupleId: string; code: string } | null>(
     null,
   );
@@ -87,7 +94,7 @@ function CreateCouple({ onBack }: { onBack: () => void }) {
     setIsCreating(true);
     setError(null);
     try {
-      setPendingCouple(await createCouple(name, paletteId));
+      setPendingCouple(await createCouple(name));
     } catch {
       setError('No se pudo crear el espacio, inténtalo de nuevo');
     } finally {
@@ -111,11 +118,11 @@ function CreateCouple({ onBack }: { onBack: () => void }) {
       <View style={styles.content}>
         <View style={styles.titleBlock}>
           <Eyebrow color={palette.you}>Vuestro espacio</Eyebrow>
-          <ThemedText type="subtitle" style={styles.heading}>
+          <ThemedText type="title">
             Ponedle nombre
           </ThemedText>
           <ThemedText themeColor="textSecondary">
-            Lo veréis los dos cada vez que entréis.
+            Lo veréis cada vez que entréis.
           </ThemedText>
         </View>
 
@@ -125,21 +132,14 @@ function CreateCouple({ onBack }: { onBack: () => void }) {
             setName(value);
             setError(null);
           }}
-          placeholder="Ej. Nuestro rincón"
+          placeholder="Un nombre"
           placeholderTextColor={theme.textSecondary}
           maxLength={28}
           style={[styles.nameInput, neonBorder(palette.you, '55'), glow(palette.you, 24, '2A')]}
         />
 
-        <View style={styles.paletteBlock}>
-          <Eyebrow>Vuestros colores</Eyebrow>
-          <ThemedText type="small" themeColor="textSecondary">
-            Uno es tuyo y otro es suyo. Sabrás quién ha hecho qué solo por el color.
-          </ThemedText>
-          <PalettePicker selectedId={paletteId} onSelect={setPaletteId} />
-        </View>
 
-        {error && <ThemedText style={styles.error}>{error}</ThemedText>}
+        {error && <ThemedText type="small" style={styles.error}>{error}</ThemedText>}
 
         <View style={styles.actions}>
           <GradientButton
@@ -158,19 +158,30 @@ function CreateCouple({ onBack }: { onBack: () => void }) {
     <View style={styles.content}>
       <View style={styles.titleBlock}>
         <Eyebrow color={palette.you}>La llave de {name.trim()}</Eyebrow>
-        <ThemedText type="subtitle" style={styles.heading}>
-          Compártela con tu pareja
+        <ThemedText type="title">
+          Compártela
+        </ThemedText>
+        <ThemedText themeColor="textSecondary">
+          Cuando la otra persona entre, el espacio se encenderá para los dos.
         </ThemedText>
       </View>
 
       <View style={[styles.keyBox, neonBorder(palette.accent, '44'), glow(palette.accent, 40, '33')]}>
-        <ThemedText selectable style={styles.keyText}>
+        <View style={styles.waitingLights}>
+          <IdentityDot isMine size={22} />
+          <View style={styles.waitingLine} />
+          <IdentityDot isMine={false} size={22} />
+        </View>
+        <ThemedText type="key" selectable style={styles.keyText}>
           {pendingCouple.code}
         </ThemedText>
         <GradientRule />
+        <ThemedText type="small" themeColor="textSecondary" style={styles.centerText}>
+          Llave privada para entrar una sola persona más.
+        </ThemedText>
       </View>
 
-      {error && <ThemedText style={styles.error}>{error}</ThemedText>}
+      {error && <ThemedText type="small" style={styles.error}>{error}</ThemedText>}
 
       <View style={styles.actions}>
         <GhostButton
@@ -178,7 +189,7 @@ function CreateCouple({ onBack }: { onBack: () => void }) {
           color={palette.partner}
           onPress={() =>
             Share.share({
-              message: `Entra en ${name.trim()}, nuestro espacio en Churriapp, con esta llave: ${pendingCouple.code}`,
+              message: `Esta es la llave de ${name.trim()}, nuestro espacio en Churri: ${pendingCouple.code}`,
             })
           }
         />
@@ -201,6 +212,7 @@ function JoinCouple({ onBack }: { onBack: () => void }) {
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const handleSubmit = async () => {
+    if (code.trim().length < 6) return;
     setIsSubmitting(true);
     try {
       const isValid = await joinCouple(code);
@@ -217,8 +229,8 @@ function JoinCouple({ onBack }: { onBack: () => void }) {
   return (
     <View style={styles.content}>
       <View style={styles.titleBlock}>
-        <Eyebrow color={palette.partner}>La llave de tu pareja</Eyebrow>
-        <ThemedText type="subtitle" style={styles.heading}>
+        <Eyebrow color={palette.partner}>La llave del espacio</Eyebrow>
+        <ThemedText type="title">
           Entra en el espacio
         </ThemedText>
       </View>
@@ -226,19 +238,25 @@ function JoinCouple({ onBack }: { onBack: () => void }) {
       <TextInput
         value={code}
         onChangeText={(value) => {
-          setCode(value);
+          setCode(value.toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 6));
           setError(null);
         }}
         placeholder="••••••"
         placeholderTextColor={theme.textSecondary}
         autoCapitalize="characters"
+        maxLength={6}
         style={[styles.keyInput, neonBorder(palette.partner, '55'), glow(palette.partner, 24, '2A')]}
       />
 
-      {error && <ThemedText style={styles.error}>{error}</ThemedText>}
+      {error && <ThemedText type="small" style={styles.error}>{error}</ThemedText>}
 
       <View style={styles.actions}>
-        <GradientButton title="Entrar" onPress={handleSubmit} isLoading={isSubmitting} />
+        <GradientButton
+          title="Entrar"
+          onPress={handleSubmit}
+          disabled={code.trim().length < 6}
+          isLoading={isSubmitting}
+        />
         <BackLink onPress={onBack} />
       </View>
     </View>
@@ -272,7 +290,7 @@ function OptionCard({
     <Pressable onPress={onPress} style={({ pressed }) => pressed && styles.pressed}>
       <GlowCard color={color}>
         <Eyebrow color={color}>{label}</Eyebrow>
-        <ThemedText type="default" style={styles.optionTitle}>
+        <ThemedText type="headline">
           {title}
         </ThemedText>
         <ThemedText type="small" themeColor="textSecondary">
@@ -294,76 +312,75 @@ const styles = StyleSheet.create({
     maxWidth: MaxContentWidth,
     alignSelf: 'center',
     justifyContent: 'center',
-    paddingHorizontal: Spacing.four,
+    paddingHorizontal: Spacing[24],
   },
   content: {
-    gap: Spacing.three,
+    gap: Spacing[16],
   },
   titleBlock: {
-    gap: Spacing.two,
-    marginBottom: Spacing.two,
+    gap: Spacing[8],
+    marginBottom: Spacing[8],
   },
-  heading: {
-    fontSize: 30,
-    lineHeight: 36,
-    fontWeight: '800',
-    letterSpacing: -0.5,
+  brandLine: {
+    alignItems: 'center',
+    marginBottom: Spacing[16],
   },
-  optionTitle: {
-    fontWeight: '700',
-    fontSize: 18,
-  },
+
   keyBox: {
     backgroundColor: theme.backgroundElement,
     borderRadius: Radius.large,
-    paddingVertical: Spacing.five,
-    paddingHorizontal: Spacing.four,
-    gap: Spacing.four,
+    paddingVertical: Spacing[32],
+    paddingHorizontal: Spacing[24],
+    gap: Spacing[24],
     alignItems: 'center',
   },
   keyText: {
-    fontSize: 40,
-    lineHeight: 46,
-    fontWeight: '800',
-    letterSpacing: 10,
-    color: theme.text,
+    textAlign: 'center',
+  },
+  waitingLights: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing[12],
+  },
+  waitingLine: {
+    width: 52,
+    height: 1,
+    backgroundColor: theme.border,
+  },
+  centerText: {
     textAlign: 'center',
   },
   nameInput: {
     backgroundColor: theme.backgroundElement,
     borderRadius: Radius.large,
-    paddingHorizontal: Spacing.four,
-    paddingVertical: Spacing.four,
-    fontSize: 20,
-    fontWeight: '600',
+    paddingHorizontal: Spacing[16],
+    paddingVertical: Spacing[16],
+    fontFamily: 'Outfit_600SemiBold',
+    fontSize: 16,
     color: theme.text,
   },
   keyInput: {
     backgroundColor: theme.backgroundElement,
     borderRadius: Radius.large,
-    paddingVertical: Spacing.four,
-    fontSize: 32,
-    fontWeight: '800',
+    paddingVertical: Spacing[16],
+    fontFamily: 'Outfit_800ExtraBold',
+    fontSize: 28,
+    lineHeight: 36,
     letterSpacing: 8,
     textAlign: 'center',
     color: theme.text,
   },
   actions: {
-    gap: Spacing.two,
-    marginTop: Spacing.two,
-  },
-  paletteBlock: {
-    gap: Spacing.two,
-    marginTop: Spacing.two,
+    gap: Spacing[8],
+    marginTop: Spacing[8],
   },
   error: {
     color: theme.you,
-    fontSize: 14,
     textAlign: 'center',
   },
   backLink: {
     textAlign: 'center',
-    paddingVertical: Spacing.two,
+    paddingVertical: Spacing[8],
   },
   pressed: {
     opacity: 0.75,

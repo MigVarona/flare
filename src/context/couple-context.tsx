@@ -1,6 +1,9 @@
 import {
   createUserWithEmailAndPassword,
+  deleteUser,
+  EmailAuthProvider,
   onAuthStateChanged,
+  reauthenticateWithCredential,
   signInWithEmailAndPassword,
   signOut as firebaseSignOut,
   type User,
@@ -8,20 +11,21 @@ import {
 import {
   arrayUnion,
   collection,
+  deleteDoc,
   doc,
   getDoc,
   getDocs,
   onSnapshot,
-  query,
   setDoc,
   updateDoc,
-  where,
 } from 'firebase/firestore';
+import * as Notifications from 'expo-notifications';
 import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from 'react';
 
-import { DefaultPalette, paletteById, type Palette } from '@/constants/palettes';
+import { DefaultPalette } from '@/constants/palettes';
 import { auth, db } from '@/lib/firebase';
-import { signInWithGoogle } from '@/lib/google-auth';
+import { sendPushNotification } from '@/lib/push';
+import { getGoogleCredential, signInWithGoogle, signOutFromGoogle } from '@/lib/google-auth';
 
 type CoupleContextValue = {
   user: User | null;
@@ -35,21 +39,26 @@ type CoupleContextValue = {
   /** What each of you goes by. Falls back to a generic label until someone picks one. */
   myName: string;
   partnerName: string;
-  /** The two colours this couple is made of. Shared, like everything else here. */
-  palette: Palette;
+  /** Whoever opened the space is the first light; whoever walked in is the second. */
+  amFirst: boolean;
+  /** The pair of colours the space wears. One choice, belonging to both of you. */
+  paletteId: string;
+  setPalette: (id: string) => Promise<void>;
   signUp: (email: string, password: string, name: string) => Promise<void>;
   signIn: (email: string, password: string) => Promise<void>;
   signInGoogle: () => Promise<void>;
   signOutUser: () => Promise<void>;
-  createCouple: (
-    spaceName: string,
-    paletteId: string,
-  ) => Promise<{ coupleId: string; code: string }>;
+  createCouple: (spaceName: string) => Promise<{ coupleId: string; code: string }>;
   confirmCouple: (coupleId: string) => Promise<void>;
   joinCouple: (code: string) => Promise<boolean>;
   renameSpace: (name: string) => Promise<void>;
   renameMe: (name: string) => Promise<void>;
-  setPalette: (paletteId: string) => Promise<void>;
+  /** Walk out of the space, keeping your account. If you were alone, the space goes too. */
+  leaveCouple: () => Promise<void>;
+  /** Irreversible. Pass the password only for accounts that signed up with one. */
+  deleteAccount: (password?: string) => Promise<void>;
+  /** Whether this account signed in with Google, so we know how to prove identity again. */
+  isGoogleAccount: boolean;
 };
 
 const CoupleContext = createContext<CoupleContextValue | null>(null);
@@ -69,7 +78,8 @@ export function CoupleProvider({ children }: { children: ReactNode }) {
   const [partnerUid, setPartnerUid] = useState<string | null>(null);
   const [myName, setMyName] = useState('');
   const [partnerName, setPartnerName] = useState('');
-  const [paletteId, setPaletteId] = useState<string | null>(null);
+  const [amFirst, setAmFirst] = useState(true);
+  const [paletteId, setPaletteId] = useState(DefaultPalette.id);
 
   useEffect(() => {
     return onAuthStateChanged(auth, (firebaseUser) => {
@@ -97,29 +107,57 @@ export function CoupleProvider({ children }: { children: ReactNode }) {
       setPartnerName('');
       return undefined;
     }
-    return onSnapshot(doc(db, 'users', partnerUid), (snapshot) => {
-      setPartnerName((snapshot.data()?.displayName as string | undefined) ?? '');
-    });
+    return onSnapshot(
+      doc(db, 'users', partnerUid),
+      (snapshot) => setPartnerName((snapshot.data()?.displayName as string | undefined) ?? ''),
+      () => {
+        // The space just ended, so you can't see them any more. That's the rule working,
+        // not a failure: let go quietly instead of shouting about it.
+        setPartnerName('');
+      },
+    );
   }, [partnerUid]);
 
   useEffect(() => {
     if (!coupleId || !user) {
       setInviteCode(null);
       setSpaceName(null);
-      setPaletteId(null);
       setMemberCount(0);
       setPartnerUid(null);
       return undefined;
     }
     return onSnapshot(doc(db, 'couples', coupleId), (snapshot) => {
+      // The other person ended it. Their app can't clear your profile — the rules only
+      // let you write your own — so you let go of the space yourself when you find it gone.
+      if (!snapshot.exists()) {
+        void updateDoc(doc(db, 'users', user.uid), { coupleId: null });
+        void Notifications.cancelAllScheduledNotificationsAsync();
+        return;
+      }
+
       const memberIds = (snapshot.data()?.memberIds as string[] | undefined) ?? [];
       setInviteCode((snapshot.data()?.inviteCode as string | undefined) ?? null);
       setSpaceName((snapshot.data()?.spaceName as string | undefined) ?? null);
-      setPaletteId((snapshot.data()?.palette as string | undefined) ?? null);
+      setPaletteId((snapshot.data()?.palette as string | undefined) ?? DefaultPalette.id);
       setMemberCount(memberIds.length);
       setPartnerUid(memberIds.find((id) => id !== user.uid) ?? null);
+      // The order people arrived in *is* the colour. Nothing else decides it, and nothing
+      // needs to be stored: both phones read the same list and reach the same answer.
+      setAmFirst(memberIds[0] === user.uid);
     });
   }, [coupleId, user]);
+
+  // Spaces made before the key became a document of its own have no door to open. Put one
+  // up, once, so an invite that was handed out earlier still works.
+  useEffect(() => {
+    if (!user || !coupleId || !inviteCode || memberCount >= 2) return;
+    const inviteRef = doc(db, 'invites', inviteCode);
+    void getDoc(inviteRef).then((snapshot) => {
+      if (!snapshot.exists()) {
+        void setDoc(inviteRef, { coupleId, createdAt: Date.now() });
+      }
+    });
+  }, [user, coupleId, inviteCode, memberCount]);
 
   const signUp = async (email: string, password: string, name: string) => {
     const credential = await createUserWithEmailAndPassword(auth, email, password);
@@ -153,10 +191,84 @@ export function CoupleProvider({ children }: { children: ReactNode }) {
   };
 
   const signOutUser = async () => {
+    // Leave both sessions, or Google will quietly log you back into the same account.
+    await signOutFromGoogle();
     await firebaseSignOut(auth);
   };
 
-  const createCouple = async (name: string, chosenPaletteId: string) => {
+  // How you got in decides how you prove it's you again before the account can be destroyed.
+  const isGoogleAccount = Boolean(
+    user?.providerData.some((provider) => provider.providerId === 'google.com'),
+  );
+
+  /**
+   * End the shared space.
+   *
+   * The space *is* the pair, so it can't outlive it. Whoever walks out ends it, and
+   * everything in it goes with it — otherwise the one who stays would be left holding
+   * the other's photos, and anyone invited afterwards would walk into a room still
+   * full of a previous relationship.
+   *
+   * Leaving and deleting your account do exactly this to the space, so it lives here once.
+   */
+  const dissolveCouple = async (uid: string) => {
+    if (!coupleId) return;
+
+    const couple = await getDoc(doc(db, 'couples', coupleId));
+    const memberIds = (couple.data()?.memberIds as string[] | undefined) ?? [];
+    const otherUid = memberIds.find((id) => id !== uid);
+
+    // Tell them before it goes. Once it's deleted, their app has nothing left to
+    // explain itself with — the space would simply be gone.
+    if (otherUid) {
+      await sendPushNotification(coupleId, otherUid, 'El espacio se ha cerrado', 'Ya no está.').catch(
+        () => undefined,
+      );
+    }
+
+    // The key first: taking it down needs the space to still exist and us to still be in it.
+    const code = couple.data()?.inviteCode as string | undefined;
+    if (code) {
+      await deleteDoc(doc(db, 'invites', code)).catch(() => undefined);
+    }
+
+    // Content next: deleting the space would orphan these, and nothing could reach them.
+    for (const name of ['reminders', 'photos', 'messages']) {
+      const docs = await getDocs(collection(db, 'couples', coupleId, name));
+      await Promise.all(docs.docs.map((entry) => deleteDoc(entry.ref)));
+    }
+    await deleteDoc(doc(db, 'couples', coupleId));
+
+    // Alarms live on the phone, not in Firestore. Left alone they'd keep going off for
+    // reminders that no longer exist anywhere.
+    await Notifications.cancelAllScheduledNotificationsAsync();
+  };
+
+  const leaveCouple = async () => {
+    if (!user) throw new Error('No hay usuario');
+    await dissolveCouple(user.uid);
+    // Your account stays; it just isn't anywhere. The guard sends you back to pairing.
+    await updateDoc(doc(db, 'users', user.uid), { coupleId: null });
+  };
+
+  const deleteAccount = async (password?: string) => {
+    if (!user) throw new Error('No hay usuario');
+
+    // Firebase won't destroy an account on a stale login, so prove it's you first.
+    if (isGoogleAccount) {
+      await reauthenticateWithCredential(user, await getGoogleCredential());
+    } else if (password) {
+      const credential = EmailAuthProvider.credential(user.email ?? '', password);
+      await reauthenticateWithCredential(user, credential);
+    }
+
+    await dissolveCouple(user.uid);
+    await deleteDoc(doc(db, 'users', user.uid));
+    await signOutFromGoogle();
+    await deleteUser(user);
+  };
+
+  const createCouple = async (name: string) => {
     if (!user) throw new Error('No hay usuario');
     const code = generateInviteCode();
     const coupleRef = doc(collection(db, 'couples'));
@@ -164,10 +276,18 @@ export function CoupleProvider({ children }: { children: ReactNode }) {
       memberIds: [user.uid],
       inviteCode: code,
       spaceName: name.trim(),
-      palette: chosenPaletteId,
       createdAt: Date.now(),
     });
+    // The key also lives on its own, so that walking in means knowing the code rather
+    // than being able to ask for the list of every space there is.
+    await setDoc(doc(db, 'invites', code), { coupleId: coupleRef.id, createdAt: Date.now() });
     return { coupleId: coupleRef.id, code };
+  };
+
+  const setPalette = async (id: string) => {
+    if (!coupleId) return;
+    // It lives on the space, not on either of you, so it changes on both phones at once.
+    await updateDoc(doc(db, 'couples', coupleId), { palette: id });
   };
 
   const renameSpace = async (name: string) => {
@@ -180,11 +300,6 @@ export function CoupleProvider({ children }: { children: ReactNode }) {
     await updateDoc(doc(db, 'users', user.uid), { displayName: name.trim() });
   };
 
-  const setPalette = async (chosenPaletteId: string) => {
-    if (!coupleId) return;
-    await updateDoc(doc(db, 'couples', coupleId), { palette: chosenPaletteId });
-  };
-
   const confirmCouple = async (coupleIdToConfirm: string) => {
     if (!user) throw new Error('No hay usuario');
     await updateDoc(doc(db, 'users', user.uid), { coupleId: coupleIdToConfirm });
@@ -195,17 +310,14 @@ export function CoupleProvider({ children }: { children: ReactNode }) {
     const trimmedCode = code.trim().toUpperCase();
     if (!trimmedCode) return false;
 
-    const matches = await getDocs(
-      query(collection(db, 'couples'), where('inviteCode', '==', trimmedCode)),
-    );
-    if (matches.empty) return false;
+    // Straight to the door this key opens. Nothing else is readable, so a wrong code
+    // tells you nothing except that it's wrong.
+    const invite = await getDoc(doc(db, 'invites', trimmedCode));
+    if (!invite.exists()) return false;
 
-    const coupleDoc = matches.docs[0];
-    const memberIds = coupleDoc.data().memberIds as string[];
-    if (!memberIds.includes(user.uid)) {
-      await updateDoc(coupleDoc.ref, { memberIds: arrayUnion(user.uid) });
-    }
-    await updateDoc(doc(db, 'users', user.uid), { coupleId: coupleDoc.id });
+    const joinedCoupleId = invite.data().coupleId as string;
+    await updateDoc(doc(db, 'couples', joinedCoupleId), { memberIds: arrayUnion(user.uid) });
+    await updateDoc(doc(db, 'users', user.uid), { coupleId: joinedCoupleId });
     return true;
   };
 
@@ -220,8 +332,10 @@ export function CoupleProvider({ children }: { children: ReactNode }) {
       isWaitingForPartner: Boolean(coupleId) && memberCount < 2,
       partnerUid,
       myName: myName || 'Tú',
-      partnerName: partnerName || 'Tu pareja',
-      palette: paletteId ? paletteById(paletteId) : DefaultPalette,
+      partnerName: partnerName || 'La otra persona',
+      amFirst,
+      paletteId,
+      setPalette,
       signUp,
       signIn,
       signInGoogle,
@@ -231,7 +345,9 @@ export function CoupleProvider({ children }: { children: ReactNode }) {
       joinCouple,
       renameSpace,
       renameMe,
-      setPalette,
+      leaveCouple,
+      deleteAccount,
+      isGoogleAccount,
     }),
     [
       user,
@@ -244,6 +360,7 @@ export function CoupleProvider({ children }: { children: ReactNode }) {
       partnerUid,
       myName,
       partnerName,
+      amFirst,
       paletteId,
     ],
   );

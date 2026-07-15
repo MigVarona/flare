@@ -11,30 +11,184 @@ service cloud.firestore {
         && request.auth.uid in get(/databases/$(database)/documents/couples/$(coupleId)).data.memberIds;
     }
 
+    function isValidName(value, max) {
+      return value is string && value.size() > 0 && value.size() <= max;
+    }
+
+    function isValidOptionalString(value, max) {
+      return value == null || (value is string && value.size() <= max);
+    }
+
+    function missingOrString(data, key, max) {
+      return !(key in data) || data[key] == null || (data[key] is string && data[key].size() <= max);
+    }
+
+    function isValidCreatedAt(value) {
+      return value is timestamp || value is number;
+    }
+
+    function isValidOwnCouplePointer(coupleId) {
+      return coupleId == null
+        || (coupleId is string
+            && coupleId.size() <= 80
+            && request.auth.uid in get(/databases/$(database)/documents/couples/$(coupleId)).data.memberIds);
+    }
+
+    function myCoupleId() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data.coupleId;
+    }
+
     match /users/{uid} {
-      allow read: if isSignedIn();
-      allow write: if isSignedIn() && request.auth.uid == uid;
+      // Your profile holds your email and your push token. Handing those to every signed-in
+      // stranger is how someone ends up sending notifications to a person they don't know.
+      // So: yourself, or whoever shares a space with you.
+      allow get: if isSignedIn()
+        && (request.auth.uid == uid
+            || (resource.data.coupleId != null && resource.data.coupleId == myCoupleId()));
+      allow create: if isSignedIn()
+        && request.auth.uid == uid
+        && request.resource.data.keys().hasOnly([
+          'email',
+          'displayName',
+          'coupleId',
+          'createdAt',
+          'expoPushToken'
+        ])
+        && missingOrString(request.resource.data, 'email', 320)
+        && isValidName(request.resource.data.displayName, 20)
+        && request.resource.data.coupleId == null
+        && isValidCreatedAt(request.resource.data.createdAt);
+      allow update: if isSignedIn()
+        && request.auth.uid == uid
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+          'displayName',
+          'coupleId',
+          'expoPushToken'
+        ])
+        && isValidName(request.resource.data.displayName, 20)
+        && isValidOwnCouplePointer(request.resource.data.coupleId)
+        && missingOrString(request.resource.data, 'expoPushToken', 220);
+      allow delete: if isSignedIn() && request.auth.uid == uid;
+    }
+
+    /**
+     * A key on its own, so that using one means *knowing* it.
+     *
+     * The code used to live on the space itself, and finding a space meant querying the
+     * whole collection — which any signed-in account could do, reading every key there is.
+     * A door you can enumerate isn't locked. Here there is no list: you can only open the
+     * door whose code you already have.
+     */
+    match /invites/{code} {
+      allow get: if isSignedIn();
+      allow create: if isSignedIn()
+        && code.matches('^[A-Z0-9]{6}$')
+        && request.resource.data.keys().hasOnly(['coupleId', 'createdAt'])
+        && isMember(request.resource.data.coupleId)
+        && isValidCreatedAt(request.resource.data.createdAt);
+      allow delete: if isSignedIn() && isMember(resource.data.coupleId);
     }
 
     match /couples/{coupleId} {
-      allow get, list: if isSignedIn();
-      allow create: if isSignedIn() && request.auth.uid in request.resource.data.memberIds;
-      allow update: if isMember(coupleId)
+      // No list: the space is nobody's business but the two people in it.
+      allow get: if isMember(coupleId);
+      allow create: if isSignedIn()
+        && request.resource.data.keys().hasOnly([
+          'memberIds',
+          'inviteCode',
+          'spaceName',
+          'palette',
+          'createdAt'
+        ])
+        && request.resource.data.memberIds is list
+        && request.resource.data.memberIds.size() == 1
+        && request.resource.data.memberIds[0] == request.auth.uid
+        && request.resource.data.inviteCode.matches('^[A-Z0-9]{6}$')
+        && isValidName(request.resource.data.spaceName, 28)
+        && isValidCreatedAt(request.resource.data.createdAt);
+
+      // Members can change it — and someone holding the key can add themselves, which is
+      // the one moment a non-member is allowed to write, and only to walk in.
+      allow update: if (isMember(coupleId)
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['spaceName', 'palette'])
+        && isValidName(request.resource.data.spaceName, 28)
+        && (!('palette' in request.resource.data)
+            || request.resource.data.palette in ['neon', 'brasa', 'selva', 'cobalto', 'coral', 'lima']))
         || (isSignedIn()
+            && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['memberIds'])
+            && myCoupleId() == null
             && request.auth.uid in request.resource.data.memberIds
             && resource.data.memberIds.size() == 1
-            && request.resource.data.memberIds.size() == 2);
+            && request.resource.data.memberIds.size() == 2
+            && request.resource.data.memberIds.hasAll(resource.data.memberIds));
+
+      // The space is the pair, so it can't outlive it: whoever walks out ends it, and
+      // what was in it goes. Nobody inherits a space, and nobody new walks into one
+      // still holding someone else's photos.
+      allow delete: if isMember(coupleId);
 
       match /reminders/{reminderId} {
-        allow read, write: if isMember(coupleId);
+        allow read: if isMember(coupleId);
+        allow create: if isMember(coupleId)
+          && request.resource.data.keys().hasOnly([
+            'title',
+            'dueAt',
+            'dueLabel',
+            'status',
+            'createdByUid',
+            'createdAt'
+          ])
+          && isValidName(request.resource.data.title, 120)
+          && isValidOptionalString(request.resource.data.dueLabel, 80)
+          && (request.resource.data.dueAt == null || request.resource.data.dueAt is timestamp)
+          && request.resource.data.status == 'pending'
+          && request.resource.data.createdByUid == request.auth.uid
+          && isValidCreatedAt(request.resource.data.createdAt);
+        allow update: if isMember(coupleId)
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+            'dueAt',
+            'dueLabel',
+            'status',
+            'completedAt'
+          ])
+          && (request.resource.data.dueAt == null || request.resource.data.dueAt is timestamp)
+          && isValidOptionalString(request.resource.data.dueLabel, 80)
+          && request.resource.data.status in ['pending', 'done']
+          && (!('completedAt' in request.resource.data)
+              || request.resource.data.completedAt == null
+              || request.resource.data.completedAt is timestamp);
+        allow delete: if isMember(coupleId);
       }
 
       match /photos/{photoId} {
-        allow read, write: if isMember(coupleId);
+        allow read: if isMember(coupleId);
+        allow create: if isMember(coupleId)
+          && request.resource.data.keys().hasOnly([
+            'imageUrl',
+            'cloudinaryPublicId',
+            'uploadedByUid',
+            'createdAt',
+            'reactions'
+          ])
+          && request.resource.data.imageUrl is string
+          && request.resource.data.imageUrl.size() <= 2000
+          && request.resource.data.cloudinaryPublicId is string
+          && request.resource.data.cloudinaryPublicId.size() <= 300
+          && request.resource.data.uploadedByUid == request.auth.uid
+          && isValidCreatedAt(request.resource.data.createdAt);
+        allow update: if isMember(coupleId)
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['reactions']);
+        allow delete: if isMember(coupleId);
       }
 
       match /messages/{messageId} {
-        allow read, write: if isMember(coupleId);
+        allow read: if isMember(coupleId);
+        allow create: if isMember(coupleId)
+          && request.resource.data.keys().hasOnly(['text', 'senderId', 'createdAt'])
+          && isValidName(request.resource.data.text, 500)
+          && request.resource.data.senderId == request.auth.uid
+          && isValidCreatedAt(request.resource.data.createdAt);
+        allow delete: if isMember(coupleId);
       }
     }
   }

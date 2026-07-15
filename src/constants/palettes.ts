@@ -1,59 +1,40 @@
 /**
- * The couple picks the two colours they are made of.
+ * The six pairs. One belongs to the space, and both of you live inside it.
  *
- * Each palette is a duo plus the colour where they meet — never a "his and hers".
- * The pairs are chosen for contrast, so you can always tell at a glance who did what,
- * and none of them lean on the tired blue/pink shorthand for gender.
+ * This is not the ten-swatch system that used to be here. That one asked each of you to pick a
+ * colour, then had to stop you from picking similar ones, then had to compute the shade in
+ * between — three moving parts for a decision taken twice. This is one choice, made once, from
+ * pairs that were already designed to work.
+ *
+ * Whoever opened the space takes the first light and whoever walked in takes the second, so
+ * there is nothing to negotiate and nothing to store per person.
+ *
+ * The brand is not in here on purpose. Churri's own colours — the mark, the main action — stay
+ * pink and blue whatever you choose. They belong to the app; this belongs to you.
  */
 export type Palette = {
   id: string;
   name: string;
-  /** The person holding the phone. */
-  you: string;
-  /** The other one. */
-  partner: string;
-  /** Where the two overlap. */
-  accent: string;
+  /** The first person in. */
+  left: string;
+  /** The second. */
+  right: string;
+  /** Where the two overlap. Sampled, not computed: light adds up, it doesn't average. */
+  lens: string;
 };
 
 export const Palettes: Palette[] = [
-  {
-    id: 'neon',
-    name: 'Neón',
-    you: '#FF3D8A',
-    partner: '#37E2FF',
-    accent: '#A855F7',
-  },
-  {
-    id: 'brasa',
-    name: 'Brasa',
-    you: '#FFB020',
-    partner: '#FF3D5A',
-    accent: '#FF7A2F',
-  },
-  {
-    id: 'selva',
-    name: 'Selva',
-    you: '#B6FF3D',
-    partner: '#2EE6C5',
-    accent: '#5BFF8A',
-  },
-  {
-    id: 'cobalto',
-    name: 'Cobalto',
-    you: '#FF9F1C',
-    partner: '#4D8BFF',
-    accent: '#8B7BFF',
-  },
+  { id: 'neon', name: 'Neón', left: '#F52E77', right: '#00C1E8', lens: '#FB99EA' },
+  { id: 'brasa', name: 'Brasa', left: '#EFA201', right: '#F85763', lens: '#FD9B05' },
+  { id: 'selva', name: 'Selva', left: '#B7E509', right: '#7BED4A', lens: '#F3FB77' },
+  { id: 'cobalto', name: 'Cobalto', left: '#19ACF5', right: '#7132F2', lens: '#01B1FB' },
+  { id: 'coral', name: 'Coral', left: '#E04392', right: '#F98145', lens: '#FC768E' },
+  { id: 'lima', name: 'Lima', left: '#B7E408', right: '#25D6C3', lens: '#AEF65D' },
 ];
 
+/** Neón, which is also the brand's own pair: the app looks like itself until you say otherwise. */
 export const DefaultPalette = Palettes[0];
 
-export function paletteById(id: string | null | undefined) {
+export function paletteById(id: string | null | undefined): Palette {
   return Palettes.find((palette) => palette.id === id) ?? DefaultPalette;
-}
-
-/** The brand gradient for a palette: you → the space between → them. */
-export function gradientFor(palette: Palette): readonly [string, string, string] {
-  return [palette.you, palette.accent, palette.partner] as const;
 }

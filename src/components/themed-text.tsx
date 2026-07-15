@@ -1,10 +1,19 @@
-import { Platform, StyleSheet, Text, type TextProps } from 'react-native';
+import { StyleSheet, Text, type TextProps } from 'react-native';
 
-import { Fonts, ThemeColor } from '@/constants/theme';
+import { ThemeColor } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 
+/**
+ * The type scale. Six sizes, and nothing outside them.
+ *
+ * The app had eleven — 34, 32, 30, 28, 20, 19, 18, 16, 14, 11 — invented one screen at a time
+ * and related to each other by nothing. That is what "not quite right" looks like when you
+ * can't name it: sizes so close together that they read as mistakes rather than as levels.
+ *
+ * These six are far enough apart to be told apart. Every line in the app is one of them.
+ */
 export type ThemedTextProps = TextProps & {
-  type?: 'default' | 'title' | 'small' | 'smallBold' | 'subtitle' | 'link' | 'linkPrimary' | 'code';
+  type?: 'display' | 'title' | 'headline' | 'default' | 'small' | 'smallBold' | 'key';
   themeColor?: ThemeColor;
 };
 
@@ -15,14 +24,7 @@ export function ThemedText({ style, type = 'default', themeColor, ...rest }: The
     <Text
       style={[
         { color: theme[themeColor ?? 'text'] },
-        type === 'default' && styles.default,
-        type === 'title' && styles.title,
-        type === 'small' && styles.small,
-        type === 'smallBold' && styles.smallBold,
-        type === 'subtitle' && styles.subtitle,
-        type === 'link' && styles.link,
-        type === 'linkPrimary' && styles.linkPrimary,
-        type === 'code' && styles.code,
+        styles[type],
         style,
       ]}
       {...rest}
@@ -30,44 +32,49 @@ export function ThemedText({ style, type = 'default', themeColor, ...rest }: The
   );
 }
 
+// Android ignores fontWeight once a custom family is set, so each weight has to be named as
+// its own family rather than asked for numerically.
 const styles = StyleSheet.create({
-  small: {
-    fontSize: 14,
-    lineHeight: 20,
-    fontWeight: 500,
+  /** The one line that owns a screen. Onboarding only. */
+  display: {
+    fontFamily: 'Outfit_800ExtraBold',
+    fontSize: 40,
+    lineHeight: 46,
+    letterSpacing: -1,
   },
-  smallBold: {
-    fontSize: 14,
-    lineHeight: 20,
-    fontWeight: 700,
+  /** What every screen is called. */
+  title: {
+    fontFamily: 'Outfit_800ExtraBold',
+    fontSize: 34,
+    lineHeight: 40,
+    letterSpacing: -0.8,
+  },
+  /** The thing a card is actually about: a reminder, a message, a name. */
+  headline: {
+    fontFamily: 'Outfit_600SemiBold',
+    fontSize: 19,
+    lineHeight: 26,
   },
   default: {
+    fontFamily: 'Outfit_400Regular',
     fontSize: 16,
     lineHeight: 24,
-    fontWeight: 500,
   },
-  title: {
-    fontSize: 48,
-    fontWeight: 600,
-    lineHeight: 52,
-  },
-  subtitle: {
-    fontSize: 32,
-    lineHeight: 44,
-    fontWeight: 600,
-  },
-  link: {
-    lineHeight: 30,
+  small: {
+    fontFamily: 'Outfit_400Regular',
     fontSize: 14,
+    lineHeight: 20,
   },
-  linkPrimary: {
-    lineHeight: 30,
+  smallBold: {
+    fontFamily: 'Outfit_600SemiBold',
     fontSize: 14,
-    color: '#3c87f7',
+    lineHeight: 20,
   },
-  code: {
-    fontFamily: Fonts.mono,
-    fontWeight: Platform.select({ android: 700 }) ?? 500,
-    fontSize: 12,
+  /** The invite key, and only that: letters spaced far enough apart to read one at a time. */
+  key: {
+    fontFamily: 'Outfit_800ExtraBold',
+    fontSize: 28,
+    lineHeight: 36,
+    letterSpacing: 8,
   },
 });

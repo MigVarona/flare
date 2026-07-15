@@ -1,17 +1,29 @@
-export async function sendPushNotification(expoPushToken: string, title: string, body: string) {
-  const response = await fetch('https://exp.host/--/api/v2/push/send', {
+import { auth } from '@/lib/firebase';
+
+const WORKER_URL = 'https://churri-photos.migvarona.workers.dev';
+
+export async function sendPushNotification(
+  coupleId: string,
+  recipientUid: string,
+  title: string,
+  message: string,
+  /** Where tapping the notification lands: '/reminders', '/chat' or '/gallery'. */
+  url?: string,
+) {
+  const token = await auth.currentUser?.getIdToken();
+  if (!token) return false;
+
+  const response = await fetch(`${WORKER_URL}/push/send`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ to: expoPushToken, title, body, sound: 'default' }),
+    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+    body: JSON.stringify({ coupleId, recipientUid, title, message, url }),
   });
 
-  // Expo answers 200 even when it refuses to deliver (dead token, wrong project…),
-  // so the only way to know is to read what it says.
-  const result = (await response.json()) as { data?: { status: string; message?: string } };
+  const result = (await response.json().catch(() => ({}))) as { ok?: boolean; error?: string };
 
-  if (result.data?.status !== 'ok') {
-    console.log('[push] Expo rechazó el envío', result.data);
+  if (!response.ok || !result.ok) {
+    console.log('[push] no se pudo enviar', result.error ?? result);
   }
 
-  return result.data?.status === 'ok';
+  return result.ok === true;
 }

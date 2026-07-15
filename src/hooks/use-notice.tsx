@@ -1,40 +1,36 @@
 import { useCallback } from 'react';
 
 import { Toast, ToastDescription, useToast } from '@/components/ui/toast';
-import { glow, neonBorder } from '@/constants/theme';
-import { usePalette } from '@/hooks/use-palette';
-
-/** Whose action this is. The notice carries their colour, like everything else. */
-type Voice = 'you' | 'partner' | 'both';
 
 /**
- * A short confirmation that something happened. Keep the text to a few words —
- * a notice is a reassurance, not an explanation.
+ * The app speaks only when something went wrong.
+ *
+ * Everything that works is already on screen — the reminder is in the list, the photo is
+ * in the grid, the colour has changed — and announcing it again is noise. So this is for
+ * failures, and it looks like one: nobody's colour, because a failure belongs to neither
+ * of you.
  */
 export function useNotice() {
   const toast = useToast();
-  const palette = usePalette();
 
   return useCallback(
-    (message: string, voice: Voice = 'you') => {
-      const color =
-        voice === 'you' ? palette.you : voice === 'partner' ? palette.partner : palette.accent;
-
+    (message: string) => {
       toast.show({
         placement: 'top',
-        duration: 2200,
+        duration: 2600,
         render: ({ id }) => (
           <Toast
             nativeID={`notice-${id}`}
-            action="muted"
+            action="error"
             variant="solid"
-            className="mt-2 rounded-2xl bg-card px-4 py-3"
-            style={[neonBorder(color, '88'), glow(color, 22, '55')]}>
-            <ToastDescription className="font-semibold text-foreground">{message}</ToastDescription>
+            className="mt-2 rounded-2xl border border-destructive/60 bg-card px-4 py-3">
+            <ToastDescription className="font-semibold text-destructive">
+              {message}
+            </ToastDescription>
           </Toast>
         ),
       });
     },
-    [toast, palette],
+    [toast],
   );
 }

@@ -10,8 +10,10 @@ import {
   ActionsheetDragIndicator,
   ActionsheetDragIndicatorWrapper,
 } from '@/components/ui/actionsheet';
-import { glow, neonBorder } from '@/constants/theme';
+import { Colors, glow, neonBorder } from '@/constants/theme';
 import { usePalette } from '@/hooks/use-palette';
+
+const theme = Colors.dark;
 
 /**
  * Reacting is free — that's the whole point. It lets you say "I'm here" without
@@ -49,7 +51,7 @@ export function SignalPicker({
                 onPress={() => onPick(isActive ? null : signal.id)}
                 className="flex-row items-center gap-4 rounded-2xl px-4 py-3 active:opacity-70"
                 style={[
-                  neonBorder(isActive ? palette.you : '#2C2038', isActive ? 'AA' : 'FF'),
+                  neonBorder(isActive ? palette.you : theme.border, isActive ? 'AA' : 'FF'),
                   isActive ? glow(palette.you, 16, '44') : undefined,
                 ]}>
                 <LightSignal id={signal.id} color={palette.you} size={26} />

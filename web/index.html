@@ -1,0 +1,148 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Churri — Privacidad</title>
+    <style>
+      :root {
+        --ink: #01030f;
+        --card: #070b19;
+        --line: #1e2540;
+        --text: #f2f3f5;
+        --muted: #8a90a6;
+        --left: #f72e79;
+        --lens: #bd66dd;
+        --right: #17a9f5;
+      }
+      * { box-sizing: border-box; }
+      body {
+        margin: 0;
+        padding: 4rem 1.5rem 6rem;
+        background: var(--ink);
+        color: var(--text);
+        font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+        font-size: 17px;
+        line-height: 1.7;
+      }
+      main { max-width: 44rem; margin: 0 auto; }
+      .rule {
+        height: 3px;
+        border-radius: 2px;
+        background: linear-gradient(90deg, var(--left), var(--lens), var(--right));
+      }
+      h1 { font-size: 2.4rem; letter-spacing: -0.03em; margin: 1.5rem 0 0.25rem; }
+      h2 { font-size: 1.15rem; margin: 2.75rem 0 0.75rem; letter-spacing: -0.01em; }
+      .eyebrow {
+        text-transform: uppercase;
+        letter-spacing: 0.14em;
+        font-size: 0.72rem;
+        font-weight: 700;
+        color: var(--muted);
+      }
+      .lead { color: var(--muted); margin-top: 0; }
+      p, li { color: #d7d9de; }
+      strong { color: var(--text); }
+      ul { padding-left: 1.1rem; }
+      li { margin-bottom: 0.4rem; }
+      a { color: var(--right); }
+      .card {
+        background: var(--card);
+        border: 1px solid var(--line);
+        border-radius: 18px;
+        padding: 1.25rem 1.5rem;
+        margin-top: 2rem;
+      }
+      footer { margin-top: 4rem; color: var(--muted); font-size: 0.85rem; }
+    </style>
+  </head>
+  <body>
+    <main>
+      <div class="rule"></div>
+      <p class="eyebrow" style="margin-top: 1.5rem">Churri</p>
+      <h1>Privacidad</h1>
+      <p class="lead">Última actualización: 14 de julio de 2026</p>
+
+      <p>
+        Churri es un espacio privado para dos personas. Todo lo que sigue está escrito para
+        que sepas exactamente qué se guarda, dónde, y cómo hacerlo desaparecer.
+      </p>
+
+      <h2>Qué se guarda</h2>
+      <ul>
+        <li><strong>Tu correo y tu nombre.</strong> Al crear la cuenta, o los que nos da Google si entras con Google.</li>
+        <li><strong>El color que eliges.</strong> Es lo que te identifica dentro del espacio.</li>
+        <li><strong>Lo que creáis:</strong> recordatorios, fotos, mensajes y las reacciones a ellos.</li>
+        <li><strong>Un identificador de notificaciones</strong> de tu teléfono, para poder avisarte.</li>
+      </ul>
+      <p>
+        No se recoge nada más. No hay publicidad, no hay analítica de uso, no hay perfilado, y
+        <strong>tus datos no se venden ni se ceden a nadie</strong>.
+      </p>
+
+      <h2>Quién puede verlo</h2>
+      <p>
+        Solo las dos personas del espacio. No es una promesa: son reglas que se aplican en el
+        servidor. Nadie más puede leer vuestros mensajes, abrir vuestras fotos ni ver vuestros
+        recordatorios, y un espacio no se puede encontrar ni listar desde fuera.
+      </p>
+      <p>
+        Las fotos se guardan como archivos privados. Solo se abren con un enlace firmado que
+        únicamente existe dentro de vuestro espacio: quien pruebe la dirección a secas recibe
+        un rechazo.
+      </p>
+
+      <h2>Dónde está</h2>
+      <ul>
+        <li>
+          <strong>Cuentas y contenido:</strong> en Firebase, de Google, en la región europea
+          <em>eur3</em> (Bélgica y Países Bajos).
+        </li>
+        <li>
+          <strong>Fotos:</strong> en Cloudinary, que puede almacenarlas en servidores fuera del
+          Espacio Económico Europeo.
+        </li>
+        <li>
+          <strong>Notificaciones:</strong> se envían a través del servicio de Expo, que recibe
+          el identificador de tu teléfono y el texto del aviso.
+        </li>
+      </ul>
+
+      <h2>Cuánto tiempo</h2>
+      <p>
+        Mientras exista la cuenta. Los mensajes son una excepción: el espacio guarda solo los
+        <strong>cinco últimos</strong>, y cuando llega uno nuevo, el más antiguo se borra para
+        los dos a la vez.
+      </p>
+
+      <h2>Cómo borrarlo todo</h2>
+      <p>
+        Desde <strong>Ajustes → Eliminar mi cuenta</strong>. Es inmediato e irreversible: se van
+        tu cuenta, el espacio y todo lo que hay dentro, incluidos los archivos de las fotos.
+      </p>
+      <p>
+        Si ya no tienes la app instalada, puedes pedirlo en la
+        <a href="/eliminar-cuenta.html">página de borrado de cuenta</a>.
+      </p>
+
+      <h2>Tus derechos</h2>
+      <p>
+        Puedes acceder a tus datos, corregirlos o eliminarlos, y presentar una reclamación ante
+        la Agencia Española de Protección de Datos. Para cualquiera de estas cosas, escribe a la
+        dirección de abajo.
+      </p>
+
+      <h2>Menores</h2>
+      <p>Churri no está dirigida a menores de 16 años.</p>
+
+      <div class="card">
+        <p class="eyebrow">Contacto</p>
+        <p style="margin-bottom: 0">
+          Miguel Varona — <a href="mailto:migvaronag@gmail.com">migvaronag@gmail.com</a>
+        </p>
+      </div>
+
+      <footer>Churri — un espacio para dos.</footer>
+    </main>
+  </body>
+</html>
