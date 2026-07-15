@@ -26,13 +26,11 @@ export default function SettingsScreen() {
   const insets = useSafeAreaInsets();
   const {
     user,
-    spaceName,
     inviteCode,
     isWaitingForPartner,
     myName,
     partnerName,
     partnerUid,
-    renameSpace,
     renameMe,
     paletteId,
     setPalette,
@@ -45,9 +43,7 @@ export default function SettingsScreen() {
   const notice = useNotice();
   const palette = usePalette();
 
-  const [name, setName] = useState(spaceName ?? '');
   const [ownName, setOwnName] = useState(myName);
-  const [isSaving, setIsSaving] = useState(false);
   const [isSavingOwn, setIsSavingOwn] = useState(false);
   const [isSigningOut, setIsSigningOut] = useState(false);
   const [isLeaving, setIsLeaving] = useState(false);
@@ -61,20 +57,9 @@ export default function SettingsScreen() {
   const isAlone = !partnerUid;
 
   // The names arrive from Firestore after the first render, so the fields have to catch up.
-  useEffect(() => setName(spaceName ?? ''), [spaceName]);
   useEffect(() => setOwnName(myName), [myName]);
 
-  const hasNameChanged = name.trim().length > 0 && name.trim() !== (spaceName ?? '');
   const hasOwnNameChanged = ownName.trim().length > 0 && ownName.trim() !== myName;
-
-  const handleRename = async () => {
-    setIsSaving(true);
-    try {
-      await renameSpace(name);
-    } finally {
-      setIsSaving(false);
-    }
-  };
 
   const handleRenameMe = async () => {
     setIsSavingOwn(true);
@@ -171,28 +156,6 @@ export default function SettingsScreen() {
                 color={palette.you}
                 disabled={isSavingOwn}
                 onPress={handleRenameMe}
-              />
-            </View>
-          )}
-        </GlowCard>
-
-        <GlowCard>
-          <Eyebrow>Nombre del espacio</Eyebrow>
-          <TextInput
-            value={name}
-            onChangeText={setName}
-            placeholder="Un nombre"
-            placeholderTextColor={theme.textSecondary}
-            maxLength={28}
-            className="rounded-2xl border border-border bg-background px-4 py-4 text-base text-foreground"
-          />
-          {hasNameChanged && (
-            <View className="mt-1">
-              <GhostButton
-                title={isSaving ? 'Guardando…' : 'Guardar nombre'}
-                color={palette.you}
-                disabled={isSaving}
-                onPress={handleRename}
               />
             </View>
           )}

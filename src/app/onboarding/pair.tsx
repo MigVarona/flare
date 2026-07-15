@@ -80,7 +80,6 @@ function ChooseMode({ onSelect }: { onSelect: (mode: Mode) => void }) {
 function CreateCouple({ onBack }: { onBack: () => void }) {
   const { createCouple, confirmCouple } = useCouple();
 
-  const [name, setName] = useState('');
   const palette = usePalette();
   const [pendingCouple, setPendingCouple] = useState<{ coupleId: string; code: string } | null>(
     null,
@@ -90,11 +89,10 @@ function CreateCouple({ onBack }: { onBack: () => void }) {
   const [isConfirming, setIsConfirming] = useState(false);
 
   const handleCreate = async () => {
-    if (!name.trim()) return;
     setIsCreating(true);
     setError(null);
     try {
-      setPendingCouple(await createCouple(name));
+      setPendingCouple(await createCouple());
     } catch {
       setError('No se pudo crear el espacio, inténtalo de nuevo');
     } finally {
@@ -117,27 +115,14 @@ function CreateCouple({ onBack }: { onBack: () => void }) {
     return (
       <View style={styles.content}>
         <View style={styles.titleBlock}>
-          <Eyebrow color={palette.you}>Vuestro espacio</Eyebrow>
+          <Eyebrow color={palette.you}>La llave</Eyebrow>
           <ThemedText type="title">
-            Ponedle nombre
+            Crea el espacio
           </ThemedText>
           <ThemedText themeColor="textSecondary">
-            Lo veréis cada vez que entréis.
+            Genera una llave privada para que entre la otra persona.
           </ThemedText>
         </View>
-
-        <TextInput
-          value={name}
-          onChangeText={(value) => {
-            setName(value);
-            setError(null);
-          }}
-          placeholder="Un nombre"
-          placeholderTextColor={theme.textSecondary}
-          maxLength={28}
-          style={[styles.nameInput, neonBorder(palette.you, '55'), glow(palette.you, 24, '2A')]}
-        />
-
 
         {error && <ThemedText type="small" style={styles.error}>{error}</ThemedText>}
 
@@ -145,7 +130,6 @@ function CreateCouple({ onBack }: { onBack: () => void }) {
           <GradientButton
             title="Crear el espacio"
             onPress={handleCreate}
-            disabled={!name.trim()}
             isLoading={isCreating}
           />
           <BackLink onPress={onBack} />
@@ -157,7 +141,7 @@ function CreateCouple({ onBack }: { onBack: () => void }) {
   return (
     <View style={styles.content}>
       <View style={styles.titleBlock}>
-        <Eyebrow color={palette.you}>La llave de {name.trim()}</Eyebrow>
+        <Eyebrow color={palette.you}>La llave</Eyebrow>
         <ThemedText type="title">
           Compártela
         </ThemedText>
@@ -189,7 +173,7 @@ function CreateCouple({ onBack }: { onBack: () => void }) {
           color={palette.partner}
           onPress={() =>
             Share.share({
-              message: `Esta es la llave de ${name.trim()}, nuestro espacio en Churri: ${pendingCouple.code}`,
+              message: `Esta es la llave de nuestro espacio en Churri: ${pendingCouple.code}`,
             })
           }
         />
@@ -349,15 +333,6 @@ const styles = StyleSheet.create({
   },
   centerText: {
     textAlign: 'center',
-  },
-  nameInput: {
-    backgroundColor: theme.backgroundElement,
-    borderRadius: Radius.large,
-    paddingHorizontal: Spacing[16],
-    paddingVertical: Spacing[16],
-    fontFamily: 'Outfit_600SemiBold',
-    fontSize: 16,
-    color: theme.text,
   },
   keyInput: {
     backgroundColor: theme.backgroundElement,

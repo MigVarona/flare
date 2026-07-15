@@ -33,7 +33,6 @@ type CoupleContextValue = {
   isPaired: boolean;
   coupleId: string | null;
   inviteCode: string | null;
-  spaceName: string | null;
   isWaitingForPartner: boolean;
   partnerUid: string | null;
   /** What each of you goes by. Falls back to a generic label until someone picks one. */
@@ -48,10 +47,9 @@ type CoupleContextValue = {
   signIn: (email: string, password: string) => Promise<void>;
   signInGoogle: () => Promise<void>;
   signOutUser: () => Promise<void>;
-  createCouple: (spaceName: string) => Promise<{ coupleId: string; code: string }>;
+  createCouple: () => Promise<{ coupleId: string; code: string }>;
   confirmCouple: (coupleId: string) => Promise<void>;
   joinCouple: (code: string) => Promise<boolean>;
-  renameSpace: (name: string) => Promise<void>;
   renameMe: (name: string) => Promise<void>;
   /** Walk out of the space, keeping your account. If you were alone, the space goes too. */
   leaveCouple: () => Promise<void>;
@@ -73,7 +71,6 @@ export function CoupleProvider({ children }: { children: ReactNode }) {
   const [isProfileLoading, setIsProfileLoading] = useState(true);
   const [coupleId, setCoupleId] = useState<string | null>(null);
   const [inviteCode, setInviteCode] = useState<string | null>(null);
-  const [spaceName, setSpaceName] = useState<string | null>(null);
   const [memberCount, setMemberCount] = useState(0);
   const [partnerUid, setPartnerUid] = useState<string | null>(null);
   const [myName, setMyName] = useState('');
@@ -121,7 +118,6 @@ export function CoupleProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     if (!coupleId || !user) {
       setInviteCode(null);
-      setSpaceName(null);
       setMemberCount(0);
       setPartnerUid(null);
       return undefined;
@@ -137,7 +133,6 @@ export function CoupleProvider({ children }: { children: ReactNode }) {
 
       const memberIds = (snapshot.data()?.memberIds as string[] | undefined) ?? [];
       setInviteCode((snapshot.data()?.inviteCode as string | undefined) ?? null);
-      setSpaceName((snapshot.data()?.spaceName as string | undefined) ?? null);
       setPaletteId((snapshot.data()?.palette as string | undefined) ?? DefaultPalette.id);
       setMemberCount(memberIds.length);
       setPartnerUid(memberIds.find((id) => id !== user.uid) ?? null);
@@ -268,14 +263,16 @@ export function CoupleProvider({ children }: { children: ReactNode }) {
     await deleteUser(user);
   };
 
-  const createCouple = async (name: string) => {
+  const createCouple = async () => {
     if (!user) throw new Error('No hay usuario');
     const code = generateInviteCode();
     const coupleRef = doc(collection(db, 'couples'));
     await setDoc(coupleRef, {
       memberIds: [user.uid],
       inviteCode: code,
-      spaceName: name.trim(),
+      // Kept only because the current Firestore rules require it on create. The app no
+      // longer asks for or displays a space name.
+      spaceName: 'Churri',
       createdAt: Date.now(),
     });
     // The key also lives on its own, so that walking in means knowing the code rather
@@ -288,11 +285,6 @@ export function CoupleProvider({ children }: { children: ReactNode }) {
     if (!coupleId) return;
     // It lives on the space, not on either of you, so it changes on both phones at once.
     await updateDoc(doc(db, 'couples', coupleId), { palette: id });
-  };
-
-  const renameSpace = async (name: string) => {
-    if (!coupleId || !name.trim()) return;
-    await updateDoc(doc(db, 'couples', coupleId), { spaceName: name.trim() });
   };
 
   const renameMe = async (name: string) => {
@@ -328,7 +320,6 @@ export function CoupleProvider({ children }: { children: ReactNode }) {
       isPaired: Boolean(coupleId),
       coupleId,
       inviteCode,
-      spaceName,
       isWaitingForPartner: Boolean(coupleId) && memberCount < 2,
       partnerUid,
       myName: myName || 'Tú',
@@ -343,7 +334,6 @@ export function CoupleProvider({ children }: { children: ReactNode }) {
       createCouple,
       confirmCouple,
       joinCouple,
-      renameSpace,
       renameMe,
       leaveCouple,
       deleteAccount,
@@ -355,7 +345,6 @@ export function CoupleProvider({ children }: { children: ReactNode }) {
       isProfileLoading,
       coupleId,
       inviteCode,
-      spaceName,
       memberCount,
       partnerUid,
       myName,

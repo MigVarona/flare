@@ -91,7 +91,7 @@ function BellGlyph({ color, size = 18 }: { color: string; size?: number }) {
 export default function HomeScreen() {
   const safeAreaInsets = useSafeAreaInsets();
   const { width } = useWindowDimensions();
-  const { user, coupleId, isWaitingForPartner, inviteCode, spaceName, myName, partnerName } =
+  const { user, coupleId, isWaitingForPartner, inviteCode, myName, partnerName } =
     useCouple();
   const palette = usePalette();
 
@@ -207,9 +207,6 @@ export default function HomeScreen() {
               <Eyebrow>Ajustes</Eyebrow>
             </Pressable>
           </View>
-          <ThemedText type="default" style={styles.spaceTitle}>
-            {spaceName ?? 'Vuestro espacio'}
-          </ThemedText>
           <View style={styles.presenceRow}>
             <IdentityDot isMine size={12} />
             <ThemedText type="small" themeColor="textSecondary">
@@ -415,12 +412,6 @@ const styles = StyleSheet.create({
   },
   pressed: {
     opacity: 0.6,
-  },
-  spaceTitle: {
-    marginTop: Spacing[12],
-    fontFamily: 'Outfit_700Bold',
-    fontSize: 30,
-    lineHeight: 36,
   },
   presenceRow: {
     flexDirection: 'row',
