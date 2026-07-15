@@ -98,10 +98,10 @@ const TabButton = forwardRef<View, TabTriggerSlotProps>(function TabButton(
 });
 
 function TabIcon({ name, color, focused }: { name: TabName; color: string; focused?: boolean }) {
-  const strokeWidth = focused ? 1.8 : 1.55;
+  const strokeWidth = focused ? 2 : 1.75;
 
   return (
-    <Svg width={21} height={21} viewBox="0 0 24 24">
+    <Svg width={25} height={25} viewBox="0 0 24 24">
       {name === 'Espacio' && (
         <Path
           d="M5.4 11.1 12 5.4l6.6 5.7v6.1a2 2 0 0 1-2 2h-2.5v-4.8H9.9v4.8H7.4a2 2 0 0 1-2-2v-6.1Z"
