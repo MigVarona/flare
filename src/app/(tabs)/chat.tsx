@@ -4,10 +4,13 @@ import {
   addDoc,
   collection,
   deleteDoc,
+  deleteField,
+  doc,
   onSnapshot,
   orderBy,
   query,
   serverTimestamp,
+  updateDoc,
 } from "firebase/firestore";
 import { useEffect, useRef, useState } from "react";
 import { Keyboard, Pressable, ScrollView, TextInput, View } from "react-native";
@@ -18,12 +21,17 @@ import Animated, {
   FadeOut,
   LinearTransition,
 } from "react-native-reanimated";
+import { Gesture, GestureDetector } from "react-native-gesture-handler";
+import { scheduleOnRN } from "react-native-worklets";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { ScreenHeader } from "@/components/brand";
+import { LightSignal, isSignalId, type SignalId } from "@/components/light-signals";
 import { MessageSkeletons } from "@/components/loading";
 import { DeathMs, MessageLight, StepMs } from "@/components/message-light";
+import { SignalPicker } from "@/components/signal-picker";
 import { ThemedText } from "@/components/themed-text";
+import { Modal, ModalBackdrop, ModalContent } from "@/components/ui/modal";
 import {
   BottomTabInset,
   Colors,
@@ -42,6 +50,7 @@ type Message = {
   id: string;
   text: string;
   senderId: string;
+  reactions: Record<string, SignalId>;
 };
 
 export default function ChatScreen() {
@@ -54,6 +63,8 @@ export default function ChatScreen() {
   const [isLoading, setIsLoading] = useState(true);
   const [draft, setDraft] = useState("");
   const [isKeyboardOpen, setIsKeyboardOpen] = useState(false);
+  const [viewing, setViewing] = useState<Message | null>(null);
+  const [reactingTo, setReactingTo] = useState<Message | null>(null);
   /** Messages we've already asked to delete, so a second snapshot doesn't ask again. */
   const trimmed = useRef(new Set<string>());
   /** The ones the surge is on its way to put out. They're still here; they just aren't for long. */
@@ -88,6 +99,7 @@ export default function ChatScreen() {
           id: docSnapshot.id,
           text: docSnapshot.data().text as string,
           senderId: docSnapshot.data().senderId as string,
+          reactions: (docSnapshot.data().reactions as Record<string, SignalId>) ?? {},
         })),
       );
       setIsLoading(false);
@@ -140,6 +152,15 @@ export default function ChatScreen() {
     }
   };
 
+  const react = async (message: Message, signal: SignalId | null) => {
+    if (!coupleId || !user) return;
+    setReactingTo(null);
+    void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
+    await updateDoc(doc(db, "couples", coupleId, "messages", message.id), {
+      [`reactions.${user.uid}`]: signal ?? deleteField(),
+    });
+  };
+
   return (
     <KeyboardAvoidingView className="flex-1 bg-background" behavior="padding">
       <View
@@ -178,9 +199,19 @@ export default function ChatScreen() {
                 0.35,
                 1 - distance * (0.65 / Math.max(1, MessageCapacity - 1)),
               );
+              const signals = Object.entries(message.reactions);
+
+              const open = Gesture.Tap()
+                .numberOfTaps(1)
+                .onEnd(() => scheduleOnRN(setViewing, message));
+              const answer = Gesture.LongPress()
+                .minDuration(350)
+                .onStart(() => scheduleOnRN(setReactingTo, message));
+              const gesture = Gesture.Exclusive(answer, open);
 
               return (
-                <Animated.View
+                <GestureDetector key={message.id} gesture={gesture}>
+                  <Animated.View
                   key={message.id}
                   entering={FadeIn.duration(260)}
                   exiting={FadeOut.duration(220)}
@@ -199,8 +230,23 @@ export default function ChatScreen() {
                         <ThemedText className="text-base leading-6">
                           {message.text}
                         </ThemedText>
+                        {signals.length > 0 && (
+                          <View className="mt-3 flex-row gap-1.5">
+                            {signals.map(([uid, signal]) =>
+                              isSignalId(signal) ? (
+                                <LightSignal
+                                  key={uid}
+                                  id={signal}
+                                  color={uid === user?.uid ? palette.you : palette.partner}
+                                  size={16}
+                                />
+                              ) : null,
+                            )}
+                          </View>
+                        )}
                     </MessageLight>
-                </Animated.View>
+                  </Animated.View>
+                </GestureDetector>
               );
             })
           )}
@@ -253,6 +299,78 @@ export default function ChatScreen() {
           </View>
         </View>
       </View>
+      <Modal isOpen={Boolean(viewing)} onClose={() => setViewing(null)} size="full">
+        <ModalBackdrop className="bg-background/95" />
+        <ModalContent className="h-full rounded-none border-0 bg-transparent p-0 shadow-none">
+          <View
+            className="h-full w-full justify-center px-6"
+            style={{
+              paddingTop: insets.top + Spacing[24],
+              paddingBottom: insets.bottom + Spacing[24],
+            }}
+          >
+            <View className="absolute left-0 right-0 px-6" style={{ top: insets.top + Spacing[16] }}>
+              <Pressable
+                onPress={() => setViewing(null)}
+                className="self-start rounded-full border border-border bg-background/80 px-4 py-3 active:opacity-70"
+              >
+                <ThemedText type="smallBold">Cerrar</ThemedText>
+              </Pressable>
+            </View>
+
+            {viewing && (
+              <View className={viewing.senderId === user?.uid ? "items-end" : "items-start"}>
+                <MessageLight
+                  color={viewing.senderId === user?.uid ? palette.you : palette.partner}
+                  isMine={viewing.senderId === user?.uid}
+                  rest={1}
+                  delay={0}
+                  isDying={false}
+                >
+                  <ThemedText className="text-2xl leading-8">{viewing.text}</ThemedText>
+                  {Object.entries(viewing.reactions).length > 0 && (
+                    <View className="mt-4 flex-row gap-2">
+                      {Object.entries(viewing.reactions).map(([uid, signal]) =>
+                        isSignalId(signal) ? (
+                          <LightSignal
+                            key={uid}
+                            id={signal}
+                            color={uid === user?.uid ? palette.you : palette.partner}
+                            size={22}
+                          />
+                        ) : null,
+                      )}
+                    </View>
+                  )}
+                </MessageLight>
+              </View>
+            )}
+
+            {viewing && (
+              <View
+                className="absolute left-0 right-0 flex-row items-center justify-center px-6"
+                style={{ bottom: insets.bottom + Spacing[24] }}
+              >
+                <Pressable
+                  onPress={() => setReactingTo(viewing)}
+                  className="rounded-full border border-border bg-background/85 px-5 py-3 active:opacity-70"
+                >
+                  <ThemedText type="smallBold" style={{ color: palette.accent }}>
+                    Responder
+                  </ThemedText>
+                </Pressable>
+              </View>
+            )}
+          </View>
+        </ModalContent>
+      </Modal>
+
+      <SignalPicker
+        isOpen={Boolean(reactingTo)}
+        current={reactingTo && user ? reactingTo.reactions[user.uid] : null}
+        onPick={(signal) => reactingTo && react(reactingTo, signal)}
+        onClose={() => setReactingTo(null)}
+      />
     </KeyboardAvoidingView>
   );
 }

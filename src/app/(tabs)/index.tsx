@@ -1,10 +1,14 @@
 import { router } from 'expo-router';
+import { Image } from 'expo-image';
+import * as ImagePicker from 'expo-image-picker';
 import {
+  addDoc,
   collection,
   limit,
   onSnapshot,
   orderBy,
   query,
+  serverTimestamp,
   Timestamp,
   where,
 } from 'firebase/firestore';
@@ -37,8 +41,11 @@ import {
   Spacing,
 } from '@/constants/theme';
 import { useCouple } from '@/context/couple-context';
+import { useNotice } from '@/hooks/use-notice';
 import { usePalette } from '@/hooks/use-palette';
+import { uploadPhotoToCloudinary } from '@/lib/cloudinary';
 import { db } from '@/lib/firebase';
+import { sendPushNotification } from '@/lib/push';
 
 const theme = Colors.dark;
 
@@ -50,6 +57,7 @@ type Reminder = {
   createdByUid?: string;
 };
 type Message = { id: string; text: string; senderId: string; createdAt: Date | null };
+type HomePhoto = { id: string; imageUrl: string; uploadedByUid: string };
 
 /** A reminder with no date isn't due before anything: it waits at the end. */
 function dueTime(dueAt: Timestamp | null | undefined) {
@@ -91,17 +99,24 @@ function BellGlyph({ color, size = 18 }: { color: string; size?: number }) {
 export default function HomeScreen() {
   const safeAreaInsets = useSafeAreaInsets();
   const { width } = useWindowDimensions();
-  const { user, coupleId, isWaitingForPartner, inviteCode, myName, partnerName } =
+  const { user, coupleId, partnerUid, isWaitingForPartner, inviteCode, myName, partnerName } =
     useCouple();
+  const notice = useNotice();
   const palette = usePalette();
 
   const [pendingReminders, setPendingReminders] = useState<Reminder[]>([]);
   const [activeReminderIndex, setActiveReminderIndex] = useState(0);
   const [recentMessages, setRecentMessages] = useState<Message[]>([]);
+  const [recentPhotos, setRecentPhotos] = useState<HomePhoto[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [isUploadingPhoto, setIsUploadingPhoto] = useState(false);
 
   const reminderCardWidth = Math.min(MaxContentWidth - Spacing[48], width - Spacing[48]);
   const reminderSnapWidth = reminderCardWidth + Spacing[12];
+  const photoItemSize = Math.max(
+    56,
+    Math.min(68, Math.floor((reminderCardWidth - Spacing[24] - Spacing[8] * 3) / 4)),
+  );
 
   useEffect(() => {
     if (!coupleId) return undefined;
@@ -160,6 +175,28 @@ export default function HomeScreen() {
     });
   }, [coupleId]);
 
+  useEffect(() => {
+    if (!coupleId) return undefined;
+    const photosQuery = query(
+      collection(db, 'couples', coupleId, 'photos'),
+      orderBy('createdAt', 'desc'),
+      limit(8),
+    );
+    return onSnapshot(photosQuery, (snapshot) => {
+      setRecentPhotos(
+        snapshot.docs.map((docSnapshot) => {
+          const data = docSnapshot.data();
+
+          return {
+            id: docSnapshot.id,
+            imageUrl: data.imageUrl as string,
+            uploadedByUid: data.uploadedByUid as string,
+          };
+        }),
+      );
+    });
+  }, [coupleId]);
+
   const colorForUid = (uid?: string) => (uid === user?.uid ? palette.you : palette.partner);
 
   function handleReminderScroll(event: NativeSyntheticEvent<NativeScrollEvent>) {
@@ -185,6 +222,42 @@ export default function HomeScreen() {
       await Linking.openURL(url);
     } catch {
       router.push('/reminders');
+    }
+  }
+
+  async function pickAndUploadPhoto() {
+    const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (!permission.granted) return;
+
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ['images'],
+      quality: 0.7,
+    });
+    if (result.canceled || !coupleId || !user) return;
+
+    setIsUploadingPhoto(true);
+    try {
+      const uploadedPhoto = await uploadPhotoToCloudinary(result.assets[0].uri, coupleId);
+      await addDoc(collection(db, 'couples', coupleId, 'photos'), {
+        imageUrl: uploadedPhoto.imageUrl,
+        cloudinaryPublicId: uploadedPhoto.publicId,
+        uploadedByUid: user.uid,
+        createdAt: serverTimestamp(),
+      });
+
+      if (partnerUid) {
+        sendPushNotification(
+          coupleId,
+          partnerUid,
+          'Foto nueva',
+          `${myName} ha subido una foto`,
+          '/gallery',
+        );
+      }
+    } catch {
+      notice('No se ha podido subir');
+    } finally {
+      setIsUploadingPhoto(false);
     }
   }
 
@@ -330,6 +403,84 @@ export default function HomeScreen() {
         )}
 
         {!isLoading && (
+          <Pressable onPress={() => router.push('/gallery')} className="active:opacity-80">
+            <View style={styles.section}>
+              <View style={styles.photoHeader}>
+                <View style={styles.photoTitleBlock}>
+                  <ThemedText type="headline" style={styles.sectionTitle}>
+                    Fotos
+                  </ThemedText>
+                  <View style={styles.photoIdentityRow}>
+                    <IdentityDot isMine size={8} />
+                    <IdentityDot isMine={false} size={8} />
+                  </View>
+                </View>
+                <Pressable
+                  onPress={(event) => {
+                    event.stopPropagation();
+                    void pickAndUploadPhoto();
+                  }}
+                  disabled={isUploadingPhoto}
+                  hitSlop={12}
+                  accessibilityRole="button"
+                  accessibilityLabel="Subir foto"
+                  style={({ pressed }) => [
+                    styles.photoAddButton,
+                    pressed && styles.pressed,
+                    isUploadingPhoto && styles.disabled,
+                  ]}>
+                  <ThemedText type="headline" style={styles.photoAddText}>
+                    +
+                  </ThemedText>
+                </Pressable>
+              </View>
+
+              {recentPhotos.length > 0 ? (
+                <View style={styles.photoPreviewCard}>
+                  {recentPhotos.slice(0, 3).map((photo) => {
+                    const photoColor = colorForUid(photo.uploadedByUid);
+
+                    return (
+                      <View
+                        key={photo.id}
+                        style={[
+                          styles.photoThumb,
+                          { width: photoItemSize, height: photoItemSize },
+                          neonBorder(photoColor, '66'),
+                          glow(photoColor, 12, '33'),
+                        ]}>
+                        <Image
+                          source={{ uri: photo.imageUrl }}
+                          style={styles.photoImage}
+                          contentFit="cover"
+                        />
+                      </View>
+                    );
+                  })}
+                  {recentPhotos.length > 3 && (
+                    <View
+                      style={[
+                        styles.photoMore,
+                        { width: photoItemSize, height: photoItemSize },
+                      ]}>
+                      <ThemedText type="smallBold" style={styles.photoMoreText}>
+                        +{recentPhotos.length - 3}
+                      </ThemedText>
+                    </View>
+                  )}
+                </View>
+              ) : (
+                <GlowCard style={styles.emptyCard}>
+                  <ThemedText type="small" themeColor="textSecondary">
+                    Todavía no habéis subido ninguna.
+                  </ThemedText>
+                </GlowCard>
+              )}
+            </View>
+          </Pressable>
+        )}
+
+        {!isLoading && (
           <Pressable onPress={() => router.push('/chat')} className="active:opacity-80">
             <View style={styles.section}>
               <ThemedText type="headline" style={styles.sectionTitle}>
@@ -413,6 +564,9 @@ const styles = StyleSheet.create({
   pressed: {
     opacity: 0.6,
   },
+  disabled: {
+    opacity: 0.45,
+  },
   presenceRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -432,6 +586,62 @@ const styles = StyleSheet.create({
     fontFamily: 'Outfit_600SemiBold',
     fontSize: 20,
     lineHeight: 26,
+  },
+  photoHeader: {
+    flexDirection: 'row',
+    alignItems: 'flex-end',
+    justifyContent: 'space-between',
+  },
+  photoTitleBlock: {
+    gap: Spacing[4],
+  },
+  photoIdentityRow: {
+    flexDirection: 'row',
+    gap: Spacing[8],
+  },
+  photoAddButton: {
+    width: 40,
+    height: 40,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: Radius.pill,
+    backgroundColor: theme.backgroundSelected,
+    ...neonBorder(theme.border, 'FF'),
+  },
+  photoAddText: {
+    color: theme.textSecondary,
+    lineHeight: 26,
+    transform: [{ translateY: -1 }],
+  },
+  photoPreviewCard: {
+    minHeight: 104,
+    borderRadius: Radius.large,
+    backgroundColor: theme.backgroundElement,
+    borderWidth: 1,
+    borderColor: `${theme.textSecondary}35`,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing[8],
+    padding: Spacing[12],
+  },
+  photoThumb: {
+    overflow: 'hidden',
+    borderRadius: Radius.small,
+    backgroundColor: theme.backgroundSelected,
+  },
+  photoImage: {
+    width: '100%',
+    height: '100%',
+  },
+  photoMore: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: Radius.medium,
+    backgroundColor: theme.backgroundSelected,
+    ...neonBorder(theme.border, 'FF'),
+  },
+  photoMoreText: {
+    color: theme.text,
   },
   homeItemTitle: {
     color: '#D8DBE8',

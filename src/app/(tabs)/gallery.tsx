@@ -216,18 +216,15 @@ export default function GalleryScreen() {
 
                       const signals = Object.entries(photo.reactions);
 
-                      // One tap opens it, two answer with light, holding it down deletes
-                      // your own. Double tap wins over single so it doesn't open first.
+                      // One tap opens it; holding it down answers with light. Deleting your
+                      // own photos still lives in the full-screen view.
                       const open = Gesture.Tap()
                         .numberOfTaps(1)
                         .onEnd(() => scheduleOnRN(setViewing, photo));
-                      const answer = Gesture.Tap()
-                        .numberOfTaps(2)
-                        .onEnd(() => scheduleOnRN(setReactingTo, photo));
-                      const remove = Gesture.LongPress().onStart(() => {
-                        if (isMine) scheduleOnRN(setActingOn, photo);
-                      });
-                      const gesture = Gesture.Exclusive(remove, answer, open);
+                      const answer = Gesture.LongPress()
+                        .minDuration(350)
+                        .onStart(() => scheduleOnRN(setReactingTo, photo));
+                      const gesture = Gesture.Exclusive(answer, open);
 
                       return (
                         <GestureDetector key={photo.id} gesture={gesture}>

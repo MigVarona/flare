@@ -14,7 +14,7 @@ import {
 } from "firebase/firestore";
 import { Linking } from "react-native";
 import { useEffect, useState } from "react";
-import { Pressable, ScrollView, TextInput, View } from "react-native";
+import { Pressable, ScrollView, StyleSheet, TextInput, View } from "react-native";
 import Animated from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
@@ -271,6 +271,7 @@ export default function RemindersScreen() {
                 placeholderTextColor={theme.textSecondary}
                 autoFocus
                 className="rounded-2xl border border-border bg-background px-4 py-4 text-base text-foreground"
+                style={styles.inputText}
               />
               {/* The field says the date the way you'd say it out loud, not as raw digits. */}
               <DateTimePicker
@@ -291,7 +292,7 @@ export default function RemindersScreen() {
                       className={
                         dueAt ? "text-base" : "text-base text-muted-foreground"
                       }
-                      style={dueAt ? { color: palette.you } : undefined}
+                      style={[styles.inputText, dueAt ? { color: palette.you } : undefined]}
                     >
                       {dueAt ? formatDueDate(dueAt) : "¿Cuándo?"}
                     </ThemedText>
@@ -346,29 +347,41 @@ export default function RemindersScreen() {
                 return (
                   <View key={reminder.id}>
                     <GlowCard color={color}>
-                      <ThemedText type="headline">{reminder.title}</ThemedText>
-                      <View className="flex-row items-center gap-2">
-                        <ThemedText
-                          type="small"
-                          className={
-                            overdue
-                              ? "text-destructive"
-                              : "text-muted-foreground"
-                          }
-                        >
-                          {reminder.dueAt
-                            ? formatDueDate(reminder.dueAt)
-                            : reminder.dueLabel}
-                        </ThemedText>
-                        {overdue && (
-                          <ThemedText type="small" className="text-destructive">
-                            · se pasó
+                      <View className="flex-row items-start gap-3">
+                        <View
+                          style={[
+                            styles.identityPoint,
+                            { backgroundColor: color },
+                            glow(color, 12, "77"),
+                          ]}
+                        />
+                        <View className="flex-1 gap-1">
+                          <ThemedText type="default" style={styles.reminderTitle}>
+                            {reminder.title}
                           </ThemedText>
-                        )}
+                          <View className="flex-row items-center gap-2">
+                            <ThemedText
+                              type="small"
+                              style={styles.reminderTime}
+                              className={overdue ? "text-destructive" : "text-muted-foreground"}
+                            >
+                              {reminder.dueAt ? formatDueDate(reminder.dueAt) : reminder.dueLabel}
+                            </ThemedText>
+                            {overdue && (
+                              <ThemedText
+                                type="small"
+                                style={styles.reminderTime}
+                                className="text-destructive"
+                              >
+                                · se pasó
+                              </ThemedText>
+                            )}
+                          </View>
+                        </View>
                       </View>
-                      <View className="mt-2 flex-row items-center gap-6">
+                      <View style={styles.actionsRow}>
                         <Pressable onPress={() => markDone(reminder)}>
-                          <ThemedText type="smallBold" className="text-partner">
+                          <ThemedText type="smallBold" style={styles.actionText} className="text-partner">
                             Hecho
                           </ThemedText>
                         </Pressable>
@@ -383,6 +396,7 @@ export default function RemindersScreen() {
                           <DateTimePickerTrigger className="min-h-0 rounded-none border-0">
                             <ThemedText
                               type="smallBold"
+                              style={styles.actionText}
                               className="text-muted-foreground"
                             >
                               Posponer
@@ -408,6 +422,7 @@ export default function RemindersScreen() {
                         >
                           <ThemedText
                             type="smallBold"
+                            style={styles.actionText}
                             className="text-destructive"
                           >
                             Borrar
@@ -461,3 +476,40 @@ export default function RemindersScreen() {
     </>
   );
 }
+
+const styles = StyleSheet.create({
+  inputText: {
+    fontFamily: "Outfit_400Regular",
+    fontSize: 16,
+    lineHeight: 24,
+  },
+  identityPoint: {
+    width: 11,
+    height: 11,
+    borderRadius: 999,
+    marginTop: 7,
+  },
+  reminderTitle: {
+    color: "#D8DBE8",
+    fontFamily: "Outfit_400Regular",
+    fontSize: 15,
+    lineHeight: 21,
+  },
+  reminderTime: {
+    color: "#7E849A",
+    fontFamily: "Outfit_400Regular",
+    fontSize: 14,
+    lineHeight: 20,
+  },
+  actionsRow: {
+    marginTop: Spacing[12],
+    flexDirection: "row",
+    alignItems: "center",
+    gap: Spacing[20],
+  },
+  actionText: {
+    fontFamily: "Outfit_600SemiBold",
+    fontSize: 14,
+    lineHeight: 20,
+  },
+});
