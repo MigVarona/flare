@@ -25,7 +25,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { Eyebrow, GhostButton, GlowCard, ScreenHeader } from '@/components/brand';
 import Svg, { Path } from 'react-native-svg';
 
-import { LightSignal, isSignalId, type SignalId } from '@/components/light-signals';
+import { LightSignal, isSignalId, useSignalMeaning, type SignalId } from '@/components/light-signals';
 import { PhotoGridSkeleton } from '@/components/loading';
 import { SignalPicker } from '@/components/signal-picker';
 import { ThemedText } from '@/components/themed-text';
@@ -68,6 +68,7 @@ export default function GalleryScreen() {
   const { coupleId, user, partnerUid, partnerName, myName } = useCouple();
   const notice = useNotice();
   const palette = usePalette();
+  const showSignalMeaning = useSignalMeaning();
 
   const [photos, setPhotos] = useState<Photo[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -123,7 +124,11 @@ export default function GalleryScreen() {
       });
 
       if (partnerUid) {
-        sendPushNotification(coupleId, partnerUid, 'Foto nueva', `${myName} ha subido una foto`, '/gallery');
+        sendPushNotification(coupleId, partnerUid, 'Foto nueva', `${myName} ha subido una foto`, '/gallery').then(
+          (ok) => {
+            if (!ok) notice('No hemos podido avisar a tu pareja');
+          },
+        );
       }
     } catch {
       notice('No se ha podido subir');
@@ -241,12 +246,17 @@ export default function GalleryScreen() {
                               <View className="absolute right-2 bottom-2 flex-row gap-1.5 rounded-full bg-background/70 px-2 py-1.5">
                                 {signals.map(([uid, signal]) =>
                                   isSignalId(signal) ? (
-                                    <LightSignal
+                                    <GestureDetector
                                       key={uid}
-                                      id={signal}
-                                      color={uid === user?.uid ? palette.you : palette.partner}
-                                      size={16}
-                                    />
+                                      gesture={Gesture.Tap().onEnd(() =>
+                                        scheduleOnRN(showSignalMeaning, signal),
+                                      )}>
+                                      <LightSignal
+                                        id={signal}
+                                        color={uid === user?.uid ? palette.you : palette.partner}
+                                        size={16}
+                                      />
+                                    </GestureDetector>
                                   ) : null,
                                 )}
                               </View>
@@ -332,34 +342,14 @@ export default function GalleryScreen() {
                 className="rounded-full border border-border bg-background/80 px-4 py-3 active:opacity-70">
                 <ThemedText type="smallBold">Cerrar</ThemedText>
               </Pressable>
-              {viewing && (
-                <ThemedText type="small" className="text-muted-foreground">
-                  {viewingIsMine ? 'Tuya' : `De ${partnerName}`}
-                </ThemedText>
-              )}
-            </View>
-            {viewing && (
-              <View
-                className="absolute left-0 right-0 flex-row items-center justify-center gap-3 px-6"
-                style={{ bottom: insets.bottom + Spacing[24] }}>
-                <Pressable
-                  onPress={() => setReactingTo(viewing)}
-                  className="rounded-full border border-border bg-background/85 px-5 py-3 active:opacity-70">
-                  <ThemedText type="smallBold" style={{ color: palette.accent }}>
-                    Responder
+              {viewingIsMine && viewing && (
+                <Pressable onPress={() => setActingOn(viewing)} hitSlop={12}>
+                  <ThemedText type="small" className="text-destructive">
+                    Borrar
                   </ThemedText>
                 </Pressable>
-                {viewingIsMine && (
-                  <Pressable
-                    onPress={() => setActingOn(viewing)}
-                    className="rounded-full border border-destructive/50 bg-background/85 px-5 py-3 active:opacity-70">
-                    <ThemedText type="smallBold" className="text-destructive">
-                      Borrar
-                    </ThemedText>
-                  </Pressable>
-                )}
-              </View>
-            )}
+              )}
+            </View>
           </View>
         </ModalContent>
       </Modal>

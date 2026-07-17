@@ -58,7 +58,7 @@ número lo pone la app; el vínculo lo ponéis vosotros.
 | Campo | Valor |
 |---|---|
 | Categoría | Estilo de vida |
-| Correo de contacto | migvaronag@gmail.com |
+| Correo de contacto | info@wearecapa.es |
 | Política de privacidad | https://churri.pages.dev |
 | Borrado de cuenta | https://churri.pages.dev/eliminar-cuenta.html |
 | Icono 512 | `store/icon-512.png` |
@@ -71,8 +71,18 @@ número lo pone la app; el vínculo lo ponéis vosotros.
   (mensajes y fotos entre dos usuarios que se emparejan con un código).
 - ¿Comparte la ubicación del usuario con otros? **No**
 - ¿Permite compras digitales? **No**
-- Resultado esperado: **PEGI 3 / Para todos** con aviso de "interacción entre
-  usuarios".
+- Resultado esperado (clasificación de contenido, IARC): **PEGI 3** con aviso
+  de "interacción entre usuarios" — el contenido en sí no tiene violencia,
+  sexo, ni nada restringido, así que la clasificación de contenido se queda
+  en PEGI 3.
+- **Importante — no confundir con la edad mínima real:** los Términos de uso
+  y la Política de Privacidad de la app exigen tener **16 años o más**. Eso
+  se declara aparte, en la sección "Público objetivo y contenido" de Play
+  Console: marca los rangos de edad **16-17** y **18+** (no "menores de 13"
+  ni "13-15"), y responde que la app **no** está dirigida a ni resulta
+  atractiva para niños. La clasificación PEGI 3 de arriba no significa "para
+  todos" en este caso — solo describe el contenido, no quién puede
+  registrarse.
 
 ## Seguridad de los datos — resumen (detalle ya preparado en conversación)
 

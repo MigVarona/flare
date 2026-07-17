@@ -188,6 +188,8 @@ service cloud.firestore {
           && isValidName(request.resource.data.text, 500)
           && request.resource.data.senderId == request.auth.uid
           && isValidCreatedAt(request.resource.data.createdAt);
+        allow update: if isMember(coupleId)
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['reactions']);
         allow delete: if isMember(coupleId);
       }
     }

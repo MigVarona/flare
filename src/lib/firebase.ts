@@ -1,8 +1,9 @@
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import { initializeApp } from 'firebase/app';
 // @ts-expect-error getReactNativePersistence exists in the RN bundle but is missing from firebase's published types (firebase-js-sdk#9316)
 import { getReactNativePersistence, initializeAuth } from 'firebase/auth';
 import { getFirestore } from 'firebase/firestore';
+
+import { securePersistence } from './secure-persistence';
 
 const firebaseConfig = {
   apiKey: 'AIzaSyCBxaxX9i-SWD4qCqR4RNM1xmMFCcRnJi4',
@@ -16,7 +17,7 @@ const firebaseConfig = {
 const app = initializeApp(firebaseConfig);
 
 export const auth = initializeAuth(app, {
-  persistence: getReactNativePersistence(AsyncStorage),
+  persistence: getReactNativePersistence(securePersistence),
 });
 
 export const db = getFirestore(app);

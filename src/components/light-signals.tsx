@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useCallback, useEffect } from 'react';
 import Animated, {
   useAnimatedStyle,
   useSharedValue,
@@ -8,6 +8,7 @@ import Animated, {
 } from 'react-native-reanimated';
 import Svg, { Circle, ClipPath, Defs, G, Line, Path } from 'react-native-svg';
 
+import { Toast, ToastDescription, ToastTitle, useToast } from '@/components/ui/toast';
 import { glow } from '@/constants/theme';
 
 /**
@@ -33,6 +34,38 @@ export type SignalId = (typeof Signals)[number]['id'];
 
 export function isSignalId(value: unknown): value is SignalId {
   return Signals.some((signal) => signal.id === value);
+}
+
+/**
+ * A received signal is just a coloured shape — its meaning only lives in the picker you send
+ * it from. This hands back a function that surfaces that meaning on demand, so the person on
+ * the receiving end isn't left guessing what they were just told.
+ */
+export function useSignalMeaning() {
+  const toast = useToast();
+
+  return useCallback(
+    (id: SignalId) => {
+      const signal = Signals.find((candidate) => candidate.id === id);
+      if (!signal) return;
+
+      toast.show({
+        placement: 'top',
+        duration: 2200,
+        render: ({ id: toastId }) => (
+          <Toast
+            nativeID={`signal-${toastId}`}
+            action="muted"
+            variant="solid"
+            className="mt-2 rounded-2xl border border-border bg-card px-4 py-3">
+            <ToastTitle size="sm">{signal.name}</ToastTitle>
+            <ToastDescription>{signal.meaning}</ToastDescription>
+          </Toast>
+        ),
+      });
+    },
+    [toast],
+  );
 }
 
 /** What each signal does when it lands, and where it comes to rest. */

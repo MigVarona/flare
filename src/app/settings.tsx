@@ -4,6 +4,7 @@ import { Pressable, ScrollView, TextInput, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { Eyebrow, GhostButton, GlowCard, IdentityDot, ScreenHeader } from '@/components/brand';
+import { LegalModal } from '@/components/legal-modal';
 import { PalettePicker } from '@/components/palette-picker';
 import { ThemedText } from '@/components/themed-text';
 import {
@@ -15,6 +16,8 @@ import {
   AlertDialogHeader,
 } from '@/components/ui/alert-dialog';
 import { Colors } from '@/constants/theme';
+import { PrivacyMarkdown } from '@/constants/privacy';
+import { TermsMarkdown } from '@/constants/terms';
 import { useCouple } from '@/context/couple-context';
 import { GoogleSignInCancelled } from '@/lib/google-auth';
 import { useNotice } from '@/hooks/use-notice';
@@ -52,6 +55,8 @@ export default function SettingsScreen() {
   const [password, setPassword] = useState('');
   const [deleteError, setDeleteError] = useState<string | null>(null);
   const [isDeletingNow, setIsDeletingNow] = useState(false);
+  const [showTerms, setShowTerms] = useState(false);
+  const [showPrivacy, setShowPrivacy] = useState(false);
 
   // The space always goes; what changes is whether you take someone else's things with it.
   const isAlone = !partnerUid;
@@ -177,6 +182,16 @@ export default function SettingsScreen() {
             </ThemedText>
           </GlowCard>
         )}
+
+        <GlowCard>
+          <Eyebrow>Legal</Eyebrow>
+          <Pressable onPress={() => setShowTerms(true)} className="py-1 active:opacity-70">
+            <ThemedText type="smallBold">Términos de uso</ThemedText>
+          </Pressable>
+          <Pressable onPress={() => setShowPrivacy(true)} className="py-1 active:opacity-70">
+            <ThemedText type="smallBold">Política de Privacidad</ThemedText>
+          </Pressable>
+        </GlowCard>
 
         {/* Signing out is not dangerous — you come back and everything is where you left it.
             Putting it in with the irreversible things would cry wolf, and then nobody reads
@@ -347,6 +362,9 @@ export default function SettingsScreen() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      <LegalModal isOpen={showTerms} onClose={() => setShowTerms(false)} markdown={TermsMarkdown} />
+      <LegalModal isOpen={showPrivacy} onClose={() => setShowPrivacy(false)} markdown={PrivacyMarkdown} />
     </ScrollView>
   );
 }

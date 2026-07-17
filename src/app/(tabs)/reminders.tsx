@@ -13,7 +13,7 @@ import {
   updateDoc,
 } from "firebase/firestore";
 import { Linking } from "react-native";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Pressable, ScrollView, StyleSheet, TextInput, View } from "react-native";
 import Animated from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -25,15 +25,26 @@ import {
   GradientButton,
   ScreenHeader,
 } from "@/components/brand";
-import Svg, { Circle, Path, Rect } from "react-native-svg";
+import Svg, { Path } from "react-native-svg";
 
+import { CalendarGlyph } from "@/components/icons";
 import { CardSkeletons } from "@/components/loading";
 import { ThemedText } from "@/components/themed-text";
+import {
+  Actionsheet,
+  ActionsheetBackdrop,
+  ActionsheetContent,
+  ActionsheetDragIndicator,
+  ActionsheetDragIndicatorWrapper,
+  ActionsheetItem,
+  ActionsheetItemText,
+} from "@/components/ui/actionsheet";
 import {
   DateTimePicker,
   DateTimePickerTrigger,
 } from "@/components/ui/date-time-picker";
 import { Fab } from "@/components/ui/fab";
+import { Toast, ToastDescription, useToast } from "@/components/ui/toast";
 import {
   BottomTabInset,
   Colors,
@@ -48,31 +59,10 @@ import { formatDueDate, isOverdue } from "@/lib/dates";
 import { db } from "@/lib/firebase";
 import { sendPushNotification } from "@/lib/push";
 
-const theme = Colors.dark;
+/** How long "Hecho" can be undone before the reminder is actually deleted. */
+const UndoWindowMs = 4000;
 
-function CalendarGlyph({ color, size = 18 }: { color: string; size?: number }) {
-  return (
-    <Svg width={size} height={size} viewBox="0 0 24 24">
-      <Rect
-        x={3.5}
-        y={5}
-        width={17}
-        height={15.5}
-        rx={3}
-        stroke={color}
-        strokeWidth={2}
-        fill="none"
-      />
-      <Path
-        d="M3.5 9.5h17M8 3v4M16 3v4"
-        stroke={color}
-        strokeWidth={2}
-        strokeLinecap="round"
-      />
-      <Circle cx={8.6} cy={14.6} r={1.5} fill={color} />
-    </Svg>
-  );
-}
+const theme = Colors.dark;
 
 type Reminder = {
   id: string;
@@ -88,6 +78,7 @@ export default function RemindersScreen() {
   const { user, coupleId, partnerUid, partnerName, myName } = useCouple();
   const palette = usePalette();
   const notice = useNotice();
+  const toast = useToast();
 
   const [reminders, setReminders] = useState<Reminder[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -96,6 +87,10 @@ export default function RemindersScreen() {
   const [title, setTitle] = useState("");
   const [dueAt, setDueAt] = useState<Date | undefined>(undefined);
   const [canNotify, setCanNotify] = useState<boolean | null>(null);
+  const [actingOn, setActingOn] = useState<Reminder | null>(null);
+  /** Marked "Hecho" but still undoable: hidden from the list while its delete is pending. */
+  const [hiddenIds, setHiddenIds] = useState<Set<string>>(new Set());
+  const pendingDeletes = useRef(new Map<string, ReturnType<typeof setTimeout>>());
   /** Where each reminder sits. The field needs to know where its sources are. */
 
   useEffect(() => {
@@ -156,7 +151,9 @@ export default function RemindersScreen() {
           `${myName} te deja un aviso`,
           dueAt ? `${reminderTitle} — ${formatDueDate(dueAt)}` : reminderTitle,
           "/reminders",
-        );
+        ).then((ok) => {
+          if (!ok) notice("No hemos podido avisar a tu pareja");
+        });
       }
     } finally {
       setIsSending(false);
@@ -168,11 +165,47 @@ export default function RemindersScreen() {
     setCanNotify(permission.granted);
   };
 
-  const markDone = async (reminder: Reminder) => {
+  const undoMarkDone = (id: string) => {
+    const timeout = pendingDeletes.current.get(id);
+    if (timeout) clearTimeout(timeout);
+    pendingDeletes.current.delete(id);
+    setHiddenIds((ids) => {
+      const next = new Set(ids);
+      next.delete(id);
+      return next;
+    });
+  };
+
+  const markDone = (reminder: Reminder) => {
     if (!coupleId) return;
     // Putting a light out is a physical act, so it lands in the wrist too.
     void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-    await deleteDoc(doc(db, "couples", coupleId, "reminders", reminder.id));
+    setHiddenIds((ids) => new Set(ids).add(reminder.id));
+
+    toast.show({
+      placement: "top",
+      duration: UndoWindowMs,
+      render: ({ id }) => (
+        <Toast
+          nativeID={`undo-${id}`}
+          action="muted"
+          variant="solid"
+          className="mt-2 flex-row items-center justify-between gap-4 rounded-2xl border border-border bg-card px-4 py-3">
+          <ToastDescription>Aviso completado</ToastDescription>
+          <Pressable onPress={() => undoMarkDone(reminder.id)} hitSlop={12}>
+            <ThemedText type="smallBold" style={{ color: palette.accent }}>
+              Deshacer
+            </ThemedText>
+          </Pressable>
+        </Toast>
+      ),
+    });
+
+    const timeout = setTimeout(() => {
+      pendingDeletes.current.delete(reminder.id);
+      void deleteDoc(doc(db, "couples", coupleId, "reminders", reminder.id));
+    }, UndoWindowMs);
+    pendingDeletes.current.set(reminder.id, timeout);
   };
 
   // Postponing used to mark the reminder 'postponed', which silenced its alarm for good and
@@ -216,14 +249,16 @@ export default function RemindersScreen() {
     }
   };
 
-  const remove = async (reminder: Reminder) => {
+  const removeConfirmed = async (reminder: Reminder) => {
     if (!coupleId) return;
+    setActingOn(null);
     await deleteDoc(doc(db, "couples", coupleId, "reminders", reminder.id));
   };
 
   // What's waiting is ordered by when it comes due, soonest first; the ones without a date
-  // wait at the back.
+  // wait at the back. Anything just marked "Hecho" stays out while its undo window is open.
   const pending = reminders
+    .filter((reminder) => !hiddenIds.has(reminder.id))
     .sort(
       (a, b) =>
         (a.dueAt?.getTime() ?? Number.MAX_SAFE_INTEGER) -
@@ -378,6 +413,11 @@ export default function RemindersScreen() {
                             )}
                           </View>
                         </View>
+                        <Pressable onPress={() => setActingOn(reminder)} hitSlop={10}>
+                          <ThemedText type="small" className="text-destructive">
+                            Borrar
+                          </ThemedText>
+                        </Pressable>
                       </View>
                       <View style={styles.actionsRow}>
                         <Pressable onPress={() => markDone(reminder)}>
@@ -403,8 +443,6 @@ export default function RemindersScreen() {
                             </ThemedText>
                           </DateTimePickerTrigger>
                         </DateTimePicker>
-                        {/* Every action in the open. "Más" hid two things behind a second
-                            screen; a card has room for both of them. */}
                         {reminder.dueAt && (
                           <Pressable
                             onPress={() => sendToCalendar(reminder)}
@@ -415,19 +453,6 @@ export default function RemindersScreen() {
                             <CalendarGlyph color={theme.textSecondary} />
                           </Pressable>
                         )}
-                        <Pressable
-                          onPress={() => remove(reminder)}
-                          hitSlop={10}
-                          className="ml-auto active:opacity-70"
-                        >
-                          <ThemedText
-                            type="smallBold"
-                            style={styles.actionText}
-                            className="text-destructive"
-                          >
-                            Borrar
-                          </ThemedText>
-                        </Pressable>
                       </View>
                     </GlowCard>
                   </View>
@@ -473,6 +498,20 @@ export default function RemindersScreen() {
         </Fab>
       )}
 
+      <Actionsheet isOpen={Boolean(actingOn)} onClose={() => setActingOn(null)}>
+        <ActionsheetBackdrop />
+        <ActionsheetContent>
+          <ActionsheetDragIndicatorWrapper>
+            <ActionsheetDragIndicator />
+          </ActionsheetDragIndicatorWrapper>
+          <ActionsheetItem onPress={() => actingOn && removeConfirmed(actingOn)}>
+            <ActionsheetItemText className="text-destructive">Borrar aviso</ActionsheetItemText>
+          </ActionsheetItem>
+          <ActionsheetItem onPress={() => setActingOn(null)}>
+            <ActionsheetItemText>Cancelar</ActionsheetItemText>
+          </ActionsheetItem>
+        </ActionsheetContent>
+      </Actionsheet>
     </>
   );
 }

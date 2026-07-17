@@ -26,11 +26,11 @@ import {
 } from 'react-native';
 import Animated from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import Svg, { Path } from 'react-native-svg';
-
 import { BrandLockup, Eyebrow, GhostButton, GlowCard, IdentityDot } from '@/components/brand';
+import { CalendarGlyph } from '@/components/icons';
 import { CardSkeletons } from '@/components/loading';
 import { ThemedText } from '@/components/themed-text';
+import { Spinner } from '@/components/ui/spinner';
 import {
   BottomTabInset,
   Colors,
@@ -72,28 +72,6 @@ function messageTime(date: Date | null) {
   if (!date) return '';
 
   return date.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' });
-}
-
-function BellGlyph({ color, size = 18 }: { color: string; size?: number }) {
-  return (
-    <Svg width={size} height={size} viewBox="0 0 24 24">
-      <Path
-        d="M7.2 10.5a4.8 4.8 0 0 1 9.6 0v3.1l1.5 2.3H5.7l1.5-2.3v-3.1Z"
-        fill="none"
-        stroke={color}
-        strokeWidth={1.8}
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-      <Path
-        d="M10 18.1a2.15 2.15 0 0 0 4 0M12 4.9V3.7"
-        fill="none"
-        stroke={color}
-        strokeWidth={1.8}
-        strokeLinecap="round"
-      />
-    </Svg>
-  );
 }
 
 export default function HomeScreen() {
@@ -252,7 +230,9 @@ export default function HomeScreen() {
           'Foto nueva',
           `${myName} ha subido una foto`,
           '/gallery',
-        );
+        ).then((ok) => {
+          if (!ok) notice('No hemos podido avisar a tu pareja');
+        });
       }
     } catch {
       notice('No se ha podido subir');
@@ -369,7 +349,7 @@ export default function HomeScreen() {
                             accessibilityRole="button"
                             accessibilityLabel="Añadir aviso al calendario"
                             style={({ pressed }) => [styles.bellButton, pressed && styles.pressed]}>
-                            <BellGlyph color={theme.textSecondary} size={24} />
+                            <CalendarGlyph color={theme.textSecondary} size={24} />
                           </Pressable>
                         </View>
                       </Pressable>
@@ -429,9 +409,13 @@ export default function HomeScreen() {
                     pressed && styles.pressed,
                     isUploadingPhoto && styles.disabled,
                   ]}>
-                  <ThemedText type="headline" style={styles.photoAddText}>
-                    +
-                  </ThemedText>
+                  {isUploadingPhoto ? (
+                    <Spinner color={theme.textSecondary} />
+                  ) : (
+                    <ThemedText type="headline" style={styles.photoAddText}>
+                      +
+                    </ThemedText>
+                  )}
                 </Pressable>
               </View>
 
@@ -553,7 +537,7 @@ const styles = StyleSheet.create({
     gap: Spacing[16],
   },
   header: {
-    gap: Spacing[8],
+    gap: Spacing[16],
     marginBottom: Spacing[4],
   },
   headerTop: {

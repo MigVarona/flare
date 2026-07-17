@@ -1,3 +1,4 @@
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import * as Haptics from "expo-haptics";
 import { LinearGradient } from "expo-linear-gradient";
 import {
@@ -25,8 +26,8 @@ import { Gesture, GestureDetector } from "react-native-gesture-handler";
 import { scheduleOnRN } from "react-native-worklets";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
-import { ScreenHeader } from "@/components/brand";
-import { LightSignal, isSignalId, type SignalId } from "@/components/light-signals";
+import { GlowCard, ScreenHeader } from "@/components/brand";
+import { LightSignal, isSignalId, useSignalMeaning, type SignalId } from "@/components/light-signals";
 import { MessageSkeletons } from "@/components/loading";
 import { DeathMs, MessageLight, StepMs } from "@/components/message-light";
 import { SignalPicker } from "@/components/signal-picker";
@@ -40,6 +41,7 @@ import {
   Spacing,
 } from "@/constants/theme";
 import { useCouple } from "@/context/couple-context";
+import { useNotice } from "@/hooks/use-notice";
 import { usePalette } from "@/hooks/use-palette";
 import { db } from "@/lib/firebase";
 import { sendPushNotification } from "@/lib/push";
@@ -57,6 +59,8 @@ export default function ChatScreen() {
   const insets = useSafeAreaInsets();
   const { user, coupleId, partnerUid, myName } = useCouple();
   const palette = usePalette();
+  const notice = useNotice();
+  const showSignalMeaning = useSignalMeaning();
   const scrollRef = useRef<ScrollView>(null);
 
   const [messages, setMessages] = useState<Message[]>([]);
@@ -72,7 +76,8 @@ export default function ChatScreen() {
   /** Bumped by every arrival. The bubbles watch it to know when to carry the surge. */
   const [surge, setSurge] = useState(0);
   const newest = useRef<string | null>(null);
-
+  /** Shown once, the first time this chat is opened, to explain that only 5 messages fit. */
+  const [showCapacityNotice, setShowCapacityNotice] = useState(false);
 
   useEffect(() => {
     const shown = Keyboard.addListener("keyboardDidShow", () =>
@@ -86,6 +91,17 @@ export default function ChatScreen() {
       hidden.remove();
     };
   }, []);
+
+  useEffect(() => {
+    AsyncStorage.getItem("chatCapacityNoticeSeen").then((seen) => {
+      if (!seen) setShowCapacityNotice(true);
+    });
+  }, []);
+
+  const dismissCapacityNotice = () => {
+    setShowCapacityNotice(false);
+    void AsyncStorage.setItem("chatCapacityNoticeSeen", "true");
+  };
 
   useEffect(() => {
     if (!coupleId) return undefined;
@@ -141,14 +157,23 @@ export default function ChatScreen() {
     const text = draft.trim();
     setDraft("");
 
-    await addDoc(collection(db, "couples", coupleId, "messages"), {
-      text,
-      senderId: user.uid,
-      createdAt: serverTimestamp(),
-    });
+    try {
+      await addDoc(collection(db, "couples", coupleId, "messages"), {
+        text,
+        senderId: user.uid,
+        createdAt: serverTimestamp(),
+      });
+    } catch {
+      // The draft is already cleared — give it back rather than lose what they typed.
+      setDraft(text);
+      notice("No se ha podido enviar el mensaje");
+      return;
+    }
 
     if (partnerUid) {
-      sendPushNotification(coupleId, partnerUid, myName, text, "/chat");
+      sendPushNotification(coupleId, partnerUid, myName, text, "/chat").then((ok) => {
+        if (!ok) notice("No hemos podido avisar a tu pareja");
+      });
     }
   };
 
@@ -169,6 +194,19 @@ export default function ChatScreen() {
       >
         <View className="px-6">
           <ScreenHeader title="Mensajes" />
+          {showCapacityNotice && (
+            <GlowCard style={{ marginBottom: Spacing[16] }}>
+              <ThemedText className="leading-6">
+                Este no es un chat de siempre. Aquí solo viven los últimos 5 mensajes: hablar del
+                ahora importa más que guardarlo todo.
+              </ThemedText>
+              <Pressable onPress={dismissCapacityNotice} hitSlop={12} className="self-end">
+                <ThemedText type="smallBold" style={{ color: palette.accent }}>
+                  Entendido
+                </ThemedText>
+              </Pressable>
+            </GlowCard>
+          )}
         </View>
 
         <Animated.ScrollView
@@ -234,12 +272,17 @@ export default function ChatScreen() {
                           <View className="mt-3 flex-row gap-1.5">
                             {signals.map(([uid, signal]) =>
                               isSignalId(signal) ? (
-                                <LightSignal
+                                <GestureDetector
                                   key={uid}
-                                  id={signal}
-                                  color={uid === user?.uid ? palette.you : palette.partner}
-                                  size={16}
-                                />
+                                  gesture={Gesture.Tap().onEnd(() =>
+                                    scheduleOnRN(showSignalMeaning, signal),
+                                  )}>
+                                  <LightSignal
+                                    id={signal}
+                                    color={uid === user?.uid ? palette.you : palette.partner}
+                                    size={16}
+                                  />
+                                </GestureDetector>
                               ) : null,
                             )}
                           </View>
@@ -332,12 +375,13 @@ export default function ChatScreen() {
                     <View className="mt-4 flex-row gap-2">
                       {Object.entries(viewing.reactions).map(([uid, signal]) =>
                         isSignalId(signal) ? (
-                          <LightSignal
-                            key={uid}
-                            id={signal}
-                            color={uid === user?.uid ? palette.you : palette.partner}
-                            size={22}
-                          />
+                          <Pressable key={uid} onPress={() => showSignalMeaning(signal)} hitSlop={8}>
+                            <LightSignal
+                              id={signal}
+                              color={uid === user?.uid ? palette.you : palette.partner}
+                              size={22}
+                            />
+                          </Pressable>
                         ) : null,
                       )}
                     </View>

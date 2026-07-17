@@ -19,6 +19,7 @@ import {
   setDoc,
   updateDoc,
 } from 'firebase/firestore';
+import * as Crypto from 'expo-crypto';
 import * as Notifications from 'expo-notifications';
 import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from 'react';
 
@@ -61,8 +62,16 @@ type CoupleContextValue = {
 
 const CoupleContext = createContext<CoupleContextValue | null>(null);
 
-function generateInviteCode() {
-  return Math.random().toString(36).slice(2, 8).toUpperCase();
+const InviteCodeAlphabet = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+
+/**
+ * The code is the only thing standing between a stranger and someone's private space, so it
+ * needs a generator built for that job. `Math.random` isn't one — it's fast and predictable,
+ * fine for picking which light animates next, wrong for anything that acts as a credential.
+ */
+async function generateInviteCode() {
+  const bytes = await Crypto.getRandomBytesAsync(6);
+  return Array.from(bytes, (byte) => InviteCodeAlphabet[byte % InviteCodeAlphabet.length]).join('');
 }
 
 export function CoupleProvider({ children }: { children: ReactNode }) {
@@ -265,7 +274,7 @@ export function CoupleProvider({ children }: { children: ReactNode }) {
 
   const createCouple = async () => {
     if (!user) throw new Error('No hay usuario');
-    const code = generateInviteCode();
+    const code = await generateInviteCode();
     const coupleRef = doc(collection(db, 'couples'));
     await setDoc(coupleRef, {
       memberIds: [user.uid],
@@ -310,6 +319,8 @@ export function CoupleProvider({ children }: { children: ReactNode }) {
     const joinedCoupleId = invite.data().coupleId as string;
     await updateDoc(doc(db, 'couples', joinedCoupleId), { memberIds: arrayUnion(user.uid) });
     await updateDoc(doc(db, 'users', user.uid), { coupleId: joinedCoupleId });
+    // The key only needs to work once: with both of you in, it can't open the door again.
+    await deleteDoc(doc(db, 'invites', trimmedCode)).catch(() => undefined);
     return true;
   };
 

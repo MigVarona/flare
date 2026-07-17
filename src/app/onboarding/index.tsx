@@ -6,8 +6,11 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { BrandLockup, Eyebrow, GradientButton } from '@/components/brand';
 import { GoogleMark } from '@/components/google-mark';
+import { LegalModal } from '@/components/legal-modal';
 import { ThemedText } from '@/components/themed-text';
 import { Colors, MaxContentWidth, neonBorder, Radius, Spacing } from '@/constants/theme';
+import { PrivacyMarkdown } from '@/constants/privacy';
+import { TermsMarkdown } from '@/constants/terms';
 import { useCouple } from '@/context/couple-context';
 import { GoogleSignInCancelled } from '@/lib/google-auth';
 
@@ -30,6 +33,8 @@ export default function WelcomeScreen() {
   const [error, setError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isGoogleSubmitting, setIsGoogleSubmitting] = useState(false);
+  const [showTerms, setShowTerms] = useState(false);
+  const [showPrivacy, setShowPrivacy] = useState(false);
   const canSubmit =
     email.trim().length > 0 &&
     password.length >= 6 &&
@@ -115,6 +120,27 @@ export default function WelcomeScreen() {
               style={styles.input}
             />
 
+            {mode === 'signUp' && (
+              <View style={styles.termsRow}>
+                <ThemedText type="small" themeColor="textSecondary">
+                  Al crear una cuenta, confirmas que tienes 16 años o más y aceptas los
+                </ThemedText>
+                <Pressable onPress={() => setShowTerms(true)} hitSlop={8}>
+                  <ThemedText type="small" style={styles.termsLink}>
+                    Términos de uso
+                  </ThemedText>
+                </Pressable>
+                <ThemedText type="small" themeColor="textSecondary">
+                  y la
+                </ThemedText>
+                <Pressable onPress={() => setShowPrivacy(true)} hitSlop={8}>
+                  <ThemedText type="small" style={styles.termsLink}>
+                    Política de Privacidad
+                  </ThemedText>
+                </Pressable>
+              </View>
+            )}
+
             {error && <ThemedText style={styles.error}>{error}</ThemedText>}
 
             <View style={styles.buttonWrapper}>
@@ -159,6 +185,9 @@ export default function WelcomeScreen() {
 
         </ScrollView>
       </SafeAreaView>
+
+      <LegalModal isOpen={showTerms} onClose={() => setShowTerms(false)} markdown={TermsMarkdown} />
+      <LegalModal isOpen={showPrivacy} onClose={() => setShowPrivacy(false)} markdown={PrivacyMarkdown} />
     </View>
   );
 }
@@ -206,6 +235,17 @@ const styles = StyleSheet.create({
   error: {
     color: theme.you,
     fontSize: 14,
+  },
+  termsRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    alignItems: 'center',
+    gap: Spacing[8],
+    paddingTop: Spacing[4],
+  },
+  termsLink: {
+    color: theme.accent,
+    textDecorationLine: 'underline',
   },
   buttonWrapper: {
     marginTop: Spacing[16],
