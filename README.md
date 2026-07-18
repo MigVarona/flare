@@ -8,34 +8,64 @@
   <img src="churri-closeup-03-mensajes-avisos.png" width="250" alt="Mensajes y avisos" />
 </p>
 
-Churri es una aplicación Android que crea un espacio digital compartido entre dos personas. No hay feed, no hay audiencia, no hay nadie más: entras con una llave que solo tiene la otra persona, y todo lo que hay dentro es de los dos.
+Churri es una aplicación móvil (Expo / React Native) que crea un espacio digital compartido entre dos personas. No hay feed, no hay audiencia, no hay nadie más: se entra con una llave que solo tiene la otra persona, y todo lo que hay dentro es de los dos.
+
+El proyecto está construido con especial atención a la seguridad y a la coherencia del sistema de diseño: cada decisión de arquitectura —desde cómo se firman las subidas de fotos hasta cómo se cifra la sesión en disco— está tomada para que la privacidad no dependa de la buena fe de un cliente, sino de reglas verificables en el servidor.
+
+---
+
+## Arquitectura
+
+```
+App (Expo / React Native)
+  │
+  ├── Firebase Auth ──────── registro y login
+  ├── Cloud Firestore ────── datos de pareja, avisos, fotos, mensajes
+  ├── Cloudflare Worker ──── firma subidas/borrados, envía notificaciones push
+  │       │
+  │       └── Cloudinary ─── almacenamiento de fotos (modo authenticated)
+  │
+  └── Firebase Cloud Functions ─── limpieza de Cloudinary si una foto se borra fuera de la app
+```
+
+**Decisión clave:** el Worker de Cloudflare no usa una cuenta de servicio para leer Firestore — lee con el token del propio usuario. Esto significa que las Firestore Security Rules son la única fuente de autorización en todo el sistema; no existe una segunda capa de lógica de permisos que pueda desincronizarse de la primera.
+
+### Flujo de datos
+
+1. **Avisos**: se crean en Firestore; el teléfono de la otra persona programa una alarma local (`expo-notifications`) que se mantiene sincronizada en tiempo real.
+2. **Fotos**: el cliente pide una firma de subida al Worker (que verifica el token de Firebase y la pertenencia al espacio) y sube directamente a Cloudinary; la API key de Cloudinary nunca llega al dispositivo.
+3. **Mensajes**: el espacio conserva un máximo de cinco; al llegar el sexto se borra el más antiguo, para ambos a la vez.
+4. **Notificaciones push**: la app llama al Worker, que verifica membresía antes de reenviar a la Expo Push API.
 
 ---
 
 ## Funcionalidades
 
-### 📋 Avisos que llegan a su hora
-Deja un aviso y a la otra persona le suena el móvil en el momento exacto. Puede marcarlo como hecho o posponerlo media hora directamente desde la notificación, sin abrir la app. Si el aviso lo merece, se pasa al calendario con un toque.
+**Avisos con hora exacta**
+Un aviso suena en el móvil de la otra persona en el momento programado, con acciones directas desde la notificación ("Hecho" / "+30 min") y sin necesidad de abrir la app. Si el aviso lo merece, pasa al calendario con un toque.
 
-### 📷 Fotos solo para vosotros
-Las fotos se guardan cifradas en tránsito y se sirven en privado (Cloudinary en modo authenticated). No hay enlaces públicos. Cada foto lleva el color de quien la trajo.
+**Fotos privadas**
+Almacenamiento cifrado en tránsito y servido en modo `authenticated` en Cloudinary — sin enlaces públicos. Cada foto queda asociada al color de quien la subió.
 
-### 💬 Cinco mensajes
-El espacio guarda solo los cinco últimos mensajes. Cuando llega uno nuevo, el más antiguo se apaga — para los dos a la vez. Lo que os decís tiene que valer el sitio que ocupa.
+**Chat de capacidad fija**
+El espacio guarda solo los cinco últimos mensajes; el más antiguo se apaga cuando llega uno nuevo. El límite es de capacidad, no de frecuencia.
 
-### ✨ Señales de luz
-Reacciona a mensajes y fotos con señales luminosas animadas (parpadeo, chispazo, bengala, apagón, cortocircuito, fundido). Cuestan cero — puedes decir "estoy aquí" sin gastar un mensaje.
+**Reacciones luminosas**
+Seis señales animadas (parpadeo, chispazo, bengala, apagón, cortocircuito, fundido) para reaccionar a mensajes y fotos sin gastar un mensaje.
 
-### 🎨 El color dice quién
-Cada persona lleva una luz. Todo lo que haces en el espacio lleva tu color, y donde vuestras dos luces se cruzan aparece un tercero que no es de ninguno. Elegís la pareja de colores del espacio entre seis combinaciones (Neón, Brasa, Selva, Cobalto, Coral, Lima).
+**Identidad por color**
+Cada persona lleva un color fijo; todo lo que crea en el espacio lo lleva. La pareja elige su combinación entre seis paletas predefinidas (Neón, Brasa, Selva, Cobalto, Coral, Lima).
 
-### 🔒 Privado por diseño
-- Solo se entra con una llave de 6 caracteres generada criptográficamente.
-- Un espacio no se puede buscar ni listar.
-- Sin publicidad, sin analítica de uso, sin vender datos.
-- Las fotos se almacenan como privadas en Cloudinary y se sirven con URLs firmadas.
-- La sesión de Firebase se cifra con AES-256 antes de tocar el disco.
-- Si os vais, todo se borra de verdad: también los archivos en Cloudinary.
+---
+
+## Seguridad
+
+- Acceso exclusivamente mediante una llave de 6 caracteres generada con `expo-crypto` (criptográficamente segura, no `Math.random`).
+- Los espacios no son enumerables ni listables: las invitaciones son documentos independientes que solo permiten `get`, nunca `list`.
+- Firestore Security Rules validan de forma estricta tipos, tamaños y transiciones de estado (por ejemplo, un espacio solo puede pasar de 1 a 2 miembros, y solo si el usuario que se une no pertenece ya a otro).
+- El Worker de Cloudflare verifica cada petición contra las claves públicas de Google (JWKS) antes de firmar cualquier operación sobre Cloudinary.
+- La sesión de Firebase se cifra con AES-256 antes de escribirse en disco; la clave vive en el Keychain/Keystore del sistema (`expo-secure-store`).
+- Sin publicidad, sin analítica de terceros, sin venta de datos. Al eliminar la cuenta o salir del espacio, los datos y los archivos en Cloudinary se borran de forma efectiva.
 
 ---
 
@@ -44,7 +74,7 @@ Cada persona lleva una luz. Todo lo que haces en el espacio lleva tu color, y do
 | Capa | Tecnología |
 |---|---|
 | Framework | [Expo SDK 57](https://docs.expo.dev/versions/v57.0.0/) + React Native 0.86 |
-| Lenguaje | TypeScript |
+| Lenguaje | TypeScript (strict mode) |
 | UI | gluestack-ui v5, Tailwind CSS v4 (Uniwind), react-native-reanimated |
 | Autenticación | Firebase Auth (email + Google Sign-In) |
 | Base de datos | Cloud Firestore |
@@ -53,7 +83,27 @@ Cada persona lleva una luz. Todo lo que haces en el espacio lleva tu color, y do
 | Notificaciones push | Expo Push API |
 | Backend serverless | Firebase Cloud Functions (Node 22) |
 | Rutas | expo-router (file-based) |
-| Plataforma | **Android** |
+| Plataforma | Android (Google Play) |
+
+---
+
+## Modelo de datos (Firestore)
+
+```
+users/{uid}                              couples/{coupleId}
+  ├── email, displayName                   ├── memberIds: string[] (1 o 2)
+  ├── coupleId | null                       ├── inviteCode: string
+  └── expoPushToken?                        └── palette?
+
+invites/{code}                           couples/{coupleId}/reminders/{id}
+  ├── coupleId                             ├── title, dueAt, status
+  └── createdAt                            └── createdByUid
+
+couples/{coupleId}/photos/{id}           couples/{coupleId}/messages/{id}
+  ├── imageUrl (Cloudinary, firmada)        ├── text (max 500)
+  ├── uploadedByUid                         ├── senderId
+  └── reactions: Map<uid, SignalId>         └── reactions: Map<uid, SignalId>
+```
 
 ---
 
@@ -77,12 +127,12 @@ churriapp/
 │   │   ├── light-signals.tsx # Señales luminosas animadas
 │   │   ├── message-light.tsx # Burbuja de mensaje animada
 │   │   ├── reminder-alarms.tsx # Sincronizador de alarmas locales
-│   │   └── ui/               # Componentes gluestack-ui
+│   │   └── ui/                # Componentes gluestack-ui
 │   ├── context/
 │   │   └── couple-context.tsx # Contexto principal (auth + pareja)
 │   ├── hooks/                # Custom hooks
 │   ├── lib/                  # Firebase, Cloudinary, push, auth, persistencia
-│   └── constants/            # Tema, paletas, textos legales
+│   └── constants/             # Tema, paletas, textos legales
 ├── worker/                   # Cloudflare Worker
 ├── functions/                # Firebase Functions
 ├── store/                    # Assets para Google Play
