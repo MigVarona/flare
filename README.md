@@ -3,9 +3,9 @@
 **Un espacio privado para dos personas.**
 
 <p align="center">
-  <img src="churri-closeup-01-home.png" width="250" alt="Pantalla de inicio" />
-  <img src="churri-closeup-02-fotos.png" width="250" alt="Galería de fotos" />
-  <img src="churri-closeup-03-mensajes-avisos.png" width="250" alt="Mensajes y avisos" />
+  <img src="docs/screenshots/churri-closeup-01-home.png" width="250" alt="Pantalla de inicio" />
+  <img src="docs/screenshots/churri-closeup-02-fotos.png" width="250" alt="Galería de fotos" />
+  <img src="docs/screenshots/churri-closeup-03-mensajes-avisos.png" width="250" alt="Mensajes y avisos" />
 </p>
 
 Churri es una aplicación móvil (Expo / React Native) que crea un espacio digital compartido entre dos personas. No hay feed, no hay audiencia, no hay nadie más: se entra con una llave que solo tiene la otra persona, y todo lo que hay dentro es de los dos.
