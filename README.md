@@ -164,7 +164,9 @@ npx expo start
 
 ## Licencia
 
-MIT © We Are Capa
+Todos los derechos reservados © 2026 We Are Capa / Miguel Varona Gallego.
+
+El código de este repositorio es público para su revisión (portfolio), pero no está bajo una licencia de código abierto: no está permitido su uso, copia, modificación o redistribución sin autorización previa. Ver [LICENSE](LICENSE).
 
 ---
 
