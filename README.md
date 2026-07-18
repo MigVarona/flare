@@ -1,56 +1,121 @@
-# Welcome to your Expo app 👋
+# Churri
 
-This is an [Expo](https://expo.dev) project created with [`create-expo-app`](https://www.npmjs.com/package/create-expo-app).
+**Un espacio privado para dos personas.**
 
-## Get started
+<p align="center">
+  <img src="churri-closeup-01-home.png" width="250" alt="Pantalla de inicio" />
+  <img src="churri-closeup-02-fotos.png" width="250" alt="Galería de fotos" />
+  <img src="churri-closeup-03-mensajes-avisos.png" width="250" alt="Mensajes y avisos" />
+</p>
 
-1. Install dependencies
+Churri es una aplicación Android que crea un espacio digital compartido entre dos personas. No hay feed, no hay audiencia, no hay nadie más: entras con una llave que solo tiene la otra persona, y todo lo que hay dentro es de los dos.
 
-   ```bash
-   npm install
-   ```
+---
 
-2. Start the app
+## Funcionalidades
 
-   ```bash
-   npx expo start
-   ```
+### 📋 Avisos que llegan a su hora
+Deja un aviso y a la otra persona le suena el móvil en el momento exacto. Puede marcarlo como hecho o posponerlo media hora directamente desde la notificación, sin abrir la app. Si el aviso lo merece, se pasa al calendario con un toque.
 
-In the output, you'll find options to open the app in a
+### 📷 Fotos solo para vosotros
+Las fotos se guardan cifradas en tránsito y se sirven en privado (Cloudinary en modo authenticated). No hay enlaces públicos. Cada foto lleva el color de quien la trajo.
 
-- [development build](https://docs.expo.dev/develop/development-builds/introduction/)
-- [Android emulator](https://docs.expo.dev/workflow/android-studio-emulator/)
-- [iOS simulator](https://docs.expo.dev/workflow/ios-simulator/)
-- [Expo Go](https://expo.dev/go), a limited sandbox for trying out app development with Expo
+### 💬 Cinco mensajes
+El espacio guarda solo los cinco últimos mensajes. Cuando llega uno nuevo, el más antiguo se apaga — para los dos a la vez. Lo que os decís tiene que valer el sitio que ocupa.
 
-You can start developing by editing the files inside the **app** directory. This project uses [file-based routing](https://docs.expo.dev/router/introduction).
+### ✨ Señales de luz
+Reacciona a mensajes y fotos con señales luminosas animadas (parpadeo, chispazo, bengala, apagón, cortocircuito, fundido). Cuestan cero — puedes decir "estoy aquí" sin gastar un mensaje.
 
-## Get a fresh project
+### 🎨 El color dice quién
+Cada persona lleva una luz. Todo lo que haces en el espacio lleva tu color, y donde vuestras dos luces se cruzan aparece un tercero que no es de ninguno. Elegís la pareja de colores del espacio entre seis combinaciones (Neón, Brasa, Selva, Cobalto, Coral, Lima).
 
-When you're ready, run:
+### 🔒 Privado por diseño
+- Solo se entra con una llave de 6 caracteres generada criptográficamente.
+- Un espacio no se puede buscar ni listar.
+- Sin publicidad, sin analítica de uso, sin vender datos.
+- Las fotos se almacenan como privadas en Cloudinary y se sirven con URLs firmadas.
+- La sesión de Firebase se cifra con AES-256 antes de tocar el disco.
+- Si os vais, todo se borra de verdad: también los archivos en Cloudinary.
 
-```bash
-npm run reset-project
+---
+
+## Stack tecnológico
+
+| Capa | Tecnología |
+|---|---|
+| Framework | [Expo SDK 57](https://docs.expo.dev/versions/v57.0.0/) + React Native 0.86 |
+| Lenguaje | TypeScript |
+| UI | gluestack-ui v5, Tailwind CSS v4 (Uniwind), react-native-reanimated |
+| Autenticación | Firebase Auth (email + Google Sign-In) |
+| Base de datos | Cloud Firestore |
+| Proxy de autorización | Cloudflare Workers |
+| Almacenamiento de fotos | Cloudinary (modo authenticated) |
+| Notificaciones push | Expo Push API |
+| Backend serverless | Firebase Cloud Functions (Node 22) |
+| Rutas | expo-router (file-based) |
+| Plataforma | **Android** |
+
+---
+
+## Estructura del proyecto
+
+```
+churriapp/
+├── src/
+│   ├── app/                  # Screens (file-based routing)
+│   │   ├── _layout.tsx       # Layout raíz (providers, guards, error boundary)
+│   │   ├── settings.tsx      # Ajustes
+│   │   ├── (tabs)/           # Tabs principales
+│   │   │   ├── index.tsx     # Espacio (home)
+│   │   │   ├── chat.tsx      # Mensajes
+│   │   │   ├── gallery.tsx   # Fotos
+│   │   │   └── reminders.tsx # Avisos
+│   │   └── onboarding/       # Registro y emparejamiento
+│   ├── components/           # UI atómica
+│   │   ├── brand.tsx         # Logo, wordmark, GlowCard, botones
+│   │   ├── app-tabs.tsx      # Barra de tabs inferior
+│   │   ├── light-signals.tsx # Señales luminosas animadas
+│   │   ├── message-light.tsx # Burbuja de mensaje animada
+│   │   ├── reminder-alarms.tsx # Sincronizador de alarmas locales
+│   │   └── ui/               # Componentes gluestack-ui
+│   ├── context/
+│   │   └── couple-context.tsx # Contexto principal (auth + pareja)
+│   ├── hooks/                # Custom hooks
+│   ├── lib/                  # Firebase, Cloudinary, push, auth, persistencia
+│   └── constants/            # Tema, paletas, textos legales
+├── worker/                   # Cloudflare Worker
+├── functions/                # Firebase Functions
+├── store/                    # Assets para Google Play
+├── web/                      # Páginas de privacidad y eliminación de cuenta
+└── assets/                   # Imágenes, iconos, fuentes
 ```
 
-This command will move the starter code to the **app-example** directory and create a blank **app** directory where you can start developing.
+---
 
-### Other setup steps
+## Primeros pasos (desarrollo)
 
-- To set up ESLint for linting, run `npx expo lint`, or follow our guide on ["Using ESLint and Prettier"](https://docs.expo.dev/guides/using-eslint/)
-- If you'd like to set up unit testing, follow our guide on ["Unit Testing with Jest"](https://docs.expo.dev/develop/unit-testing/)
-- Learn more about the TypeScript setup in this template in our guide on ["Using TypeScript"](https://docs.expo.dev/guides/typescript/)
+```bash
+# Instalar dependencias
+npm install
 
-## Learn more
+# Iniciar servidor de desarrollo
+npx expo start
+```
 
-To learn more about developing your project with Expo, look at the following resources:
+### Requisitos
 
-- [Expo documentation](https://docs.expo.dev/): Learn fundamentals, or go into advanced topics with our [guides](https://docs.expo.dev/guides).
-- [Learn Expo tutorial](https://docs.expo.dev/tutorial/introduction/): Follow a step-by-step tutorial where you'll create a project that runs on Android, iOS, and the web.
+- Node.js 22+
+- Expo CLI
+- Una cuenta de Firebase con proyecto configurado (Auth + Firestore)
+- Una cuenta de Cloudinary
+- Una cuenta de Cloudflare (para el Worker)
 
-## Join the community
+---
 
-Join our community of developers creating universal apps.
+## Licencia
 
-- [Expo on GitHub](https://github.com/expo/expo): View our open source platform and contribute.
-- [Discord community](https://chat.expo.dev): Chat with Expo users and ask questions.
+MIT © We Are Capa
+
+---
+
+<p align="center">Churri — un espacio para dos.</p>
