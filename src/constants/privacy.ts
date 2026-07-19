@@ -5,30 +5,30 @@
  */
 export const PrivacyVersion = '2026-07-17';
 
-export const PrivacyMarkdown = `# Política de Privacidad de Churri
+export const PrivacyMarkdown = `# Política de Privacidad de Flare
 
 **Última actualización: 17 de julio de 2026**
 
-Churri es un espacio digital privado compartido entre dos personas. Esta Política de Privacidad explica de forma clara qué datos personales tratamos, para qué los utilizamos, quién puede acceder a ellos, dónde se almacenan, durante cuánto tiempo se conservan y cómo puedes ejercer tus derechos.
+Flare es un espacio digital privado compartido entre dos personas. Esta Política de Privacidad explica de forma clara qué datos personales tratamos, para qué los utilizamos, quién puede acceder a ellos, dónde se almacenan, durante cuánto tiempo se conservan y cómo puedes ejercer tus derechos.
 
-Esta Política de Privacidad forma parte de los Términos de uso de Churri.
+Esta Política de Privacidad forma parte de los Términos de uso de Flare.
 
 ## 1. Resumen esencial
 
-- Churri no utiliza tus datos para publicidad.
+- Flare no utiliza tus datos para publicidad.
 - No vendemos tus datos personales.
 - No elaboramos perfiles comerciales.
 - No utilizamos tus fotos, mensajes o recordatorios para entrenar sistemas de inteligencia artificial.
 - El contenido del espacio está destinado a ser visto únicamente por las dos personas vinculadas.
 - Utilizamos proveedores tecnológicos para prestar el servicio, principalmente Google Firebase, Cloudinary y Expo.
 - Puedes borrar contenido desde la app y eliminar tu cuenta cuando quieras.
-- Churri está dirigida exclusivamente a personas mayores de 16 años.
+- Flare está dirigida exclusivamente a personas mayores de 16 años.
 
 ## 2. A quién se aplica esta Política
 
 Esta Política se aplica a las personas que:
 
-- Crean una cuenta en Churri.
+- Crean una cuenta en Flare.
 - Acceden mediante correo electrónico o con una cuenta de Google.
 - Crean o participan en un espacio compartido.
 - Suben fotografías, mensajes, recordatorios, reacciones u otros contenidos.
@@ -50,7 +50,7 @@ Cuando creas una cuenta podemos tratar:
 
 Si accedes con Google, recibimos los datos que Google nos facilita de acuerdo con los permisos mostrados durante el inicio de sesión, normalmente tu nombre, correo electrónico e identificador de cuenta.
 
-Churri no recibe ni almacena la contraseña de tu cuenta de Google.
+Flare no recibe ni almacena la contraseña de tu cuenta de Google.
 
 ### 3.2. Datos de perfil y personalización
 
@@ -111,7 +111,7 @@ Si contactas con nosotros, tratamos:
 
 ### 3.7. Permisos del dispositivo
 
-Churri puede solicitar los siguientes permisos:
+Flare puede solicitar los siguientes permisos:
 
 - **Fotografías o biblioteca multimedia:** para seleccionar una imagen que quieras subir.
 - **Cámara:** si eliges hacer una fotografía desde la aplicación.
@@ -119,13 +119,13 @@ Churri puede solicitar los siguientes permisos:
 
 Estos permisos solo se solicitan cuando son necesarios para utilizar la función correspondiente. Puedes retirarlos desde los ajustes del dispositivo, aunque algunas funciones dejarán de estar disponibles.
 
-Churri no accede de forma continua a tu cámara o galería y no utiliza estos permisos para fines publicitarios.
+Flare no accede de forma continua a tu cámara o galería y no utiliza estos permisos para fines publicitarios.
 
 ## 4. De dónde proceden los datos
 
 Los datos pueden proceder:
 
-- Directamente de ti, cuando creas una cuenta o utilizas Churri.
+- Directamente de ti, cuando creas una cuenta o utilizas Flare.
 - De Google, si eliges iniciar sesión con tu cuenta de Google.
 - De la otra persona del espacio, cuando crea contenido en el que apareces o que se refiere a ti.
 - De tu dispositivo y de nuestros proveedores tecnológicos, mediante registros técnicos necesarios para prestar y proteger el servicio.
@@ -160,11 +160,11 @@ Utilizamos el contenido para:
 
 ### 5.3. Tratar contenido especialmente sensible
 
-Churri no te pide información sobre tu salud, orientación sexual, vida sexual, religión, ideología, origen étnico, datos biométricos u otras categorías especialmente protegidas.
+Flare no te pide información sobre tu salud, orientación sexual, vida sexual, religión, ideología, origen étnico, datos biométricos u otras categorías especialmente protegidas.
 
 Sin embargo, las fotografías, mensajes o recordatorios que decidas subir podrían revelar este tipo de información.
 
-Cuando el tratamiento de estas categorías requiera consentimiento explícito, Churri lo solicitará mediante una acción separada, clara y voluntaria dentro de la aplicación.
+Cuando el tratamiento de estas categorías requiera consentimiento explícito, Flare lo solicitará mediante una acción separada, clara y voluntaria dentro de la aplicación.
 
 **Base jurídica:** consentimiento explícito de la persona afectada, cuando resulte exigible.
 
@@ -178,7 +178,7 @@ Utilizamos el token del dispositivo y el contenido del aviso para enviarte notif
 
 **Base jurídica:** tu consentimiento, manifestado al aceptar el permiso de notificaciones.
 
-Puedes retirarlo en cualquier momento desde los ajustes del dispositivo. La retirada no afecta al resto de funciones de Churri, aunque dejarás de recibir avisos.
+Puedes retirarlo en cualquier momento desde los ajustes del dispositivo. La retirada no afecta al resto de funciones de Flare, aunque dejarás de recibir avisos.
 
 ### 5.5. Mantener la seguridad y prevenir usos indebidos
 
@@ -191,7 +191,7 @@ Podemos utilizar datos técnicos y registros para:
 - Mantener la integridad del servicio.
 - Aplicar los Términos de uso.
 
-**Base jurídica:** nuestro interés legítimo en proteger Churri, a sus personas usuarias y a terceros, sin perjuicio de tus derechos y libertades.
+**Base jurídica:** nuestro interés legítimo en proteger Flare, a sus personas usuarias y a terceros, sin perjuicio de tus derechos y libertades.
 
 ### 5.6. Atender consultas y ejercer derechos
 
@@ -218,7 +218,7 @@ Podemos tratar y conservar determinados datos para:
 
 ## 6. Datos que no utilizamos
 
-Churri no utiliza tus datos para:
+Flare no utiliza tus datos para:
 
 - Mostrar publicidad.
 - Venderlos a anunciantes o intermediarios de datos.
@@ -229,7 +229,7 @@ Churri no utiliza tus datos para:
 - Entrenar modelos de inteligencia artificial con tus fotografías, mensajes o recordatorios.
 - Adoptar decisiones automatizadas que produzcan efectos jurídicos o similares sobre ti.
 
-Churri no integra herramientas propias de analítica publicitaria o de seguimiento entre aplicaciones.
+Flare no integra herramientas propias de analítica publicitaria o de seguimiento entre aplicaciones.
 
 Nuestros proveedores pueden generar registros técnicos, de seguridad y rendimiento necesarios para operar sus servicios conforme a sus propias obligaciones y condiciones.
 
@@ -237,15 +237,15 @@ Nuestros proveedores pueden generar registros técnicos, de seguridad y rendimie
 
 ### 7.1. La otra persona del espacio
 
-La otra persona vinculada puede acceder al contenido compartido conforme al funcionamiento de Churri.
+La otra persona vinculada puede acceder al contenido compartido conforme al funcionamiento de Flare.
 
-Debes tener en cuenta que puede realizar capturas de pantalla, descargas o copias por medios externos. Churri no puede eliminar esas copias del dispositivo de la otra persona.
+Debes tener en cuenta que puede realizar capturas de pantalla, descargas o copias por medios externos. Flare no puede eliminar esas copias del dispositivo de la otra persona.
 
-### 7.2. Personal autorizado de Churri
+### 7.2. Personal autorizado de Flare
 
 No revisamos de forma rutinaria tus mensajes ni tus fotografías.
 
-El acceso humano por parte de Churri se limita a situaciones excepcionales, como:
+El acceso humano por parte de Flare se limita a situaciones excepcionales, como:
 
 - Resolver una incidencia técnica que nos hayas comunicado.
 - Investigar un reporte.
@@ -275,7 +275,7 @@ Google trata estos datos para prestar y proteger los servicios contratados.
 
 Se utiliza para almacenar, gestionar y entregar las fotografías privadas que subes.
 
-Cloudinary procesa los archivos y los datos técnicos necesarios para alojarlos, protegerlos y mostrarlos dentro de Churri.
+Cloudinary procesa los archivos y los datos técnicos necesarios para alojarlos, protegerlos y mostrarlos dentro de Flare.
 
 #### Expo
 
@@ -312,7 +312,7 @@ No comunicaremos más información de la necesaria para la finalidad correspondi
 
 ## 8. Privacidad y seguridad del espacio
 
-El espacio compartido no es público, no aparece en búsquedas y no se puede listar desde fuera de Churri.
+El espacio compartido no es público, no aparece en búsquedas y no se puede listar desde fuera de Flare.
 
 Aplicamos controles de acceso en el servidor para que cada cuenta solo pueda acceder al espacio al que está vinculada.
 
@@ -320,13 +320,13 @@ Las fotografías se configuran como archivos privados y se muestran mediante mec
 
 Estas medidas reducen el riesgo de accesos no autorizados, pero ningún sistema puede ofrecer una seguridad absoluta.
 
-Una persona que obtenga legítimamente acceso a un contenido puede copiarlo, fotografiarlo o conservarlo fuera de Churri. Por ello, solo debes compartir contenido con el que te sientas seguro.
+Una persona que obtenga legítimamente acceso a un contenido puede copiarlo, fotografiarlo o conservarlo fuera de Flare. Por ello, solo debes compartir contenido con el que te sientas seguro.
 
 ## 9. Dónde se tratan los datos y transferencias internacionales
 
 ### 9.1. Base de datos y contenido en Firebase
 
-Según la configuración actual, la base de datos principal de Churri se encuentra en la ubicación multirregional europea \`eur3\`.
+Según la configuración actual, la base de datos principal de Flare se encuentra en la ubicación multirregional europea \`eur3\`.
 
 Esta ubicación utiliza regiones europeas para mantener la disponibilidad del servicio.
 
@@ -402,7 +402,7 @@ Su conservación se limita de acuerdo con su finalidad, naturaleza y nivel de ri
 
 ### 10.7. Copias de seguridad y sistemas de proveedores
 
-Cuando borras contenido o una cuenta, los datos dejan de estar disponibles en el uso ordinario de Churri.
+Cuando borras contenido o una cuenta, los datos dejan de estar disponibles en el uso ordinario de Flare.
 
 Pueden permanecer copias residuales durante un periodo limitado en sistemas de respaldo, recuperación, caché o archivos de proveedores. Estas copias no se utilizan para prestar el servicio ordinario y se eliminan o sobrescriben conforme a los ciclos técnicos y obligaciones legales aplicables.
 
@@ -412,11 +412,11 @@ Puedes borrar desde la aplicación el contenido que hayas subido, según las opc
 
 Cuando eliminas un contenido:
 
-- Deja de estar visible dentro de Churri.
+- Deja de estar visible dentro de Flare.
 - La otra persona deja de poder acceder a él mediante la aplicación.
 - Se inicia su eliminación de los sistemas activos.
 - Las copias de seguridad pueden tardar un tiempo limitado en sobrescribirse.
-- No se eliminan las capturas, descargas o copias que otra persona haya realizado fuera de Churri.
+- No se eliminan las capturas, descargas o copias que otra persona haya realizado fuera de Flare.
 
 ## 12. Cómo eliminar tu cuenta y el espacio
 
@@ -426,7 +426,7 @@ Puedes eliminar tu cuenta desde:
 
 La eliminación es irreversible.
 
-Según el funcionamiento actual de Churri, la eliminación de una cuenta provoca:
+Según el funcionamiento actual de Flare, la eliminación de una cuenta provoca:
 
 - La eliminación de la cuenta de la persona solicitante.
 - La eliminación del espacio compartido.
@@ -436,7 +436,7 @@ Según el funcionamiento actual de Churri, la eliminación de una cuenta provoca
 
 La otra persona podrá conservar su propia cuenta si el funcionamiento de la aplicación lo permite, pero perderá el acceso al espacio eliminado.
 
-Si ya no tienes instalada la aplicación, puedes solicitar la eliminación escribiendo a [info@wearecapa.es](mailto:info@wearecapa.es) o utilizando la página de eliminación de cuenta indicada en la ficha de Churri en la tienda de aplicaciones.
+Si ya no tienes instalada la aplicación, puedes solicitar la eliminación escribiendo a [info@wearecapa.es](mailto:info@wearecapa.es) o utilizando la página de eliminación de cuenta indicada en la ficha de Flare en la tienda de aplicaciones.
 
 La eliminación de la aplicación del teléfono no elimina automáticamente la cuenta.
 
@@ -453,7 +453,7 @@ Puedes ejercer los siguientes derechos:
 - **Oposición:** oponerte a tratamientos basados en interés legítimo.
 - **Portabilidad:** recibir determinados datos en un formato estructurado cuando sea aplicable.
 - **Retirada del consentimiento:** retirar en cualquier momento un consentimiento que hayas prestado.
-- **No ser objeto de decisiones automatizadas:** Churri no adopta decisiones automatizadas con efectos jurídicos o similares sobre ti.
+- **No ser objeto de decisiones automatizadas:** Flare no adopta decisiones automatizadas con efectos jurídicos o similares sobre ti.
 
 Para ejercer tus derechos, escribe a:
 
@@ -475,17 +475,17 @@ Responderemos en el plazo de un mes desde la recepción de la solicitud. Este pl
 
 Si consideras que hemos tratado tus datos de forma contraria a la normativa, puedes presentar una reclamación ante la **Agencia Española de Protección de Datos (AEPD)**.
 
-Antes de reclamar por la falta de atención de un derecho, debes haberte dirigido previamente a Churri mediante un medio que permita acreditar la solicitud.
+Antes de reclamar por la falta de atención de un derecho, debes haberte dirigido previamente a Flare mediante un medio que permita acreditar la solicitud.
 
 ## 15. Menores de edad
 
-Churri está dirigida exclusivamente a personas de **16 años o más**.
+Flare está dirigida exclusivamente a personas de **16 años o más**.
 
 No recopilamos intencionadamente datos de menores de edad.
 
 Si tenemos conocimiento de que una persona menor de 16 años ha creado una cuenta o de que se ha subido contenido sexual en el que aparece un menor, podremos bloquear la cuenta, retirar el contenido, conservar la información legalmente necesaria y comunicar los hechos a las autoridades competentes cuando proceda.
 
-Si crees que una persona menor de edad utiliza Churri, puedes avisarnos en [info@wearecapa.es](mailto:info@wearecapa.es).
+Si crees que una persona menor de edad utiliza Flare, puedes avisarnos en [info@wearecapa.es](mailto:info@wearecapa.es).
 
 ## 16. Contenido de terceros
 
@@ -519,7 +519,7 @@ Si se produce una brecha de seguridad que pueda suponer un alto riesgo para tus 
 
 Podemos actualizar esta Política cuando:
 
-- Cambie el funcionamiento de Churri.
+- Cambie el funcionamiento de Flare.
 - Incorporaremos nuevos proveedores o funcionalidades.
 - Cambien las obligaciones legales.
 - Sea necesario mejorar la claridad o seguridad del documento.
@@ -538,7 +538,7 @@ NIF: **47024743R**
 Domicilio: **Calle Comandante Fontanes 81, Madrid, España**
 Correo electrónico: [info@wearecapa.es](mailto:info@wearecapa.es)
 
-En esta Política utilizamos las expresiones **"Churri"**, **"nosotros"** o **"el servicio"** para referirnos al responsable y a la aplicación.
+En esta Política utilizamos las expresiones **"Flare"**, **"nosotros"** o **"el servicio"** para referirnos al responsable y a la aplicación.
 
 ## 20. Contacto
 
@@ -552,4 +552,4 @@ Madrid, España
 
 ---
 
-**Churri — un espacio para dos.**`;
+**Flare — un espacio para dos.**`;

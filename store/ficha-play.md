@@ -1,11 +1,11 @@
-# Ficha de Google Play — Churri
+# Ficha de Google Play — Flare
 
 Todo listo para copiar y pegar en Play Console. Los límites de caracteres van marcados.
 
 ## Nombre (máx. 30)
 
 ```
-Churri
+Flare
 ```
 
 La marca sola, sin coletilla. Lo que hace la app lo cuentan la descripción
@@ -20,7 +20,7 @@ Avisos, fotos y cinco mensajes. Un espacio privado para dos personas.
 ## Descripción completa (máx. 4000)
 
 ```
-Churri es un espacio compartido entre dos personas. No hay feed, no hay
+Flare es un espacio compartido entre dos personas. No hay feed, no hay
 audiencia, no hay nadie más: entras con una llave que solo tiene la otra
 persona, y todo lo que hay dentro es de los dos.
 
@@ -49,7 +49,7 @@ Solo se entra con llave. Un espacio no se puede buscar ni listar. Sin
 publicidad, sin analítica de uso, sin vender datos. Y si os vais, todo se
 borra de verdad: también los archivos.
 
-Churri es para dos: una pareja, dos hermanas, dos amigos a distancia. El
+Flare es para dos: una pareja, dos hermanas, dos amigos a distancia. El
 número lo pone la app; el vínculo lo ponéis vosotros.
 ```
 
@@ -105,4 +105,4 @@ número lo pone la app; el vínculo lo ponéis vosotros.
    de Google para cuentas personales nuevas). Reclutar amigos/familia; con el
    enlace de opt-in les cuesta un minuto. El reloj corre solo.
 4. **Solicitar producción** desde la consola cuando se cumpla el plazo.
-5. **Revisión de Google** (días) → **Churri aparece en el buscador de Play**.
+5. **Revisión de Google** (días) → **Flare aparece en el buscador de Play**.

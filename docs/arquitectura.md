@@ -1,4 +1,4 @@
-# Churri — Arquitectura (Firebase)
+# Flare — Arquitectura (Firebase)
 
 App móvil para parejas: recordatorios con push, galería de fotos compartida
 y mensajes limitados por día.

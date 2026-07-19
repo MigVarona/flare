@@ -194,7 +194,7 @@ export default function HomeScreen() {
       'https://calendar.google.com/calendar/render?action=TEMPLATE' +
       `&text=${encodeURIComponent(reminder.title)}` +
       `&dates=${stamp(reminder.dueAt)}/${stamp(end)}` +
-      `&details=${encodeURIComponent('Aviso de Churri')}`;
+      `&details=${encodeURIComponent('Aviso de Flare')}`;
 
     try {
       await Linking.openURL(url);
@@ -288,7 +288,7 @@ export default function HomeScreen() {
                 color={palette.partner}
                 onPress={() =>
                   Share.share({
-                    message: `Esta es la llave de nuestro espacio en Churri: ${inviteCode}`,
+                    message: `Esta es la llave de nuestro espacio en Flare: ${inviteCode}`,
                   })
                 }
               />

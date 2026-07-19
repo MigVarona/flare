@@ -1,4 +1,4 @@
-# Google Play Console — Datos para publicar Churri
+# Google Play Console — Datos para publicar Flare
 
 Documento pensado para copiar/pegar en Google Play Console o para entregarselo a un MCP/agente de navegador. Usar exactamente estos valores salvo que el usuario indique lo contrario.
 
@@ -6,7 +6,7 @@ Documento pensado para copiar/pegar en Google Play Console o para entregarselo a
 
 | Campo | Valor |
 |---|---|
-| Nombre de la aplicacion | Churri |
+| Nombre de la aplicacion | Flare |
 | Nombre del paquete Android | com.mivarona.churriapp |
 | Tipo | Aplicacion |
 | Precio | Gratis |
@@ -32,7 +32,7 @@ Documento pensado para copiar/pegar en Google Play Console o para entregarselo a
 Notas de version:
 
 ```text
-Primera version de prueba de Churri.
+Primera version de prueba de Flare.
 ```
 
 ## Testers internos
@@ -57,7 +57,7 @@ Nota: Google Play permite hasta 100 testers en prueba interna. Dos testers son s
 ### Nombre corto
 
 ```text
-Churri
+Flare
 ```
 
 ### Descripcion corta
@@ -69,7 +69,7 @@ Avisos, fotos y cinco mensajes. Un espacio privado para dos personas.
 ### Descripcion completa
 
 ```text
-Churri es un espacio compartido entre dos personas. No hay feed, no hay audiencia, no hay nadie mas: entras con una llave que solo tiene la otra persona, y todo lo que hay dentro es de los dos.
+Flare es un espacio compartido entre dos personas. No hay feed, no hay audiencia, no hay nadie mas: entras con una llave que solo tiene la otra persona, y todo lo que hay dentro es de los dos.
 
 AVISOS QUE LLEGAN A SU HORA
 Deja un aviso y a la otra persona le suena el movil en el momento. A la hora senalada, su telefono se lo recuerda con una alarma exacta, y puede marcarlo como hecho o posponerlo media hora directamente desde la notificacion, sin abrir la app. Si el aviso lo merece, se pasa al calendario con un toque.
@@ -86,7 +86,7 @@ Cada persona lleva una luz. Todo lo que haces en el espacio lleva tu color, y do
 PRIVADO POR DISENO
 Solo se entra con llave. Un espacio no se puede buscar ni listar. Sin publicidad, sin analitica de uso, sin vender datos. Y si os vais, todo se borra de verdad: tambien los archivos.
 
-Churri es para dos: una pareja, dos hermanas, dos amigos a distancia. El numero lo pone la app; el vinculo lo poneis vosotros.
+Flare es para dos: una pareja, dos hermanas, dos amigos a distancia. El numero lo pone la app; el vinculo lo poneis vosotros.
 ```
 
 ## Assets de ficha

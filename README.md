@@ -1,4 +1,4 @@
-# Churri
+# Flare
 
 **Un espacio privado para dos personas.**
 
@@ -8,7 +8,7 @@
   <img src="docs/screenshots/churri-closeup-03-mensajes-avisos.png" width="250" alt="Mensajes y avisos" />
 </p>
 
-Churri es una aplicación móvil (Expo / React Native) que crea un espacio digital compartido entre dos personas. No hay feed, no hay audiencia, no hay nadie más: se entra con una llave que solo tiene la otra persona, y todo lo que hay dentro es de los dos.
+Flare es una aplicación móvil (Expo / React Native) que crea un espacio digital compartido entre dos personas. No hay feed, no hay audiencia, no hay nadie más: se entra con una llave que solo tiene la otra persona, y todo lo que hay dentro es de los dos.
 
 El proyecto está construido con especial atención a la seguridad y a la coherencia del sistema de diseño: cada decisión de arquitectura —desde cómo se firman las subidas de fotos hasta cómo se cifra la sesión en disco— está tomada para que la privacidad no dependa de la buena fe de un cliente, sino de reglas verificables en el servidor.
 
@@ -170,4 +170,4 @@ El código de este repositorio es público para su revisión (portfolio), pero n
 
 ---
 
-<p align="center">Churri — un espacio para dos.</p>
+<p align="center">Flare — un espacio para dos.</p>

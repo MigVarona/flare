@@ -9,7 +9,7 @@
  * Whoever opened the space takes the first light and whoever walked in takes the second, so
  * there is nothing to negotiate and nothing to store per person.
  *
- * The brand is not in here on purpose. Churri's own colours — the mark, the main action — stay
+ * The brand is not in here on purpose. Flare's own colours — the mark, the main action — stay
  * pink and blue whatever you choose. They belong to the app; this belongs to you.
  */
 export type Palette = {

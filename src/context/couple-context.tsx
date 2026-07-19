@@ -281,7 +281,7 @@ export function CoupleProvider({ children }: { children: ReactNode }) {
       inviteCode: code,
       // Kept only because the current Firestore rules require it on create. The app no
       // longer asks for or displays a space name.
-      spaceName: 'Churri',
+      spaceName: 'Flare',
       createdAt: Date.now(),
     });
     // The key also lives on its own, so that walking in means knowing the code rather

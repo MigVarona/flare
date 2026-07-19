@@ -1,5 +1,5 @@
 /**
- * Churri's doorman.
+ * Flare's doorman.
  *
  * It exists for one reason: Cloudinary's secret can't live in the app. Anyone can pull an
  * APK apart, and with that secret they could upload to the account until the quota burns,

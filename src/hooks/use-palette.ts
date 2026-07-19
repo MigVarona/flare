@@ -8,7 +8,7 @@ import { useCouple } from '@/context/couple-context';
  * it is the first light, whoever walked in is the second. So both phones reach the same answer
  * without asking each other, and a message keeps one colour wherever it's read.
  *
- * What this is *not* is the brand. Churri's own colours — the mark, the wordmark, the main
+ * What this is *not* is the brand. Flare's own colours — the mark, the wordmark, the main
  * action — are fixed and live in `theme.ts`. They belong to the app. These belong to you.
  */
 export function usePalette() {

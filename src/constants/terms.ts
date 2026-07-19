@@ -5,25 +5,25 @@
  */
 export const TermsVersion = '2026-07-17';
 
-export const TermsMarkdown = `# Términos de uso de Churri
+export const TermsMarkdown = `# Términos de uso de Flare
 
 **Última actualización: 17 de julio de 2026**
 
-Estos Términos de uso regulan el acceso, registro y utilización de la aplicación **Churri** y de los servicios asociados a ella.
+Estos Términos de uso regulan el acceso, registro y utilización de la aplicación **Flare** y de los servicios asociados a ella.
 
-Lee estas condiciones antes de crear una cuenta o utilizar la aplicación. Al registrarte, marcar la casilla de aceptación correspondiente o continuar utilizando Churri, confirmas que has leído y aceptas estos Términos de uso y nuestra Política de Privacidad.
+Lee estas condiciones antes de crear una cuenta o utilizar la aplicación. Al registrarte, marcar la casilla de aceptación correspondiente o continuar utilizando Flare, confirmas que has leído y aceptas estos Términos de uso y nuestra Política de Privacidad.
 
-## 1. Qué es Churri
+## 1. Qué es Flare
 
-Churri es una aplicación que permite crear un espacio digital privado compartido entre dos personas.
+Flare es una aplicación que permite crear un espacio digital privado compartido entre dos personas.
 
 Dentro de ese espacio, las personas usuarias pueden compartir contenidos y utilizar las funcionalidades disponibles en cada momento, como fotografías, mensajes, avisos, recordatorios u otros elementos similares.
 
-Churri proporciona la infraestructura tecnológica necesaria para que ambas personas puedan utilizar ese espacio. No somos autores ni propietarios del contenido que suben las personas usuarias y no intervenimos en sus comunicaciones, salvo cuando sea necesario por razones técnicas, de seguridad, para atender un reporte o para cumplir una obligación legal.
+Flare proporciona la infraestructura tecnológica necesaria para que ambas personas puedan utilizar ese espacio. No somos autores ni propietarios del contenido que suben las personas usuarias y no intervenimos en sus comunicaciones, salvo cuando sea necesario por razones técnicas, de seguridad, para atender un reporte o para cumplir una obligación legal.
 
-## 2. Requisitos para utilizar Churri
+## 2. Requisitos para utilizar Flare
 
-Para crear una cuenta y utilizar Churri debes:
+Para crear una cuenta y utilizar Flare debes:
 
 - Tener al menos **16 años**.
 - Tener capacidad legal suficiente para aceptar estos Términos.
@@ -33,7 +33,7 @@ Para crear una cuenta y utilizar Churri debes:
 
 Al registrarte, declaras que cumples estos requisitos.
 
-Churri no está dirigida a menores de edad. Si detectamos que una persona menor de 16 años ha creado una cuenta, podremos suspenderla o eliminarla y borrar sus datos conforme a nuestra Política de Privacidad.
+Flare no está dirigida a menores de edad. Si detectamos que una persona menor de 16 años ha creado una cuenta, podremos suspenderla o eliminarla y borrar sus datos conforme a nuestra Política de Privacidad.
 
 ## 3. Registro y seguridad de la cuenta
 
@@ -53,7 +53,7 @@ Podremos pedirte información razonablemente necesaria para comprobar tu identid
 
 ## 4. Creación del espacio compartido
 
-El espacio Churri está diseñado para ser utilizado por dos personas.
+El espacio Flare está diseñado para ser utilizado por dos personas.
 
 La vinculación entre ambas cuentas podrá realizarse mediante una invitación, enlace, código u otro mecanismo habilitado en la aplicación. La persona invitada deberá aceptar la vinculación antes de acceder al espacio compartido.
 
@@ -61,11 +61,11 @@ Eres responsable de enviar las invitaciones únicamente a la persona con la que 
 
 Cada persona conserva el control de su propia cuenta y puede abandonar o desvincularse del espacio compartido conforme a las opciones disponibles en la aplicación.
 
-La creación de un espacio compartido no implica que Churri verifique la identidad, relación personal, consentimiento general o situación legal existente entre las dos personas.
+La creación de un espacio compartido no implica que Flare verifique la identidad, relación personal, consentimiento general o situación legal existente entre las dos personas.
 
 ## 5. Responsabilidad sobre el contenido
 
-Cada persona es responsable del contenido que sube, publica, envía o comparte mediante Churri.
+Cada persona es responsable del contenido que sube, publica, envía o comparte mediante Flare.
 
 Antes de subir cualquier contenido, debes asegurarte de que:
 
@@ -80,7 +80,7 @@ El hecho de que un espacio sea privado no convierte en lícito un contenido que 
 
 ## 6. Contenido y conductas prohibidas
 
-No puedes utilizar Churri para crear, subir, almacenar, enviar, solicitar, compartir o facilitar:
+No puedes utilizar Flare para crear, subir, almacenar, enviar, solicitar, compartir o facilitar:
 
 - Contenido ilegal o que promueva actividades ilegales.
 - Material de abuso o explotación sexual infantil, o cualquier contenido sexual en el que aparezcan o puedan aparecer menores de edad.
@@ -98,9 +98,9 @@ No puedes utilizar Churri para crear, subir, almacenar, enviar, solicitar, compa
 
 Tampoco puedes:
 
-- Utilizar Churri para vigilar, controlar o localizar a otra persona sin su consentimiento.
+- Utilizar Flare para vigilar, controlar o localizar a otra persona sin su consentimiento.
 - Presionar a otra persona para que comparta contenido íntimo o personal.
-- Descargar, copiar o difundir fuera de Churri contenido de la otra persona sin su permiso, salvo que exista una base legal para hacerlo.
+- Descargar, copiar o difundir fuera de Flare contenido de la otra persona sin su permiso, salvo que exista una base legal para hacerlo.
 - Utilizar sistemas automatizados para extraer información de la aplicación.
 - Interferir en el funcionamiento o la seguridad del servicio.
 - Intentar acceder a áreas, cuentas, datos o funcionalidades para las que no tienes autorización.
@@ -108,9 +108,9 @@ Tampoco puedes:
 
 ## 7. Propiedad del contenido
 
-Conservas los derechos que te correspondan sobre el contenido que subes a Churri.
+Conservas los derechos que te correspondan sobre el contenido que subes a Flare.
 
-Churri no adquiere la propiedad de tus fotografías, mensajes ni demás contenidos.
+Flare no adquiere la propiedad de tus fotografías, mensajes ni demás contenidos.
 
 Al subir contenido, nos concedes una licencia limitada, no exclusiva, gratuita y válida durante el tiempo necesario para:
 
@@ -122,17 +122,17 @@ Al subir contenido, nos concedes una licencia limitada, no exclusiva, gratuita y
 - Mantener la seguridad y el funcionamiento del servicio.
 - Atender reportes, incidencias o requerimientos legalmente válidos.
 
-Esta licencia se limita exclusivamente a la prestación, mantenimiento y protección de Churri. No utilizaremos tu contenido para publicidad ni lo venderemos a terceros.
+Esta licencia se limita exclusivamente a la prestación, mantenimiento y protección de Flare. No utilizaremos tu contenido para publicidad ni lo venderemos a terceros.
 
 La licencia termina cuando el contenido se elimina definitivamente de nuestros sistemas, salvo que sea necesario conservarlo temporalmente por motivos técnicos, para cumplir una obligación legal, atender una reclamación o proteger derechos y seguridad.
 
-## 8. Propiedad de Churri
+## 8. Propiedad de Flare
 
-La aplicación, su diseño, código, marca, nombre, logotipos, interfaces, textos propios, estructura y demás elementos desarrollados para Churri pertenecen a We Are Capa o se utilizan con autorización de sus respectivos titulares.
+La aplicación, su diseño, código, marca, nombre, logotipos, interfaces, textos propios, estructura y demás elementos desarrollados para Flare pertenecen a We Are Capa o se utilizan con autorización de sus respectivos titulares.
 
 La aceptación de estos Términos te concede un derecho personal, limitado, revocable, no exclusivo, intransferible y no sublicenciable para utilizar la aplicación conforme a su finalidad.
 
-No puedes copiar, modificar, distribuir, vender, alquilar, descompilar, realizar ingeniería inversa o explotar Churri o cualquiera de sus elementos, salvo en los casos expresamente permitidos por la legislación aplicable.
+No puedes copiar, modificar, distribuir, vender, alquilar, descompilar, realizar ingeniería inversa o explotar Flare o cualquiera de sus elementos, salvo en los casos expresamente permitidos por la legislación aplicable.
 
 ## 9. Privacidad del espacio y límites de confidencialidad
 
@@ -142,10 +142,10 @@ No obstante, debes tener en cuenta que la otra persona puede:
 
 - Ver el contenido que compartes.
 - Realizar capturas de pantalla.
-- Descargarlo, copiarlo o conservarlo fuera de Churri.
+- Descargarlo, copiarlo o conservarlo fuera de Flare.
 - Mostrarlo a terceros utilizando medios externos a la aplicación.
 
-Churri no puede impedir ni revertir las copias o capturas realizadas fuera de sus sistemas. Por ello, solo debes compartir contenido con el que te sientas seguro y respecto del cual confíes en la otra persona.
+Flare no puede impedir ni revertir las copias o capturas realizadas fuera de sus sistemas. Por ello, solo debes compartir contenido con el que te sientas seguro y respecto del cual confíes en la otra persona.
 
 La consideración de un espacio como privado no supone una garantía absoluta de confidencialidad frente a acciones realizadas por la otra persona, ataques informáticos, fallos técnicos o requerimientos válidos de las autoridades.
 
@@ -161,7 +161,7 @@ No afirmamos que todo el contenido sea revisado o escaneado automáticamente. Po
 
 ## 11. Moderación y conocimiento de contenidos ilegales
 
-Churri no revisa previamente todo el contenido que las personas usuarias comparten y no garantiza que vaya a detectar de manera automática todos los usos indebidos.
+Flare no revisa previamente todo el contenido que las personas usuarias comparten y no garantiza que vaya a detectar de manera automática todos los usos indebidos.
 
 Cuando tengamos conocimiento efectivo de un contenido presuntamente ilegal o contrario a estos Términos, podremos revisarlo y adoptar las medidas necesarias.
 
@@ -220,7 +220,7 @@ Puedes borrar el contenido que hayas subido utilizando las opciones disponibles 
 Cuando eliminas un contenido:
 
 - Deja de estar disponible para el uso ordinario dentro del espacio compartido.
-- La otra persona deja de poder acceder a él a través de Churri, salvo que el contenido forme parte de una función o registro que legítimamente deba conservarse.
+- La otra persona deja de poder acceder a él a través de Flare, salvo que el contenido forme parte de una función o registro que legítimamente deba conservarse.
 - La eliminación no afecta a capturas de pantalla, descargas, copias o reenvíos realizados previamente fuera de la aplicación.
 - Pueden permanecer copias residuales durante un periodo limitado en sistemas de respaldo o recuperación.
 - Podremos conservarlo cuando sea necesario para cumplir una obligación legal, atender una reclamación, investigar un uso indebido o proteger derechos y seguridad.
@@ -229,7 +229,7 @@ Los plazos y criterios de conservación se explican con mayor detalle en la Pol�
 
 ## 15. Desvinculación y finalización de la relación entre las personas usuarias
 
-Cualquiera de las dos personas puede abandonar o solicitar la desvinculación del espacio compartido mediante las funciones disponibles en Churri.
+Cualquiera de las dos personas puede abandonar o solicitar la desvinculación del espacio compartido mediante las funciones disponibles en Flare.
 
 La desvinculación puede implicar que ambas personas dejen de acceder al espacio común o que cada una conserve únicamente los contenidos y datos que le correspondan, según la configuración técnica disponible en ese momento.
 
@@ -237,7 +237,7 @@ Cuando una persona se desvincula:
 
 - La otra persona puede perder el acceso al contenido subido por quien abandona el espacio.
 - Cada persona podrá conservar el contenido que ella misma haya subido, cuando técnicamente sea posible y resulte compatible con los derechos de la otra persona.
-- Churri podrá impedir el acceso de ambas personas a determinados elementos para evitar conflictos, accesos no autorizados o riesgos para la privacidad.
+- Flare podrá impedir el acceso de ambas personas a determinados elementos para evitar conflictos, accesos no autorizados o riesgos para la privacidad.
 - Las copias realizadas previamente fuera de la aplicación no se eliminan automáticamente.
 
 Si existe una disputa entre las dos personas sobre la propiedad, acceso o eliminación de un contenido, podremos bloquearlo temporalmente mientras revisamos la situación, pero no actuamos como mediadores de la relación personal ni resolvemos controversias privadas sobre hechos que no podamos verificar.
@@ -248,17 +248,17 @@ Puedes solicitar la eliminación de tu cuenta desde la aplicación, cuando esta 
 
 La eliminación de la cuenta puede conllevar:
 
-- La pérdida de acceso a Churri.
+- La pérdida de acceso a Flare.
 - La desvinculación del espacio compartido.
 - La eliminación o anonimización de tus datos personales.
 - La retirada del contenido que hayas subido del acceso ordinario de la otra persona.
 - La conservación temporal de ciertos datos o copias de seguridad cuando resulte necesario por razones técnicas o legales.
 
-Antes de eliminar tu cuenta, podrás descargar o guardar el contenido que desees conservar cuando Churri ofrezca una función para ello. No garantizamos que exista una herramienta de exportación para todos los tipos de contenido.
+Antes de eliminar tu cuenta, podrás descargar o guardar el contenido que desees conservar cuando Flare ofrezca una función para ello. No garantizamos que exista una herramienta de exportación para todos los tipos de contenido.
 
 La eliminación de la aplicación de tu dispositivo no elimina automáticamente tu cuenta.
 
-## 17. Suspensión o cierre por parte de Churri
+## 17. Suspensión o cierre por parte de Flare
 
 Podremos restringir, suspender o cerrar una cuenta cuando:
 
@@ -267,7 +267,7 @@ Podremos restringir, suspender o cerrar una cuenta cuando:
 - Detectemos fraude, suplantación o accesos no autorizados.
 - Sea necesario cumplir una obligación legal o una orden de una autoridad.
 - La cuenta permanezca inactiva durante un periodo prolongado y se haya informado previamente de esta posibilidad.
-- Se produzca un uso que pueda generar responsabilidad o perjuicios relevantes para Churri o terceros.
+- Se produzca un uso que pueda generar responsabilidad o perjuicios relevantes para Flare o terceros.
 - Dejemos de prestar el servicio.
 
 Salvo en casos urgentes, graves o legalmente restringidos, intentaremos informar a la persona afectada de la medida y de sus motivos.
@@ -276,7 +276,7 @@ Podrás solicitar la revisión de una decisión escribiendo a [info@wearecapa.es
 
 ## 18. Disponibilidad y cambios en el servicio
 
-Trabajamos para mantener Churri disponible y en buen funcionamiento, pero no garantizamos que el servicio sea permanente, ininterrumpido o completamente libre de errores.
+Trabajamos para mantener Flare disponible y en buen funcionamiento, pero no garantizamos que el servicio sea permanente, ininterrumpido o completamente libre de errores.
 
 Podemos realizar tareas de mantenimiento, actualizaciones, modificaciones técnicas o cambios de funcionalidad. Cuando sea razonablemente posible, informaremos previamente de las interrupciones o cambios que afecten de manera relevante al servicio.
 
@@ -292,19 +292,19 @@ Sin embargo, ningún sistema informático es completamente seguro. No podemos ga
 
 Podremos realizar copias de seguridad con fines de continuidad y recuperación del servicio. Estas copias no estarán destinadas al acceso ordinario de las personas usuarias y se eliminarán o sobrescribirán conforme a nuestros plazos internos de conservación.
 
-Eres responsable de conservar por otros medios cualquier contenido que consideres imprescindible. Churri no debe utilizarse como único sistema de archivo o copia permanente de fotografías, mensajes o documentos importantes.
+Eres responsable de conservar por otros medios cualquier contenido que consideres imprescindible. Flare no debe utilizarse como único sistema de archivo o copia permanente de fotografías, mensajes o documentos importantes.
 
 ## 20. Servicios y enlaces de terceros
 
 La aplicación puede integrar servicios, bibliotecas, enlaces o funcionalidades proporcionadas por terceros.
 
-El uso de esos servicios puede estar sujeto a sus propias condiciones y políticas de privacidad. Churri no controla ni responde de servicios externos que no gestione directamente, sin perjuicio de las responsabilidades que legalmente nos correspondan por la elección y utilización de nuestros proveedores.
+El uso de esos servicios puede estar sujeto a sus propias condiciones y políticas de privacidad. Flare no controla ni responde de servicios externos que no gestione directamente, sin perjuicio de las responsabilidades que legalmente nos correspondan por la elección y utilización de nuestros proveedores.
 
-Si descargas Churri desde una tienda de aplicaciones, también pueden resultar aplicables las condiciones de dicha tienda. En caso de contradicción, estos Términos regularán tu relación con Churri en la medida legalmente permitida.
+Si descargas Flare desde una tienda de aplicaciones, también pueden resultar aplicables las condiciones de dicha tienda. En caso de contradicción, estos Términos regularán tu relación con Flare en la medida legalmente permitida.
 
 ## 21. Funciones gratuitas y posibles servicios de pago
 
-Churri podrá ofrecer funciones gratuitas y, en el futuro, incorporar funciones, planes o suscripciones de pago.
+Flare podrá ofrecer funciones gratuitas y, en el futuro, incorporar funciones, planes o suscripciones de pago.
 
 Antes de contratar cualquier servicio de pago, se informará de manera clara sobre:
 
@@ -320,16 +320,16 @@ La incorporación de servicios de pago no modificará retroactivamente las condi
 
 ## 22. Responsabilidad
 
-Churri se presta conforme a la funcionalidad disponible en cada momento.
+Flare se presta conforme a la funcionalidad disponible en cada momento.
 
 En la máxima medida permitida por la legislación aplicable, no somos responsables de:
 
 - Conflictos personales entre las dos personas vinculadas.
 - La veracidad, legalidad o consecuencias del contenido que suben las personas usuarias.
-- Capturas, descargas, copias o divulgaciones realizadas por otra persona fuera de Churri.
-- Daños causados por el uso ilícito o no autorizado de una cuenta por parte de terceros cuando no sea imputable a Churri.
+- Capturas, descargas, copias o divulgaciones realizadas por otra persona fuera de Flare.
+- Daños causados por el uso ilícito o no autorizado de una cuenta por parte de terceros cuando no sea imputable a Flare.
 - Interrupciones, retrasos o fallos causados por circunstancias fuera de nuestro control razonable.
-- Pérdidas derivadas de utilizar Churri como único sistema de almacenamiento.
+- Pérdidas derivadas de utilizar Flare como único sistema de almacenamiento.
 - Servicios, dispositivos, redes o aplicaciones de terceros que no controlemos.
 
 Nada de lo dispuesto en estos Términos excluye ni limita:
@@ -341,13 +341,13 @@ Nada de lo dispuesto en estos Términos excluye ni limita:
 
 ## 23. Indemnidad por usos ilícitos
 
-Cuando la legislación lo permita, serás responsable frente a Churri de los daños, costes o reclamaciones que se deriven directamente de un uso doloso, fraudulento o manifiestamente ilícito de la aplicación o de una vulneración grave de derechos de terceros imputable a tu actuación.
+Cuando la legislación lo permita, serás responsable frente a Flare de los daños, costes o reclamaciones que se deriven directamente de un uso doloso, fraudulento o manifiestamente ilícito de la aplicación o de una vulneración grave de derechos de terceros imputable a tu actuación.
 
-Esta cláusula no limita tus derechos como consumidor ni te obliga a asumir riesgos que legalmente correspondan a Churri.
+Esta cláusula no limita tus derechos como consumidor ni te obliga a asumir riesgos que legalmente correspondan a Flare.
 
 ## 24. Política de Privacidad
 
-El tratamiento de datos personales se regula en nuestra **Política de Privacidad**, que forma parte de la información legal de Churri.
+El tratamiento de datos personales se regula en nuestra **Política de Privacidad**, que forma parte de la información legal de Flare.
 
 La Política de Privacidad explica, entre otros aspectos:
 
@@ -375,13 +375,13 @@ Podemos modificar estos Términos cuando exista un motivo válido, como:
 
 Cuando los cambios afecten de forma sustancial a tus derechos u obligaciones, te informaremos con una antelación razonable mediante la aplicación, correo electrónico u otro medio adecuado.
 
-La comunicación indicará la fecha de entrada en vigor. Si no estás de acuerdo con los cambios, podrás dejar de utilizar Churri y eliminar tu cuenta antes de esa fecha.
+La comunicación indicará la fecha de entrada en vigor. Si no estás de acuerdo con los cambios, podrás dejar de utilizar Flare y eliminar tu cuenta antes de esa fecha.
 
 Los cambios que resulten necesarios para cumplir inmediatamente una obligación legal, solucionar una vulnerabilidad grave o impedir un daño podrán aplicarse sin preaviso, informándote tan pronto como resulte razonablemente posible.
 
 ## 26. Finalización del servicio
 
-Podremos dejar de ofrecer Churri total o parcialmente por motivos técnicos, legales, económicos u operativos.
+Podremos dejar de ofrecer Flare total o parcialmente por motivos técnicos, legales, económicos u operativos.
 
 Cuando sea posible, avisaremos con una antelación razonable y explicaremos qué ocurrirá con las cuentas y el contenido.
 
@@ -395,7 +395,7 @@ La cláusula afectada se interpretará o sustituirá, en la medida legalmente po
 
 ## 28. No renuncia
 
-El hecho de que Churri no ejerza de inmediato un derecho o no actúe ante un incumplimiento concreto no implica que renuncie a ejercerlo posteriormente.
+El hecho de que Flare no ejerza de inmediato un derecho o no actúe ante un incumplimiento concreto no implica que renuncie a ejercerlo posteriormente.
 
 ## 29. Ley aplicable y jurisdicción
 
@@ -407,7 +407,7 @@ Cuando la persona usuaria tenga la condición de consumidora, se respetarán en 
 
 ## 30. Identificación del prestador
 
-Churri es un servicio prestado por:
+Flare es un servicio prestado por:
 
 - **Nombre comercial:** We Are Capa
 - **Titular:** Miguel Varona Gallego
@@ -415,11 +415,11 @@ Churri es un servicio prestado por:
 - **Domicilio:** Calle Comandante Fontanes 81, Madrid, España
 - **Correo electrónico de contacto:** [info@wearecapa.es](mailto:info@wearecapa.es)
 
-En estos Términos, utilizamos las expresiones **"Churri"**, **"nosotros"** o **"el servicio"** para referirnos al prestador y a la aplicación.
+En estos Términos, utilizamos las expresiones **"Flare"**, **"nosotros"** o **"el servicio"** para referirnos al prestador y a la aplicación.
 
 ## 31. Contacto
 
-Para consultas sobre estos Términos, incidencias, reportes o solicitudes relacionadas con Churri, puedes escribir a:
+Para consultas sobre estos Términos, incidencias, reportes o solicitudes relacionadas con Flare, puedes escribir a:
 
 **We Are Capa**
 Titular: Miguel Varona Gallego

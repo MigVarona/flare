@@ -57,12 +57,12 @@ export function BrandMark({ size = 128 }: { size?: number }) {
 export function Wordmark({ size = 56 }: { size?: number }) {
   const letters = (
     <ThemedText style={[styles.wordmark, { fontSize: size, lineHeight: size * 1.08 }]}>
-      Churri
+      flare
     </ThemedText>
   );
 
   return (
-    <MaskedView accessibilityLabel="Churri" maskElement={letters}>
+    <MaskedView accessibilityLabel="Flare" maskElement={letters}>
       <LinearGradient colors={BrandGradient} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}>
         {/* The same text again, invisible: it gives the gradient the exact shape to fill. */}
         <View style={styles.wordmarkGhost}>{letters}</View>
@@ -81,7 +81,7 @@ export function Wordmark({ size = 56 }: { size?: number }) {
  */
 export function BrandLockup({ size = 40 }: { size?: number }) {
   return (
-    <View style={[styles.lockup, { gap: size * 0.08 }]} accessibilityLabel="Churri">
+    <View style={[styles.lockup, { gap: size * 0.08 }]} accessibilityLabel="Flare">
       <BrandMark size={size} />
       <Wordmark size={size * 0.66} />
     </View>
@@ -162,7 +162,7 @@ export function GlowCard({
   const palette = usePalette();
 
   // A card that isn't anybody's runs the whole pair, from one of you to the other. That's the
-  // couple's pair, not the brand's — the brand belongs to Churri and stays where it is.
+  // couple's pair, not the brand's — the brand belongs to Flare and stays where it is.
   const edge: readonly [string, string, string] = color
     ? [color, color, color]
     : palette.gradient;

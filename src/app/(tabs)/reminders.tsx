@@ -240,7 +240,7 @@ export default function RemindersScreen() {
       "https://calendar.google.com/calendar/render?action=TEMPLATE" +
       `&text=${encodeURIComponent(reminder.title)}` +
       `&dates=${stamp(reminder.dueAt)}/${stamp(end)}` +
-      `&details=${encodeURIComponent("Aviso de Churri")}`;
+      `&details=${encodeURIComponent("Aviso de Flare")}`;
 
     try {
       await Linking.openURL(url);

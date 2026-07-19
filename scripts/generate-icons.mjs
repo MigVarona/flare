@@ -1,11 +1,11 @@
 /**
- * Renders Churri's mark — two lights and the lens where they cross — into every icon
+ * Renders Flare's mark — two lights and the lens where they cross — into every icon
  * asset the app needs, so the launcher icon is the same logo you see inside.
  * Run with `node scripts/generate-icons.mjs`.
  */
 import sharp from 'sharp';
 
-// Churri's own colours, the same ones the logo and the wordmark use.
+// Flare's own colours, the same ones the logo and the wordmark use.
 const BACKGROUND = '#01030F';
 const YOU = '#F72E79';
 const PARTNER = '#17A9F5';

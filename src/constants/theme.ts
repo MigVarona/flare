@@ -1,5 +1,5 @@
 /**
- * Churri is a shared, private night-space for two people.
+ * Flare is a shared, private night-space for two people.
  *
  * The core idea of the system: colour means *who*, not *what*. Each member of the
  * couple owns one end of the brand gradient — you are rose, your partner is cyan —
@@ -45,7 +45,7 @@ export type ThemeColor = keyof typeof night;
 /**
  * The app's own colours, taken from the logo: two lights and the lens where they cross.
  *
- * These are fixed. They belong to Churri, not to the couple — a product whose logo
+ * These are fixed. They belong to Flare, not to the couple — a product whose logo
  * changed depending on who was looking wouldn't have an identity at all. The colours
  * that mean *who* live in `identity.ts` and only ever tint content.
  */

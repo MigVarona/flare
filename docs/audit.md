@@ -1,8 +1,8 @@
-# Auditoría de ChurriApp
+# Auditoría de FlareApp
 
 ## 1. Resumen Ejecutivo
 
-**Churri** es una app móvil (Expo/React Native, iOS y Android, con web) para parejas: un espacio privado compartido donde dos personas pueden intercambiar recordatorios con alarma, fotos privadas y un chat limitado a 5 mensajes. Usa **Firebase** como backend (Auth, Firestore, Functions), **Cloudinary** para almacenamiento de fotos, **Cloudflare Workers** como intermediario de autorización para subir/borrar fotos y enviar notificaciones push, y **Expo** para tooling, notificaciones y despliegue.
+**Flare** es una app móvil (Expo/React Native, iOS y Android, con web) para parejas: un espacio privado compartido donde dos personas pueden intercambiar recordatorios con alarma, fotos privadas y un chat limitado a 5 mensajes. Usa **Firebase** como backend (Auth, Firestore, Functions), **Cloudinary** para almacenamiento de fotos, **Cloudflare Workers** como intermediario de autorización para subir/borrar fotos y enviar notificaciones push, y **Expo** para tooling, notificaciones y despliegue.
 
 El código es de alta calidad: tipado estricto con TypeScript, comentarios detallados que explican el "por qué" de cada decisión, testing de seguridad de Firebase Rules exhaustivo, y un diseño UI/UX muy cuidado con un sistema de colores conceptual sólido (el color significa "quién", no "qué").
 
@@ -124,7 +124,7 @@ invites/{code}
 couples/{coupleId}
   ├── memberIds: string[] (1 o 2)
   ├── inviteCode: string (6 chars, A-Z0-9)
-  ├── spaceName: string (fijo "Churri")
+  ├── spaceName: string (fijo "Flare")
   ├── palette: string? (opcional, default "neon")
   └── createdAt: timestamp
 
@@ -205,7 +205,7 @@ couples/{coupleId}/messages/{messageId}
 
 - **Sistema de paletas**: 6 pares de colores pre-diseñados (Neón, Brasa, Selva, Cobalto, Coral, Lima). Cada pareja elige uno, y el orden de llegada determina quién lleva cada color.
 - **Iconos SVG inline**: el logo, la marca, los iconos de tab y las señales son SVG generados desde constantes. Sin assets rasterizados que puedan desincronizarse.
-- **Wordmark con máscara de gradiente**: el nombre "Churri" se pinta con el mismo gradiente que el logo.
+- **Wordmark con máscara de gradiente**: el nombre "Flare" se pinta con el mismo gradiente que el logo.
 - **Animaciones sutiles con Reanimated**: las señales, los mensajes, el carrusel de recordatorios.
 - **Skeleton loaders personalizados**: para cada tipo de contenido (tarjetas, grid de fotos, mensajes).
 - **La barra de tabs es un BlurView**: vidrio esmerilado para que el contenido se vea a través.
@@ -318,7 +318,7 @@ Tres endpoints:
 
 ### 🟡 Mejoras de calidad de vida
 
-1. **El README.md** sigue siendo el template de `create-expo-app`. Debería documentar qué hace Churri, cómo contribuir, y cómo desplegar.
+1. **El README.md** sigue siendo el template de `create-expo-app`. Debería documentar qué hace Flare, cómo contribuir, y cómo desplegar.
 2. **No hay tests**: ni unitarios, ni de integración, ni E2E. Para una app con Firebase Rules complejas, al menos tests de reglas serían valiosos.
 3. **No hay CI/CD automatizado** en el repo: no se ve configuración de GitHub Actions.
 
@@ -343,7 +343,7 @@ Tres endpoints:
 
 ## 13. Conclusión
 
-**Churri es un proyecto notablemente bien construido.** La calidad del código, la profundidad del sistema de diseño, la seguridad y la atención al detalle (desde las animaciones de las señales luminosas hasta el cifrado de la sesión) superan con creces lo que suele encontrarse en proyectos de este tamaño.
+**Flare es un proyecto notablemente bien construido.** La calidad del código, la profundidad del sistema de diseño, la seguridad y la atención al detalle (desde las animaciones de las señales luminosas hasta el cifrado de la sesión) superan con creces lo que suele encontrarse en proyectos de este tamaño.
 
 La app está esencialmente **lista para producción** — tiene documentación de Play Store, páginas legales, un worker backend funcional, y está construida sobre Expo SDK 57 con las últimas versiones de todas las dependencias.
 

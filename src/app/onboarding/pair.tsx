@@ -173,7 +173,7 @@ function CreateCouple({ onBack }: { onBack: () => void }) {
           color={palette.partner}
           onPress={() =>
             Share.share({
-              message: `Esta es la llave de nuestro espacio en Churri: ${pendingCouple.code}`,
+              message: `Esta es la llave de nuestro espacio en Flare: ${pendingCouple.code}`,
             })
           }
         />
