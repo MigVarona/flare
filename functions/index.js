@@ -12,7 +12,7 @@ const CLOUDINARY_API_SECRET = defineSecret('CLOUDINARY_API_SECRET');
 
 exports.deleteCloudinaryPhoto = onDocumentDeleted(
   {
-    document: 'couples/{coupleId}/photos/{photoId}',
+    document: 'spaces/{spaceId}/photos/{photoId}',
     region: 'europe-west1',
     secrets: [CLOUDINARY_API_KEY, CLOUDINARY_API_SECRET],
   },

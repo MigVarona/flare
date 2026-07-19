@@ -45,9 +45,9 @@ async function callWorker<T>(path: string, body: Record<string, string>): Promis
 
 export async function uploadPhotoToCloudinary(
   localUri: string,
-  coupleId: string,
+  spaceId: string,
 ): Promise<UploadedCloudinaryPhoto> {
-  const permission = await callWorker<UploadPermission>('/upload/sign', { coupleId });
+  const permission = await callWorker<UploadPermission>('/upload/sign', { spaceId });
 
   const file = new File(localUri);
   const response = await file.upload(
@@ -88,6 +88,6 @@ export async function uploadPhotoToCloudinary(
  * order, so the two can't disagree. Deleting the record here would leave the file behind
  * forever, which is what used to happen.
  */
-export async function deletePhoto(coupleId: string, photoId: string) {
-  await callWorker<{ ok: true }>('/photo/delete', { coupleId, photoId });
+export async function deletePhoto(spaceId: string, photoId: string) {
+  await callWorker<{ ok: true }>('/photo/delete', { spaceId, photoId });
 }

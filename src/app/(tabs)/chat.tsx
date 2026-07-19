@@ -40,7 +40,7 @@ import {
   MessageCapacity,
   Spacing,
 } from "@/constants/theme";
-import { useCouple } from "@/context/couple-context";
+import { useSpace } from "@/context/space-context";
 import { useNotice } from "@/hooks/use-notice";
 import { usePalette } from "@/hooks/use-palette";
 import { db } from "@/lib/firebase";
@@ -57,7 +57,7 @@ type Message = {
 
 export default function ChatScreen() {
   const insets = useSafeAreaInsets();
-  const { user, coupleId, partnerUid, myName } = useCouple();
+  const { user, spaceId, otherMembers, myName, isAlone } = useSpace();
   const palette = usePalette();
   const notice = useNotice();
   const showSignalMeaning = useSignalMeaning();
@@ -104,9 +104,9 @@ export default function ChatScreen() {
   };
 
   useEffect(() => {
-    if (!coupleId) return undefined;
+    if (!spaceId) return undefined;
     const messagesQuery = query(
-      collection(db, "couples", coupleId, "messages"),
+      collection(db, "spaces", spaceId, "messages"),
       orderBy("createdAt", "asc"),
     );
     return onSnapshot(messagesQuery, (snapshot) => {
@@ -148,17 +148,17 @@ export default function ChatScreen() {
         setTimeout(() => void deleteDoc(oldest.ref), DeathMs);
       }
     });
-  }, [coupleId]);
+  }, [spaceId]);
 
   const canSend = draft.trim().length > 0;
 
   const sendMessage = async () => {
-    if (!coupleId || !user || !draft.trim()) return;
+    if (!spaceId || !user || !draft.trim()) return;
     const text = draft.trim();
     setDraft("");
 
     try {
-      await addDoc(collection(db, "couples", coupleId, "messages"), {
+      await addDoc(collection(db, "spaces", spaceId, "messages"), {
         text,
         senderId: user.uid,
         createdAt: serverTimestamp(),
@@ -170,18 +170,18 @@ export default function ChatScreen() {
       return;
     }
 
-    if (partnerUid) {
-      sendPushNotification(coupleId, partnerUid, myName, text, "/chat").then((ok) => {
-        if (!ok) notice("No hemos podido avisar a tu pareja");
+    for (const member of otherMembers) {
+      sendPushNotification(spaceId, member.uid, myName, text, "/chat").then((ok) => {
+        if (!ok) notice("No hemos podido avisar a todos");
       });
     }
   };
 
   const react = async (message: Message, signal: SignalId | null) => {
-    if (!coupleId || !user) return;
+    if (!spaceId || !user) return;
     setReactingTo(null);
     void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
-    await updateDoc(doc(db, "couples", coupleId, "messages", message.id), {
+    await updateDoc(doc(db, "spaces", spaceId, "messages", message.id), {
       [`reactions.${user.uid}`]: signal ?? deleteField(),
     });
   };
@@ -223,12 +223,12 @@ export default function ChatScreen() {
             <MessageSkeletons />
           ) : messages.length === 0 ? (
             <ThemedText className="py-16 text-center leading-6 text-muted-foreground">
-              Dejad el primer mensaje encendido.
+              {isAlone ? "Deja el primer mensaje encendido." : "Dejad el primer mensaje encendido."}
             </ThemedText>
           ) : (
             messages.map((message, index) => {
               const isMine = message.senderId === user?.uid;
-              const color = isMine ? palette.you : palette.partner;
+              const color = palette.colorFor(message.senderId);
 
               // The oldest message is the faintest: it is already on its way out.
               // The rule is shown as light, not explained in a label.
@@ -279,7 +279,7 @@ export default function ChatScreen() {
                                   )}>
                                   <LightSignal
                                     id={signal}
-                                    color={uid === user?.uid ? palette.you : palette.partner}
+                                    color={palette.colorFor(uid)}
                                     size={16}
                                   />
                                 </GestureDetector>
@@ -364,7 +364,7 @@ export default function ChatScreen() {
             {viewing && (
               <View className={viewing.senderId === user?.uid ? "items-end" : "items-start"}>
                 <MessageLight
-                  color={viewing.senderId === user?.uid ? palette.you : palette.partner}
+                  color={palette.colorFor(viewing.senderId)}
                   isMine={viewing.senderId === user?.uid}
                   rest={1}
                   delay={0}
@@ -378,7 +378,7 @@ export default function ChatScreen() {
                           <Pressable key={uid} onPress={() => showSignalMeaning(signal)} hitSlop={8}>
                             <LightSignal
                               id={signal}
-                              color={uid === user?.uid ? palette.you : palette.partner}
+                              color={palette.colorFor(uid)}
                               size={22}
                             />
                           </Pressable>

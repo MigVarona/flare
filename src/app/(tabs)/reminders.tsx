@@ -52,7 +52,7 @@ import {
   neonBorder,
   Spacing,
 } from "@/constants/theme";
-import { useCouple } from "@/context/couple-context";
+import { useSpace } from "@/context/space-context";
 import { useNotice } from "@/hooks/use-notice";
 import { usePalette } from "@/hooks/use-palette";
 import { formatDueDate, isOverdue } from "@/lib/dates";
@@ -71,11 +71,13 @@ type Reminder = {
   dueLabel: string;
   dueAt: Date | null;
   createdByUid?: string;
+  /** Whose phones it rings on. Reminders from before the pivot don't carry it. */
+  targetUids?: string[];
 };
 
 export default function RemindersScreen() {
   const insets = useSafeAreaInsets();
-  const { user, coupleId, partnerUid, partnerName, myName } = useCouple();
+  const { user, spaceId, members, otherMembers, myName, isAlone } = useSpace();
   const palette = usePalette();
   const notice = useNotice();
   const toast = useToast();
@@ -86,6 +88,8 @@ export default function RemindersScreen() {
   const [isSending, setIsSending] = useState(false);
   const [title, setTitle] = useState("");
   const [dueAt, setDueAt] = useState<Date | undefined>(undefined);
+  /** Whose phones the new reminder will ring on. At least one, always. */
+  const [targetUids, setTargetUids] = useState<string[]>([]);
   const [canNotify, setCanNotify] = useState<boolean | null>(null);
   const [actingOn, setActingOn] = useState<Reminder | null>(null);
   /** Marked "Hecho" but still undoable: hidden from the list while its delete is pending. */
@@ -100,9 +104,9 @@ export default function RemindersScreen() {
   }, []);
 
   useEffect(() => {
-    if (!coupleId) return undefined;
+    if (!spaceId) return undefined;
     const remindersQuery = query(
-      collection(db, "couples", coupleId, "reminders"),
+      collection(db, "spaces", spaceId, "reminders"),
       orderBy("createdAt", "desc"),
     );
     return onSnapshot(remindersQuery, (snapshot) => {
@@ -118,41 +122,64 @@ export default function RemindersScreen() {
             dueLabel: (data.dueLabel as string | undefined) ?? "Sin fecha",
             dueAt: dueAtValue ? dueAtValue.toDate() : null,
             createdByUid: data.createdByUid as string | undefined,
+            targetUids: data.targetUids as string[] | undefined,
           }];
         }),
       );
       setIsLoading(false);
     });
-  }, [coupleId]);
+  }, [spaceId]);
+
+  /**
+   * Who a reminder is for by default: the others if there are any (putting something on
+   * someone is the reason this screen exists), yourself when you're on your own.
+   */
+  const openForm = () => {
+    setTargetUids(isAlone ? (user ? [user.uid] : []) : otherMembers.map((member) => member.uid));
+    setIsAdding(true);
+  };
+
+  const toggleTarget = (uid: string) => {
+    setTargetUids((current) =>
+      current.includes(uid)
+        ? current.length > 1
+          ? current.filter((entry) => entry !== uid)
+          : current
+        : [...current, uid],
+    );
+  };
 
   const addReminder = async () => {
-    if (!coupleId || !user || !title.trim()) return;
+    if (!spaceId || !user || !title.trim() || targetUids.length === 0) return;
     const reminderTitle = title.trim();
 
     setIsSending(true);
     try {
-      await addDoc(collection(db, "couples", coupleId, "reminders"), {
+      await addDoc(collection(db, "spaces", spaceId, "reminders"), {
         title: reminderTitle,
         dueAt: dueAt ? Timestamp.fromDate(dueAt) : null,
         // Stored alongside the date so other screens can render it without re-deriving it.
         dueLabel: dueAt ? formatDueDate(dueAt) : "Sin fecha",
         status: "pending",
         createdByUid: user.uid,
+        targetUids,
         createdAt: Timestamp.now(),
       });
       setTitle("");
       setDueAt(undefined);
       setIsAdding(false);
 
-      if (partnerUid) {
+      // Everyone whose phone this will ring on hears about it now; your own needs no push.
+      for (const targetUid of targetUids) {
+        if (targetUid === user.uid) continue;
         sendPushNotification(
-          coupleId,
-          partnerUid,
+          spaceId,
+          targetUid,
           `${myName} te deja un aviso`,
           dueAt ? `${reminderTitle} — ${formatDueDate(dueAt)}` : reminderTitle,
           "/reminders",
         ).then((ok) => {
-          if (!ok) notice("No hemos podido avisar a tu pareja");
+          if (!ok) notice("No hemos podido avisar a todos");
         });
       }
     } finally {
@@ -177,7 +204,7 @@ export default function RemindersScreen() {
   };
 
   const markDone = (reminder: Reminder) => {
-    if (!coupleId) return;
+    if (!spaceId) return;
     // Putting a light out is a physical act, so it lands in the wrist too.
     void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     setHiddenIds((ids) => new Set(ids).add(reminder.id));
@@ -203,7 +230,7 @@ export default function RemindersScreen() {
 
     const timeout = setTimeout(() => {
       pendingDeletes.current.delete(reminder.id);
-      void deleteDoc(doc(db, "couples", coupleId, "reminders", reminder.id));
+      void deleteDoc(doc(db, "spaces", spaceId, "reminders", reminder.id));
     }, UndoWindowMs);
     pendingDeletes.current.set(reminder.id, timeout);
   };
@@ -211,8 +238,8 @@ export default function RemindersScreen() {
   // Postponing used to mark the reminder 'postponed', which silenced its alarm for good and
   // replaced the date with the word "Pospuesto". Now it does what it says: it moves it.
   const postpone = async (reminder: Reminder, date: Date | undefined) => {
-    if (!coupleId || !date) return;
-    await updateDoc(doc(db, "couples", coupleId, "reminders", reminder.id), {
+    if (!spaceId || !date) return;
+    await updateDoc(doc(db, "spaces", spaceId, "reminders", reminder.id), {
       dueAt: Timestamp.fromDate(date),
       dueLabel: formatDueDate(date),
       status: "pending",
@@ -250,9 +277,9 @@ export default function RemindersScreen() {
   };
 
   const removeConfirmed = async (reminder: Reminder) => {
-    if (!coupleId) return;
+    if (!spaceId) return;
     setActingOn(null);
-    await deleteDoc(doc(db, "couples", coupleId, "reminders", reminder.id));
+    await deleteDoc(doc(db, "spaces", spaceId, "reminders", reminder.id));
   };
 
   // What's waiting is ordered by when it comes due, soonest first; the ones without a date
@@ -296,9 +323,38 @@ export default function RemindersScreen() {
 
           {isAdding && (
             <GlowCard color={palette.you}>
-              <Eyebrow color={palette.you}>
-                {partnerUid ? `Para ${partnerName}` : "Nuevo aviso"}
-              </Eyebrow>
+              <Eyebrow color={palette.you}>Nuevo aviso</Eyebrow>
+
+              {/* Whose phone will ring. Each person is their light; "para mí" is one more
+                  chip, because putting something on yourself is now a normal thing to do. */}
+              {members.length > 1 && (
+                <View className="flex-row flex-wrap gap-2">
+                  {members.map((member) => {
+                    const isSelected = targetUids.includes(member.uid);
+                    const color = palette.colorFor(member.uid);
+                    const label = member.uid === user?.uid ? "Para mí" : member.name;
+
+                    return (
+                      <Pressable
+                        key={member.uid}
+                        onPress={() => toggleTarget(member.uid)}
+                        className="rounded-full border px-4 py-2 active:opacity-70"
+                        style={
+                          isSelected
+                            ? [{ backgroundColor: `${color}22`, borderColor: color }, glow(color, 10, "33")]
+                            : { borderColor: theme.border }
+                        }>
+                        <ThemedText
+                          type="smallBold"
+                          style={{ color: isSelected ? color : theme.textSecondary }}>
+                          {label}
+                        </ThemedText>
+                      </Pressable>
+                    );
+                  })}
+                </View>
+              )}
+
               <TextInput
                 value={title}
                 onChangeText={setTitle}
@@ -336,9 +392,13 @@ export default function RemindersScreen() {
               </DateTimePicker>
               <View className="mt-2 gap-2">
                 <GradientButton
-                  title="Enviar recordatorio"
+                  title={
+                    targetUids.every((uid) => uid === user?.uid)
+                      ? "Guardar aviso"
+                      : "Enviar aviso"
+                  }
                   onPress={addReminder}
-                  disabled={!title.trim()}
+                  disabled={!title.trim() || targetUids.length === 0}
                   isLoading={isSending}
                 />
                 <Pressable
@@ -363,19 +423,17 @@ export default function RemindersScreen() {
               {pending.length === 0 && !isAdding && (
                 <GlowCard>
                   <ThemedText className="leading-6 text-muted-foreground">
-                    {/* The fallback name reads as a name on its own — "La otra persona" — and
-                        like a hole in the sentence when it's dropped into one. So the sentence
-                        doesn't use it: the reminder rings on the other phone, and that's true
-                        whoever is holding it. */}
-                    Nada pendiente. Cuando pongas uno, sonará en el otro móvil a
-                    su hora.
+                    {isAlone
+                      ? "Nada pendiente. Cuando pongas uno, este teléfono sonará a su hora."
+                      : "Nada pendiente. Cuando pongas uno, sonará en el móvil que elijas a su hora."}
                   </ThemedText>
                 </GlowCard>
               )}
 
               {pending.map((reminder) => {
-                const isMine = reminder.createdByUid === user?.uid;
-                const color = isMine ? palette.you : palette.partner;
+                // The reminder wears the light of whoever has to do it — that's the question
+                // a glance at the list is answering. Old ones only know who wrote them.
+                const color = palette.colorFor(reminder.targetUids?.[0] ?? reminder.createdByUid);
                 const overdue = reminder.dueAt
                   ? isOverdue(reminder.dueAt)
                   : false;
@@ -465,7 +523,7 @@ export default function RemindersScreen() {
 
       {!isAdding && (
         <Fab
-          onPress={() => setIsAdding(true)}
+          onPress={openForm}
           placement="bottom right"
           className="overflow-hidden rounded-full p-0"
           style={[

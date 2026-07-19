@@ -108,15 +108,15 @@ export async function readDocumentAs(token: string, projectId: string, path: str
 
   if (!response.ok) return null;
   return (await response.json()) as {
-    fields?: Record<
-      string,
-      {
-        stringValue?: string;
-        arrayValue?: { values?: Array<{ stringValue?: string }> };
-      }
-    >;
+    fields?: Record<string, FirestoreValue>;
   };
 }
+
+type FirestoreValue = {
+  stringValue?: string;
+  arrayValue?: { values?: Array<{ stringValue?: string }> };
+  mapValue?: { fields?: Record<string, FirestoreValue> };
+};
 
 export async function deleteDocumentAs(token: string, projectId: string, path: string) {
   const response = await fetch(

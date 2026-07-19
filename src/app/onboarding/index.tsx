@@ -1,4 +1,3 @@
-import { router } from 'expo-router';
 import { FirebaseError } from 'firebase/app';
 import { useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, TextInput, View } from 'react-native';
@@ -11,7 +10,7 @@ import { ThemedText } from '@/components/themed-text';
 import { Colors, MaxContentWidth, neonBorder, Radius, Spacing } from '@/constants/theme';
 import { PrivacyMarkdown } from '@/constants/privacy';
 import { TermsMarkdown } from '@/constants/terms';
-import { useCouple } from '@/context/couple-context';
+import { useSpace } from '@/context/space-context';
 import { GoogleSignInCancelled } from '@/lib/google-auth';
 
 const theme = Colors.dark;
@@ -24,7 +23,7 @@ const errorMessages: Record<string, string> = {
 };
 
 export default function WelcomeScreen() {
-  const { signIn, signUp, signInGoogle } = useCouple();
+  const { signIn, signUp, signInGoogle } = useSpace();
 
   const [mode, setMode] = useState<'signIn' | 'signUp'>('signUp');
   const [name, setName] = useState('');
@@ -44,8 +43,9 @@ export default function WelcomeScreen() {
     setError(null);
     setIsGoogleSubmitting(true);
     try {
+      // Nothing to navigate to: the moment the account exists, the guard opens the app.
+      // Your personal space is already there — inviting someone comes later, if it comes.
       await signInGoogle();
-      router.push('/onboarding/pair');
     } catch (err) {
       // Backing out of the Google sheet isn't a failure worth shouting about.
       if (!(err instanceof GoogleSignInCancelled)) {
@@ -65,7 +65,6 @@ export default function WelcomeScreen() {
       } else {
         await signIn(email.trim(), password);
       }
-      router.push('/onboarding/pair');
     } catch (err) {
       const code = err instanceof FirebaseError ? err.code : null;
       setError((code && errorMessages[code]) ?? 'Algo ha ido mal, inténtalo de nuevo');

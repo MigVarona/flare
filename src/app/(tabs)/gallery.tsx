@@ -42,7 +42,7 @@ import {
 import { Modal, ModalBackdrop, ModalContent } from '@/components/ui/modal';
 import { Spinner } from '@/components/ui/spinner';
 import { BottomTabInset, Colors, glow, neonBorder, Spacing } from '@/constants/theme';
-import { useCouple } from '@/context/couple-context';
+import { useSpace } from '@/context/space-context';
 import { useNotice } from '@/hooks/use-notice';
 import { usePalette } from '@/hooks/use-palette';
 import { deletePhoto, uploadPhotoToCloudinary } from '@/lib/cloudinary';
@@ -65,7 +65,7 @@ type Photo = {
 export default function GalleryScreen() {
   const insets = useSafeAreaInsets();
   const { width, height: screenHeight } = useWindowDimensions();
-  const { coupleId, user, partnerUid, partnerName, myName } = useCouple();
+  const { spaceId, user, otherMembers, myName, isAlone } = useSpace();
   const notice = useNotice();
   const palette = usePalette();
   const showSignalMeaning = useSignalMeaning();
@@ -83,9 +83,9 @@ export default function GalleryScreen() {
   const [pageSize, setPageSize] = useState(PageSize);
 
   useEffect(() => {
-    if (!coupleId) return undefined;
+    if (!spaceId) return undefined;
     const photosQuery = query(
-      collection(db, 'couples', coupleId, 'photos'),
+      collection(db, 'spaces', spaceId, 'photos'),
       orderBy('createdAt', 'desc'),
       limit(pageSize),
     );
@@ -101,7 +101,7 @@ export default function GalleryScreen() {
       );
       setIsLoading(false);
     });
-  }, [coupleId, pageSize]);
+  }, [spaceId, pageSize]);
 
   const pickAndUploadPhoto = async () => {
     const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
@@ -111,22 +111,22 @@ export default function GalleryScreen() {
       mediaTypes: ['images'],
       quality: 0.7,
     });
-    if (result.canceled || !coupleId || !user) return;
+    if (result.canceled || !spaceId || !user) return;
 
     setIsUploading(true);
     try {
-      const uploadedPhoto = await uploadPhotoToCloudinary(result.assets[0].uri, coupleId);
-      await addDoc(collection(db, 'couples', coupleId, 'photos'), {
+      const uploadedPhoto = await uploadPhotoToCloudinary(result.assets[0].uri, spaceId);
+      await addDoc(collection(db, 'spaces', spaceId, 'photos'), {
         imageUrl: uploadedPhoto.imageUrl,
         cloudinaryPublicId: uploadedPhoto.publicId,
         uploadedByUid: user.uid,
         createdAt: serverTimestamp(),
       });
 
-      if (partnerUid) {
-        sendPushNotification(coupleId, partnerUid, 'Foto nueva', `${myName} ha subido una foto`, '/gallery').then(
+      for (const member of otherMembers) {
+        sendPushNotification(spaceId, member.uid, 'Foto nueva', `${myName} ha subido una foto`, '/gallery').then(
           (ok) => {
-            if (!ok) notice('No hemos podido avisar a tu pareja');
+            if (!ok) notice('No hemos podido avisar a todos');
           },
         );
       }
@@ -138,22 +138,22 @@ export default function GalleryScreen() {
   };
 
   const react = async (photo: Photo, signal: SignalId | null) => {
-    if (!coupleId || !user) return;
+    if (!spaceId || !user) return;
     setReactingTo(null);
     void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
-    await updateDoc(doc(db, 'couples', coupleId, 'photos', photo.id), {
+    await updateDoc(doc(db, 'spaces', spaceId, 'photos', photo.id), {
       [`reactions.${user.uid}`]: signal ?? deleteField(),
     });
   };
 
   const removePhoto = async (photo: Photo) => {
-    if (!coupleId) return;
+    if (!spaceId) return;
     setActingOn(null);
     setViewing(null);
     try {
       // The Worker takes down the file and then the record. Deleting the record from here
       // would only forget where the photo was: the image itself would stay up for good.
-      await deletePhoto(coupleId, photo.id);
+      await deletePhoto(spaceId, photo.id);
     } catch {
       notice('No se ha podido borrar');
     }
@@ -191,9 +191,11 @@ export default function GalleryScreen() {
                 <ThemedText type="small" style={{ color: palette.you }}>
                   {mine} tuyas
                 </ThemedText>
-                <ThemedText type="small" style={{ color: palette.partner }}>
-                  {theirs} de {partnerName}
-                </ThemedText>
+                {!isAlone && (
+                  <ThemedText type="small" style={{ color: palette.partner }}>
+                    {theirs} {otherMembers.length === 1 ? `de ${otherMembers[0].name}` : 'de los demás'}
+                  </ThemedText>
+                )}
               </View>
             )}
           </View>
@@ -203,7 +205,7 @@ export default function GalleryScreen() {
           ) : photos.length === 0 ? (
             <GlowCard>
               <ThemedText className="leading-6 text-muted-foreground">
-                Todavía no habéis subido ninguna.
+                {isAlone ? 'Todavía no has subido ninguna.' : 'Todavía no habéis subido ninguna.'}
               </ThemedText>
             </GlowCard>
           ) : (
@@ -213,8 +215,7 @@ export default function GalleryScreen() {
                   {photos
                     .filter((_, index) => index % 2 === column)
                     .map((photo, indexInColumn) => {
-                      const isMine = photo.uploadedByUid === user?.uid;
-                      const color = isMine ? palette.you : palette.partner;
+                      const color = palette.colorFor(photo.uploadedByUid);
                       // Alternating heights give the grid a rhythm instead of a rigid checkerboard.
                       const height =
                         columnWidth * ((indexInColumn + column) % 2 === 0 ? 1.35 : 1);
@@ -253,7 +254,7 @@ export default function GalleryScreen() {
                                       )}>
                                       <LightSignal
                                         id={signal}
-                                        color={uid === user?.uid ? palette.you : palette.partner}
+                                        color={palette.colorFor(uid)}
                                         size={16}
                                       />
                                     </GestureDetector>

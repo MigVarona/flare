@@ -3,7 +3,7 @@ import { auth } from '@/lib/firebase';
 const WORKER_URL = 'https://churri-photos.migvarona.workers.dev';
 
 export async function sendPushNotification(
-  coupleId: string,
+  spaceId: string,
   recipientUid: string,
   title: string,
   message: string,
@@ -16,7 +16,7 @@ export async function sendPushNotification(
   const response = await fetch(`${WORKER_URL}/push/send`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-    body: JSON.stringify({ coupleId, recipientUid, title, message, url }),
+    body: JSON.stringify({ spaceId, recipientUid, title, message, url }),
   });
 
   const result = (await response.json().catch(() => ({}))) as { ok?: boolean; error?: string };

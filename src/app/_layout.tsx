@@ -24,7 +24,7 @@ import { ReminderAlarms } from '@/components/reminder-alarms';
 import { ThemedText } from '@/components/themed-text';
 import { GluestackUIProvider } from '@/components/ui/gluestack-ui-provider';
 import { Colors } from '@/constants/theme';
-import { CoupleProvider, useCouple } from '@/context/couple-context';
+import { SpaceProvider, useSpace } from '@/context/space-context';
 
 SplashScreen.preventAutoHideAsync();
 
@@ -48,13 +48,13 @@ export default function RootLayout() {
       <GestureHandlerRootView className="flex-1 bg-background">
         <KeyboardProvider>
           <GluestackUIProvider mode="dark">
-            <CoupleProvider>
+            <SpaceProvider>
               <ThemeProvider value={navigationTheme}>
                 <PushTokenRegistrar />
                 <ReminderAlarms />
                 <RootNavigator />
               </ThemeProvider>
-            </CoupleProvider>
+            </SpaceProvider>
           </GluestackUIProvider>
         </KeyboardProvider>
       </GestureHandlerRootView>
@@ -95,7 +95,10 @@ export function ErrorBoundary({ error, retry }: ErrorBoundaryProps) {
 }
 
 function RootNavigator() {
-  const { isPaired, isLoading } = useCouple();
+  // Solo-first: an account is all it takes to be inside. Your personal space exists from
+  // the moment you sign in, so there is no pairing wall between the door and the app.
+  const { user, isLoading } = useSpace();
+  const isSignedIn = Boolean(user);
 
   const [fontsLoaded] = useFonts({
     // Gabarito is built on circles, like the mark — the wordmark rhymes with the logo. On
@@ -123,12 +126,13 @@ function RootNavigator() {
         headerShown: false,
         contentStyle: { backgroundColor: theme.background },
       }}>
-      <Stack.Protected guard={!isPaired}>
+      <Stack.Protected guard={!isSignedIn}>
         <Stack.Screen name="onboarding" />
       </Stack.Protected>
-      <Stack.Protected guard={isPaired}>
+      <Stack.Protected guard={isSignedIn}>
         <Stack.Screen name="(tabs)" />
         <Stack.Screen name="settings" options={{ presentation: 'modal' }} />
+        <Stack.Screen name="spaces" options={{ presentation: 'modal' }} />
       </Stack.Protected>
     </Stack>
   );

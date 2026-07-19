@@ -32,10 +32,12 @@ async function sign(params: Record<string, string | number>, apiSecret: string) 
  * The app uploads straight to Cloudinary with this — the bytes never come through the
  * Worker, so a big photo doesn't cost us a slow request.
  */
-export async function signUpload(credentials: Credentials, coupleId: string) {
+export async function signUpload(credentials: Credentials, spaceId: string) {
   const timestamp = Math.floor(Date.now() / 1000);
-  // Each space keeps its photos in its own folder, so a stray public id can't wander.
-  const folder = `churri/${coupleId}`;
+  // Each space keeps its photos in its own folder, so a stray public id can't wander. The
+  // folder prefix predates the pivot; keeping it keeps migrated spaces pointing at the
+  // files they already had.
+  const folder = `churri/${spaceId}`;
   // 'authenticated' is what makes the photo private: Cloudinary will refuse to serve it to
   // a plain URL. It only comes out for a link we have signed.
   const type = 'authenticated';

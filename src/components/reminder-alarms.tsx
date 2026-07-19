@@ -4,11 +4,12 @@ import { collection, doc, onSnapshot, query, Timestamp, updateDoc, where } from 
 import { useEffect, useRef } from 'react';
 import { Platform } from 'react-native';
 
-import { useCouple } from '@/context/couple-context';
+import { useSpace } from '@/context/space-context';
 import { formatDueDate } from '@/lib/dates';
 import { db } from '@/lib/firebase';
 
 type Alarm = {
+  spaceId: string;
   reminderId: string;
   title: string;
   dueAt: Date;
@@ -24,19 +25,21 @@ const DUE_CATEGORY = 'churri-reminder-due';
  * reminding sets its own alarm: a local notification scheduled for the exact moment.
  * It costs nothing, works offline, and survives a reboot.
  *
- * And the notification is a control, not a poster. It carries two buttons — "Hecho" and
- * "+30 min" — so the thing a reminder asks of you can be answered from the notification
- * shade, without hunting for the app. Both act on Firestore, so the other phone sees the
- * answer too: a chat app tells you something happened; this one lets you deal with it.
+ * Whose phone rings is the reminder's `targetUids`: yourself for your own alarms, someone
+ * else when you put it on them, everyone when it's for the whole space. And it rings across
+ * *all* your spaces — a reminder in Casa goes off while you're looking at Familia, because
+ * the alarm belongs to the phone, not to whichever screen is open.
  *
- * The alarms are kept in step with Firestore — if the reminder is done, deleted, or
- * moved, the alarm follows. Snoozing *is* moving it, which is why it needs no special
- * machinery: the +30 updates the reminder itself, and the alarm system follows its own rule.
+ * The notification is a control, not a poster. It carries "Hecho" and "+30 min", so the
+ * thing a reminder asks of you can be answered from the shade. Both act on Firestore, so
+ * every other phone sees the answer too.
  */
 export function ReminderAlarms() {
-  const { user, coupleId } = useCouple();
+  const { user, spaces } = useSpace();
   /** Responses already dealt with, so a listener and the cold-start check can't both act. */
   const handled = useRef(new Set<string>());
+  /** What each space currently wants ringing; the union is what gets scheduled. */
+  const wantedBySpace = useRef(new Map<string, Alarm[]>());
 
   useEffect(() => {
     const respond = async (response: Notifications.NotificationResponse) => {
@@ -47,13 +50,16 @@ export function ReminderAlarms() {
       const data = response.notification.request.content.data as {
         url?: string;
         reminderId?: string;
+        spaceId?: string;
+        /** Alarms scheduled before the pivot named the space this way. */
         coupleId?: string;
       };
 
       // The reminder the notification was about — if it was about one at all.
+      const spaceId = data.spaceId ?? data.coupleId;
       const ref =
-        data.reminderId && data.coupleId
-          ? doc(db, 'couples', data.coupleId, 'reminders', data.reminderId)
+        data.reminderId && spaceId
+          ? doc(db, 'spaces', spaceId, 'reminders', data.reminderId)
           : null;
 
       try {
@@ -64,7 +70,7 @@ export function ReminderAlarms() {
 
         if (response.actionIdentifier === 'snooze' && ref) {
           // Snoozing is just moving the reminder. Firestore is the truth, so the alarm
-          // reschedules itself on both phones, and the list shows the new hour.
+          // reschedules itself on every phone, and the list shows the new hour.
           const dueAt = new Date(Date.now() + 30 * 60 * 1000);
           await updateDoc(ref, {
             dueAt: Timestamp.fromDate(dueAt),
@@ -97,39 +103,67 @@ export function ReminderAlarms() {
   }, []);
 
   useEffect(() => {
-    if (!coupleId || !user) return undefined;
+    if (!user || spaces.length === 0) return undefined;
 
-    const remindersQuery = query(
-      collection(db, 'couples', coupleId, 'reminders'),
-      where('status', '==', 'pending'),
-    );
-
-    return onSnapshot(remindersQuery, (snapshot) => {
-      const wanted: Alarm[] = [];
-
-      for (const docSnapshot of snapshot.docs) {
-        const data = docSnapshot.data();
-        const dueAt = (data.dueAt as Timestamp | null)?.toDate() ?? null;
-
-        // A reminder is something you put on the other one — so it's their phone that rings.
-        const isForMe = (data.createdByUid as string | undefined) !== user.uid;
-        const isStillAhead = dueAt !== null && dueAt.getTime() > Date.now();
-
-        if (isForMe && isStillAhead && dueAt) {
-          wanted.push({ reminderId: docSnapshot.id, title: data.title as string, dueAt });
-        }
-      }
-
-      syncAlarms(coupleId, wanted).catch(() => {
+    const syncUnion = () => {
+      const merged = [...wantedBySpace.current.values()].flat();
+      syncAlarms(merged).catch(() => {
         // A failed alarm shouldn't take the screen down with it.
       });
+    };
+
+    const unsubscribers = spaces.map((space) => {
+      const remindersQuery = query(
+        collection(db, 'spaces', space.id, 'reminders'),
+        where('status', '==', 'pending'),
+      );
+
+      return onSnapshot(remindersQuery, (snapshot) => {
+        const wanted: Alarm[] = [];
+
+        for (const docSnapshot of snapshot.docs) {
+          const data = docSnapshot.data();
+          const dueAt = (data.dueAt as Timestamp | null)?.toDate() ?? null;
+
+          // Whose phone rings is written on the reminder. Ones from before it was carry
+          // the old rule: they ring on every phone but their author's.
+          const targetUids = data.targetUids as string[] | undefined;
+          const isForMe = targetUids
+            ? targetUids.includes(user.uid)
+            : (data.createdByUid as string | undefined) !== user.uid;
+          const isStillAhead = dueAt !== null && dueAt.getTime() > Date.now();
+
+          if (isForMe && isStillAhead && dueAt) {
+            wanted.push({
+              spaceId: space.id,
+              reminderId: docSnapshot.id,
+              title: data.title as string,
+              dueAt,
+            });
+          }
+        }
+
+        wantedBySpace.current.set(space.id, wanted);
+        syncUnion();
+      });
     });
-  }, [coupleId, user]);
+
+    // Spaces that are gone stop wanting anything.
+    const knownIds = new Set(spaces.map((space) => space.id));
+    for (const spaceId of wantedBySpace.current.keys()) {
+      if (!knownIds.has(spaceId)) wantedBySpace.current.delete(spaceId);
+    }
+    syncUnion();
+
+    return () => {
+      for (const unsubscribe of unsubscribers) unsubscribe();
+    };
+  }, [user, spaces]);
 
   return null;
 }
 
-async function syncAlarms(coupleId: string, wanted: Alarm[]) {
+async function syncAlarms(wanted: Alarm[]) {
   const canSchedule = await ensureNotificationAccess();
   if (!canSchedule) return;
 
@@ -166,9 +200,11 @@ async function syncAlarms(coupleId: string, wanted: Alarm[]) {
         sound: 'default',
         categoryIdentifier: DUE_CATEGORY,
         data: {
+          // The kind string predates the pivot; keeping it is what lets this sync see and
+          // manage alarms that were scheduled by the previous version of the app.
           kind: 'churri-reminder',
           reminderId: reminder.reminderId,
-          coupleId,
+          spaceId: reminder.spaceId,
           dueAt: reminder.dueAt.getTime(),
           url: '/reminders',
         },

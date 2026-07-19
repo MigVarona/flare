@@ -6,9 +6,9 @@ service cloud.firestore {
       return request.auth != null;
     }
 
-    function isMember(coupleId) {
+    function isMemberOf(spaceId) {
       return isSignedIn()
-        && request.auth.uid in get(/databases/$(database)/documents/couples/$(coupleId)).data.memberIds;
+        && request.auth.uid in get(/databases/$(database)/documents/spaces/$(spaceId)).data.memberIds;
     }
 
     function isValidName(value, max) {
@@ -27,46 +27,50 @@ service cloud.firestore {
       return value is timestamp || value is number;
     }
 
-    function isValidOwnCouplePointer(coupleId) {
-      return coupleId == null
-        || (coupleId is string
-            && coupleId.size() <= 80
-            && request.auth.uid in get(/databases/$(database)/documents/couples/$(coupleId)).data.memberIds);
+    // The slice of you that lives on a space: what the others need to paint your light and
+    // ring your phone, and nothing else. Your account itself stays yours alone.
+    function isValidMemberProfile(profile) {
+      return profile is map
+        && profile.keys().hasOnly(['name', 'expoPushToken'])
+        && isValidName(profile.name, 20)
+        && missingOrString(profile, 'expoPushToken', 220);
     }
 
-    function myCoupleId() {
-      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data.coupleId;
+    // Every write to `members` may only touch your own entry. Nobody edits anyone else's
+    // name or token — not even to help.
+    function touchesOnlyOwnMemberEntry() {
+      return request.resource.data.members.diff(resource.data.members)
+        .affectedKeys().hasOnly([request.auth.uid]);
     }
 
+    /**
+     * Your account. Only yours.
+     *
+     * It used to be readable by the person sharing a space with you, because their phone
+     * needed your name and push token. Those now travel on the space itself (`members`),
+     * so there is no reason left for anyone else to open this document — and your email
+     * stops being visible to every space you ever share.
+     */
     match /users/{uid} {
-      // Your profile holds your email and your push token. Handing those to every signed-in
-      // stranger is how someone ends up sending notifications to a person they don't know.
-      // So: yourself, or whoever shares a space with you.
-      allow get: if isSignedIn()
-        && (request.auth.uid == uid
-            || (resource.data.coupleId != null && resource.data.coupleId == myCoupleId()));
+      allow get: if isSignedIn() && request.auth.uid == uid;
       allow create: if isSignedIn()
         && request.auth.uid == uid
         && request.resource.data.keys().hasOnly([
           'email',
           'displayName',
-          'coupleId',
           'createdAt',
           'expoPushToken'
         ])
         && missingOrString(request.resource.data, 'email', 320)
         && isValidName(request.resource.data.displayName, 20)
-        && request.resource.data.coupleId == null
         && isValidCreatedAt(request.resource.data.createdAt);
       allow update: if isSignedIn()
         && request.auth.uid == uid
         && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
           'displayName',
-          'coupleId',
           'expoPushToken'
         ])
         && isValidName(request.resource.data.displayName, 20)
-        && isValidOwnCouplePointer(request.resource.data.coupleId)
         && missingOrString(request.resource.data, 'expoPushToken', 220);
       allow delete: if isSignedIn() && request.auth.uid == uid;
     }
@@ -74,68 +78,109 @@ service cloud.firestore {
     /**
      * A key on its own, so that using one means *knowing* it.
      *
-     * The code used to live on the space itself, and finding a space meant querying the
-     * whole collection — which any signed-in account could do, reading every key there is.
-     * A door you can enumerate isn't locked. Here there is no list: you can only open the
-     * door whose code you already have.
+     * There is no list: you can only open the door whose code you already have. The code
+     * now outlives the first guest — it works until the space fills up or a member takes
+     * it down — because a space is no longer a thing that seats exactly two.
      */
     match /invites/{code} {
       allow get: if isSignedIn();
       allow create: if isSignedIn()
         && code.matches('^[A-Z0-9]{6}$')
-        && request.resource.data.keys().hasOnly(['coupleId', 'createdAt'])
-        && isMember(request.resource.data.coupleId)
+        && request.resource.data.keys().hasOnly(['spaceId', 'createdAt'])
+        && isMemberOf(request.resource.data.spaceId)
+        && get(/databases/$(database)/documents/spaces/$(request.resource.data.spaceId)).data.kind == 'shared'
         && isValidCreatedAt(request.resource.data.createdAt);
-      allow delete: if isSignedIn() && isMember(resource.data.coupleId);
+      allow delete: if isSignedIn() && isMemberOf(resource.data.spaceId);
     }
 
-    match /couples/{coupleId} {
-      // No list: the space is nobody's business but the two people in it.
-      allow get: if isMember(coupleId);
+    /**
+     * A space: a small circle of 1 to 8 people. The order of `memberIds` is the order of
+     * arrival, and the order of arrival is the colour each person wears — so that list is
+     * append-only for joins and remove-only for leaves, never reshuffled.
+     *
+     * `kind` separates the space you always have ('personal', just you, no door) from the
+     * ones you open to others ('shared').
+     */
+    match /spaces/{spaceId} {
+      // No list by id: spaces are found by being in them (the membership query), never browsed.
+      allow read: if isSignedIn() && request.auth.uid in resource.data.memberIds;
+
       allow create: if isSignedIn()
         && request.resource.data.keys().hasOnly([
+          'kind',
+          'name',
           'memberIds',
+          'members',
           'inviteCode',
-          'spaceName',
           'palette',
           'createdAt'
         ])
         && request.resource.data.memberIds is list
         && request.resource.data.memberIds.size() == 1
         && request.resource.data.memberIds[0] == request.auth.uid
-        && request.resource.data.inviteCode.matches('^[A-Z0-9]{6}$')
-        && isValidName(request.resource.data.spaceName, 28)
-        && isValidCreatedAt(request.resource.data.createdAt);
+        && request.resource.data.members.keys().hasOnly([request.auth.uid])
+        && isValidMemberProfile(request.resource.data.members[request.auth.uid])
+        && isValidName(request.resource.data.name, 28)
+        && isValidCreatedAt(request.resource.data.createdAt)
+        && (
+          // The personal space is deterministic — one per account, no door, no key. Its id
+          // being derived from the uid is what makes creating it idempotent and race-free.
+          (request.resource.data.kind == 'personal'
+            && spaceId == 'personal_' + request.auth.uid
+            && request.resource.data.inviteCode == null)
+          || (request.resource.data.kind == 'shared'
+            && request.resource.data.inviteCode.matches('^[A-Z0-9]{6}$'))
+        );
 
-      // Members can change it — and someone holding the key can add themselves, which is
-      // the one moment a non-member is allowed to write, and only to walk in.
-      allow update: if (isMember(coupleId)
-        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['spaceName', 'palette'])
-        && isValidName(request.resource.data.spaceName, 28)
-        && (!('palette' in request.resource.data)
-            || request.resource.data.palette in ['neon', 'brasa', 'selva', 'cobalto', 'coral', 'lima']))
-        || (isSignedIn()
-            && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['memberIds'])
-            && myCoupleId() == null
-            && request.auth.uid in request.resource.data.memberIds
-            && resource.data.memberIds.size() == 1
-            && request.resource.data.memberIds.size() == 2
-            && request.resource.data.memberIds.hasAll(resource.data.memberIds));
+      allow update: if isSignedIn()
+        && (
+          // A member changing what belongs to the space (name, palette) or the one entry
+          // in `members` that belongs to them.
+          (request.auth.uid in resource.data.memberIds
+            && request.resource.data.diff(resource.data).affectedKeys()
+              .hasOnly(['name', 'palette', 'members'])
+            && isValidName(request.resource.data.name, 28)
+            && (!('palette' in request.resource.data)
+                || request.resource.data.palette in ['neon', 'brasa', 'selva', 'cobalto', 'coral', 'lima'])
+            && (!('members' in request.resource.data.diff(resource.data).affectedKeys())
+                || (touchesOnlyOwnMemberEntry()
+                    && isValidMemberProfile(request.resource.data.members[request.auth.uid]))))
 
-      // The space is the pair, so it can't outlive it: whoever walks out ends it, and
-      // what was in it goes. Nobody inherits a space, and nobody new walks into one
-      // still holding someone else's photos.
-      allow delete: if isMember(coupleId);
+          // Someone holding the key walking in: the one moment a non-member may write, and
+          // only to append themselves — to the list and to `members`, nothing else.
+          || (resource.data.kind == 'shared'
+            && !(request.auth.uid in resource.data.memberIds)
+            && resource.data.memberIds.size() < 8
+            && request.resource.data.diff(resource.data).affectedKeys()
+              .hasOnly(['memberIds', 'members'])
+            && request.resource.data.memberIds == resource.data.memberIds.concat([request.auth.uid])
+            && touchesOnlyOwnMemberEntry()
+            && isValidMemberProfile(request.resource.data.members[request.auth.uid]))
+
+          // A member walking out while others stay: they remove exactly themselves. The
+          // last one out doesn't pass through here — they delete the space instead.
+          || (request.auth.uid in resource.data.memberIds
+            && resource.data.memberIds.size() > 1
+            && request.resource.data.diff(resource.data).affectedKeys()
+              .hasOnly(['memberIds', 'members'])
+            && request.resource.data.memberIds == resource.data.memberIds.removeAll([request.auth.uid])
+            && touchesOnlyOwnMemberEntry())
+        );
+
+      // Only the last person in can take the space down — for everyone else, leaving is an
+      // update. So content never disappears under someone still living in it.
+      allow delete: if isSignedIn() && resource.data.memberIds == [request.auth.uid];
 
       match /reminders/{reminderId} {
-        allow read: if isMember(coupleId);
-        allow create: if isMember(coupleId)
+        allow read: if isMemberOf(spaceId);
+        allow create: if isMemberOf(spaceId)
           && request.resource.data.keys().hasOnly([
             'title',
             'dueAt',
             'dueLabel',
             'status',
             'createdByUid',
+            'targetUids',
             'createdAt'
           ])
           && isValidName(request.resource.data.title, 120)
@@ -143,8 +188,14 @@ service cloud.firestore {
           && (request.resource.data.dueAt == null || request.resource.data.dueAt is timestamp)
           && request.resource.data.status == 'pending'
           && request.resource.data.createdByUid == request.auth.uid
+          // Every phone a reminder is meant to ring on must belong to someone in the space.
+          // The client writes the concrete list ("everyone" arrives already expanded).
+          && request.resource.data.targetUids is list
+          && request.resource.data.targetUids.size() >= 1
+          && get(/databases/$(database)/documents/spaces/$(spaceId)).data.memberIds
+            .hasAll(request.resource.data.targetUids)
           && isValidCreatedAt(request.resource.data.createdAt);
-        allow update: if isMember(coupleId)
+        allow update: if isMemberOf(spaceId)
           && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
             'dueAt',
             'dueLabel',
@@ -157,12 +208,12 @@ service cloud.firestore {
           && (!('completedAt' in request.resource.data)
               || request.resource.data.completedAt == null
               || request.resource.data.completedAt is timestamp);
-        allow delete: if isMember(coupleId);
+        allow delete: if isMemberOf(spaceId);
       }
 
       match /photos/{photoId} {
-        allow read: if isMember(coupleId);
-        allow create: if isMember(coupleId)
+        allow read: if isMemberOf(spaceId);
+        allow create: if isMemberOf(spaceId)
           && request.resource.data.keys().hasOnly([
             'imageUrl',
             'cloudinaryPublicId',
@@ -176,21 +227,21 @@ service cloud.firestore {
           && request.resource.data.cloudinaryPublicId.size() <= 300
           && request.resource.data.uploadedByUid == request.auth.uid
           && isValidCreatedAt(request.resource.data.createdAt);
-        allow update: if isMember(coupleId)
+        allow update: if isMemberOf(spaceId)
           && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['reactions']);
-        allow delete: if isMember(coupleId);
+        allow delete: if isMemberOf(spaceId);
       }
 
       match /messages/{messageId} {
-        allow read: if isMember(coupleId);
-        allow create: if isMember(coupleId)
+        allow read: if isMemberOf(spaceId);
+        allow create: if isMemberOf(spaceId)
           && request.resource.data.keys().hasOnly(['text', 'senderId', 'createdAt'])
           && isValidName(request.resource.data.text, 500)
           && request.resource.data.senderId == request.auth.uid
           && isValidCreatedAt(request.resource.data.createdAt);
-        allow update: if isMember(coupleId)
+        allow update: if isMemberOf(spaceId)
           && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['reactions']);
-        allow delete: if isMember(coupleId);
+        allow delete: if isMemberOf(spaceId);
       }
     }
   }

@@ -3,7 +3,9 @@ import { useEffect, useState } from 'react';
 import { Pressable, ScrollView, TextInput, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { Eyebrow, GhostButton, GlowCard, IdentityDot, ScreenHeader } from '@/components/brand';
+import { router } from 'expo-router';
+
+import { Eyebrow, GhostButton, GlowCard, ScreenHeader } from '@/components/brand';
 import { LegalModal } from '@/components/legal-modal';
 import { PalettePicker } from '@/components/palette-picker';
 import { ThemedText } from '@/components/themed-text';
@@ -15,10 +17,10 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
 } from '@/components/ui/alert-dialog';
-import { Colors } from '@/constants/theme';
+import { Colors, glow } from '@/constants/theme';
 import { PrivacyMarkdown } from '@/constants/privacy';
 import { TermsMarkdown } from '@/constants/terms';
-import { useCouple } from '@/context/couple-context';
+import { useSpace } from '@/context/space-context';
 import { GoogleSignInCancelled } from '@/lib/google-auth';
 import { useNotice } from '@/hooks/use-notice';
 import { usePalette } from '@/hooks/use-palette';
@@ -29,19 +31,19 @@ export default function SettingsScreen() {
   const insets = useSafeAreaInsets();
   const {
     user,
+    space,
+    members,
+    isAlone,
     inviteCode,
-    isWaitingForPartner,
     myName,
-    partnerName,
-    partnerUid,
     renameMe,
     paletteId,
     setPalette,
     signOutUser,
-    leaveCouple,
+    leaveSpace,
     deleteAccount,
     isGoogleAccount,
-  } = useCouple();
+  } = useSpace();
 
   const notice = useNotice();
   const palette = usePalette();
@@ -58,8 +60,9 @@ export default function SettingsScreen() {
   const [showTerms, setShowTerms] = useState(false);
   const [showPrivacy, setShowPrivacy] = useState(false);
 
-  // The space always goes; what changes is whether you take someone else's things with it.
-  const isAlone = !partnerUid;
+  // Leaving only ends the space when you're the last one in it; with others inside, it
+  // simply goes on without you. The personal space isn't leavable at all.
+  const isSharedSpace = space?.kind === 'shared';
 
   // The names arrive from Firestore after the first render, so the fields have to catch up.
   useEffect(() => setOwnName(myName), [myName]);
@@ -78,8 +81,11 @@ export default function SettingsScreen() {
   const handleLeave = async () => {
     setIsLeavingNow(true);
     try {
-      await leaveCouple();
-      // No space, no screen to return to: the guard drops you back at pairing.
+      await leaveSpace();
+      // Back on your feet in your personal space — the context switched you there already.
+      setIsLeaving(false);
+      setIsLeavingNow(false);
+      router.back();
     } catch {
       setIsLeavingNow(false);
       setIsLeaving(false);
@@ -123,24 +129,28 @@ export default function SettingsScreen() {
         <ScreenHeader title="Ajustes" />
 
         <GlowCard>
-          <Eyebrow>Quiénes sois</Eyebrow>
-          <View className="flex-row items-center gap-4 py-1">
-            <IdentityDot isMine />
-            <View className="gap-0.5">
-              <ThemedText type="smallBold">{myName}</ThemedText>
-              <ThemedText type="small" className="text-muted-foreground">
-                {user?.email ?? '—'}
-              </ThemedText>
-            </View>
-          </View>
-          <View className="flex-row items-center gap-4 py-1">
-            <IdentityDot isMine={false} />
-            <View className="gap-0.5">
-              <ThemedText type="smallBold">{partnerName}</ThemedText>
-              <ThemedText type="small" className="text-muted-foreground">
-                {isWaitingForPartner ? 'Todavía no ha entrado' : 'Dentro del espacio'}
-              </ThemedText>
-            </View>
+          <Eyebrow>{space?.kind === 'personal' ? 'Tu espacio personal' : (space?.name ?? 'El espacio')}</Eyebrow>
+          {members.map((member) => {
+            const isMe = member.uid === user?.uid;
+            const color = palette.colorFor(member.uid);
+
+            return (
+              <View key={member.uid} className="flex-row items-center gap-4 py-1">
+                <View
+                  className="h-3.5 w-3.5 rounded-full"
+                  style={[{ backgroundColor: color }, glow(color, 10, '66')]}
+                />
+                <View className="gap-0.5">
+                  <ThemedText type="smallBold">{isMe ? myName : member.name}</ThemedText>
+                  <ThemedText type="small" className="text-muted-foreground">
+                    {isMe ? (user?.email ?? '—') : 'Dentro del espacio'}
+                  </ThemedText>
+                </View>
+              </View>
+            );
+          })}
+          <View className="mt-1">
+            <GhostButton title="Gestionar espacios" onPress={() => router.push('/spaces')} />
           </View>
         </GlowCard>
 
@@ -171,14 +181,14 @@ export default function SettingsScreen() {
           <PalettePicker selectedId={paletteId} onSelect={setPalette} />
         </GlowCard>
 
-        {isWaitingForPartner && inviteCode && (
+        {isSharedSpace && inviteCode && members.length < 8 && (
           <GlowCard color={palette.accent}>
             <Eyebrow color={palette.accent}>La llave</Eyebrow>
             <ThemedText type="key" selectable>
               {inviteCode}
             </ThemedText>
             <ThemedText type="small" className="text-muted-foreground">
-              Hace falta para entrar
+              Hace falta para entrar. Sirve hasta que el espacio se llene.
             </ThemedText>
           </GlowCard>
         )}
@@ -208,28 +218,33 @@ export default function SettingsScreen() {
           <GlowCard color={theme.destructive}>
             <Eyebrow color={theme.destructive}>Zona de peligro</Eyebrow>
 
-            <View className="mt-2 gap-1">
-              <ThemedText type="smallBold">Salir del espacio</ThemedText>
-              <ThemedText type="small" className="leading-5 text-muted-foreground">
-                {isAlone
-                  ? 'Nadie ha entrado todavía, así que el espacio se borra sin más. Sigues teniendo tu cuenta y puedes crear otro.'
-                  : `El espacio se cierra y todo lo que hay dentro se borra, también para ${partnerName}. Ninguno de los dos pierde su cuenta: los dos volvéis a la pantalla de emparejar y podéis empezar otro.`}
-              </ThemedText>
-              <View className="mt-2">
-                <GhostButton
-                  title="Salir del espacio"
-                  color={theme.destructive}
-                  onPress={() => setIsLeaving(true)}
-                />
+            {isSharedSpace && (
+              <View className="mt-2 gap-1">
+                <ThemedText type="smallBold">Salir de este espacio</ThemedText>
+                <ThemedText type="small" className="leading-5 text-muted-foreground">
+                  {isAlone
+                    ? 'Nadie más ha entrado, así que el espacio se borra sin más. Tu cuenta y tu espacio personal siguen intactos.'
+                    : 'El espacio sigue para los demás, sin ti. Lo que dejaste dentro se queda; tu cuenta y tus otros espacios no se tocan.'}
+                </ThemedText>
+                <View className="mt-2">
+                  <GhostButton
+                    title="Salir de este espacio"
+                    color={theme.destructive}
+                    onPress={() => setIsLeaving(true)}
+                  />
+                </View>
               </View>
-            </View>
+            )}
 
-            <View className="mt-6 gap-1 border-t border-destructive/25 pt-6">
+            <View
+              className={
+                isSharedSpace ? 'mt-6 gap-1 border-t border-destructive/25 pt-6' : 'mt-2 gap-1'
+              }>
               <ThemedText type="smallBold">Eliminar mi cuenta</ThemedText>
               <ThemedText type="small" className="leading-5 text-muted-foreground">
-                {isAlone
-                  ? 'Desaparecen tu cuenta y el espacio con todo lo que contiene.'
-                  : `Desaparecen tu cuenta y el espacio con todo lo que contiene. ${partnerName} conserva la suya y podrá empezar uno nuevo.`}
+                Desaparecen tu cuenta y tu espacio personal con todo lo que contiene. De los
+                espacios compartidos sales como si te fueras: siguen para quienes se quedan, y se
+                borran solo aquellos donde estabas únicamente tú.
               </ThemedText>
               <View className="mt-2">
                 <GhostButton
@@ -277,13 +292,13 @@ export default function SettingsScreen() {
         <AlertDialogBackdrop />
         <AlertDialogContent className="rounded-3xl border border-border bg-card">
           <AlertDialogHeader>
-            <ThemedText type="headline">¿Salir del espacio?</ThemedText>
+            <ThemedText type="headline">¿Salir de este espacio?</ThemedText>
           </AlertDialogHeader>
           <AlertDialogBody className="mt-2 mb-4">
             <ThemedText type="small" className="leading-6 text-muted-foreground">
               {isAlone
-                ? 'Nadie ha entrado todavía, así que el espacio se borra sin más. Sigues teniendo tu cuenta y podrás crear otro o entrar en uno con una llave.'
-                : `El espacio es de los dos y no sigue sin los dos: se cierra, y las fotos, los recordatorios y los mensajes se borran también para ${partnerName}. Ninguno de los dos pierde su cuenta — volvéis los dos a la pantalla de emparejar.`}
+                ? 'Nadie más ha entrado, así que el espacio se borra sin más. Tu cuenta y tu espacio personal siguen intactos, y puedes crear otro o entrar en uno con una llave.'
+                : 'El espacio sigue para los demás, sin ti. Para volver necesitarás que alguien te pase la llave otra vez.'}
             </ThemedText>
           </AlertDialogBody>
           <AlertDialogFooter className="gap-2">
@@ -315,9 +330,9 @@ export default function SettingsScreen() {
           </AlertDialogHeader>
           <AlertDialogBody className="mt-2 mb-4 gap-3">
             <ThemedText type="small" className="leading-6 text-muted-foreground">
-              {isAlone
-                ? 'Se van tu cuenta y el espacio entero: las fotos, los recordatorios y lo que hayas escrito. No hay vuelta atrás.'
-                : `Se va tu cuenta, y con ella el espacio: las fotos, los recordatorios y los mensajes se borran también para ${partnerName}, que conserva su cuenta y podrá empezar un espacio nuevo. No hay vuelta atrás.`}
+              Se van tu cuenta y tu espacio personal: las fotos, los avisos y lo que hayas
+              escrito. De los espacios compartidos sales sin llevarte lo de los demás — solo se
+              borran aquellos donde estabas únicamente tú. No hay vuelta atrás.
             </ThemedText>
 
             {isGoogleAccount ? (

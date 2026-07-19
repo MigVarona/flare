@@ -26,7 +26,7 @@ import {
 } from 'react-native';
 import Animated from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { BrandLockup, Eyebrow, GhostButton, GlowCard, IdentityDot } from '@/components/brand';
+import { BrandLockup, Eyebrow, GhostButton, GlowCard } from '@/components/brand';
 import { CalendarGlyph } from '@/components/icons';
 import { CardSkeletons } from '@/components/loading';
 import { ThemedText } from '@/components/themed-text';
@@ -40,7 +40,7 @@ import {
   Radius,
   Spacing,
 } from '@/constants/theme';
-import { useCouple } from '@/context/couple-context';
+import { useSpace } from '@/context/space-context';
 import { useNotice } from '@/hooks/use-notice';
 import { usePalette } from '@/hooks/use-palette';
 import { uploadPhotoToCloudinary } from '@/lib/cloudinary';
@@ -77,8 +77,7 @@ function messageTime(date: Date | null) {
 export default function HomeScreen() {
   const safeAreaInsets = useSafeAreaInsets();
   const { width } = useWindowDimensions();
-  const { user, coupleId, partnerUid, isWaitingForPartner, inviteCode, myName, partnerName } =
-    useCouple();
+  const { user, spaceId, space, members, otherMembers, isAlone, inviteCode, myName } = useSpace();
   const notice = useNotice();
   const palette = usePalette();
 
@@ -97,9 +96,9 @@ export default function HomeScreen() {
   );
 
   useEffect(() => {
-    if (!coupleId) return undefined;
+    if (!spaceId) return undefined;
     const remindersQuery = query(
-      collection(db, 'couples', coupleId, 'reminders'),
+      collection(db, 'spaces', spaceId, 'reminders'),
       where('status', '==', 'pending'),
     );
     return onSnapshot(remindersQuery, (snapshot) => {
@@ -125,12 +124,12 @@ export default function HomeScreen() {
       setActiveReminderIndex((index) => Math.min(index, Math.max(next.length - 1, 0)));
       setIsLoading(false);
     });
-  }, [coupleId]);
+  }, [spaceId]);
 
   useEffect(() => {
-    if (!coupleId) return undefined;
+    if (!spaceId) return undefined;
     const messagesQuery = query(
-      collection(db, 'couples', coupleId, 'messages'),
+      collection(db, 'spaces', spaceId, 'messages'),
       orderBy('createdAt', 'desc'),
       limit(5),
     );
@@ -151,12 +150,12 @@ export default function HomeScreen() {
           .reverse(),
       );
     });
-  }, [coupleId]);
+  }, [spaceId]);
 
   useEffect(() => {
-    if (!coupleId) return undefined;
+    if (!spaceId) return undefined;
     const photosQuery = query(
-      collection(db, 'couples', coupleId, 'photos'),
+      collection(db, 'spaces', spaceId, 'photos'),
       orderBy('createdAt', 'desc'),
       limit(8),
     );
@@ -173,9 +172,9 @@ export default function HomeScreen() {
         }),
       );
     });
-  }, [coupleId]);
+  }, [spaceId]);
 
-  const colorForUid = (uid?: string) => (uid === user?.uid ? palette.you : palette.partner);
+  const colorForUid = (uid?: string) => palette.colorFor(uid);
 
   function handleReminderScroll(event: NativeSyntheticEvent<NativeScrollEvent>) {
     const nextIndex = Math.round(event.nativeEvent.contentOffset.x / reminderSnapWidth);
@@ -211,27 +210,27 @@ export default function HomeScreen() {
       mediaTypes: ['images'],
       quality: 0.7,
     });
-    if (result.canceled || !coupleId || !user) return;
+    if (result.canceled || !spaceId || !user) return;
 
     setIsUploadingPhoto(true);
     try {
-      const uploadedPhoto = await uploadPhotoToCloudinary(result.assets[0].uri, coupleId);
-      await addDoc(collection(db, 'couples', coupleId, 'photos'), {
+      const uploadedPhoto = await uploadPhotoToCloudinary(result.assets[0].uri, spaceId);
+      await addDoc(collection(db, 'spaces', spaceId, 'photos'), {
         imageUrl: uploadedPhoto.imageUrl,
         cloudinaryPublicId: uploadedPhoto.publicId,
         uploadedByUid: user.uid,
         createdAt: serverTimestamp(),
       });
 
-      if (partnerUid) {
+      for (const member of otherMembers) {
         sendPushNotification(
-          coupleId,
-          partnerUid,
+          spaceId,
+          member.uid,
           'Foto nueva',
           `${myName} ha subido una foto`,
           '/gallery',
         ).then((ok) => {
-          if (!ok) notice('No hemos podido avisar a tu pareja');
+          if (!ok) notice('No hemos podido avisar a todos');
         });
       }
     } catch {
@@ -253,27 +252,44 @@ export default function HomeScreen() {
         <View style={styles.header}>
           <View style={styles.headerTop}>
             <BrandLockup size={34} />
-            <Pressable
-              onPress={() => router.push('/settings')}
-              hitSlop={12}
-              style={({ pressed }) => pressed && styles.pressed}>
-              <Eyebrow>Ajustes</Eyebrow>
-            </Pressable>
+            <View style={styles.headerLinks}>
+              <Pressable
+                onPress={() => router.push('/spaces')}
+                hitSlop={12}
+                style={({ pressed }) => pressed && styles.pressed}>
+                <Eyebrow color={palette.accent}>
+                  {space?.kind === 'personal' ? 'Personal' : (space?.name ?? 'Espacios')}
+                </Eyebrow>
+              </Pressable>
+              <Pressable
+                onPress={() => router.push('/settings')}
+                hitSlop={12}
+                style={({ pressed }) => pressed && styles.pressed}>
+                <Eyebrow>Ajustes</Eyebrow>
+              </Pressable>
+            </View>
           </View>
+          {/* Everyone in the space, each with their light. Alone in your personal space this
+              is simply you — one light is a complete state, not a waiting room. */}
           <View style={styles.presenceRow}>
-            <IdentityDot isMine size={12} />
-            <ThemedText type="small" themeColor="textSecondary">
-              {myName}
-            </ThemedText>
-            <View style={styles.presenceGap} />
-            <IdentityDot isMine={false} size={12} />
-            <ThemedText type="small" themeColor="textSecondary">
-              {isWaitingForPartner ? 'Sin llegar' : partnerName}
-            </ThemedText>
+            {members.map((member) => (
+              <View key={member.uid} style={styles.presenceMember}>
+                <View
+                  style={[
+                    styles.presenceDot,
+                    { backgroundColor: palette.colorFor(member.uid) },
+                    glow(palette.colorFor(member.uid), 10, '66'),
+                  ]}
+                />
+                <ThemedText type="small" themeColor="textSecondary">
+                  {member.uid === user?.uid ? myName : member.name}
+                </ThemedText>
+              </View>
+            ))}
           </View>
         </View>
 
-        {isWaitingForPartner && inviteCode && (
+        {space?.kind === 'shared' && isAlone && inviteCode && (
           <GlowCard color={palette.accent}>
             <Eyebrow color={palette.accent}>La llave</Eyebrow>
             <ThemedText type="key" selectable>
@@ -391,8 +407,15 @@ export default function HomeScreen() {
                     Fotos
                   </ThemedText>
                   <View style={styles.photoIdentityRow}>
-                    <IdentityDot isMine size={8} />
-                    <IdentityDot isMine={false} size={8} />
+                    {members.map((member) => (
+                      <View
+                        key={member.uid}
+                        style={[
+                          styles.photoIdentityDot,
+                          { backgroundColor: palette.colorFor(member.uid) },
+                        ]}
+                      />
+                    ))}
                   </View>
                 </View>
                 <Pressable
@@ -553,11 +576,29 @@ const styles = StyleSheet.create({
   },
   presenceRow: {
     flexDirection: 'row',
+    flexWrap: 'wrap',
+    alignItems: 'center',
+    gap: Spacing[12],
+  },
+  presenceMember: {
+    flexDirection: 'row',
     alignItems: 'center',
     gap: Spacing[8],
   },
-  presenceGap: {
-    width: Spacing[8],
+  presenceDot: {
+    width: 12,
+    height: 12,
+    borderRadius: Radius.pill,
+  },
+  headerLinks: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing[16],
+  },
+  photoIdentityDot: {
+    width: 8,
+    height: 8,
+    borderRadius: Radius.pill,
   },
   cardAction: {
     marginTop: Spacing[8],

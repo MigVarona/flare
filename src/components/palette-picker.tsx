@@ -83,8 +83,8 @@ function PairMark({ palette, size = 38 }: { palette: Palette; size?: number }) {
 
   return (
     <Svg width={width} height={height} viewBox={`0 0 ${width} ${height}`}>
-      <Circle cx={radius} cy={radius} r={radius} fill={palette.left} />
-      <Circle cx={radius + 2 * offset} cy={radius} r={radius} fill={palette.right} />
+      <Circle cx={radius} cy={radius} r={radius} fill={palette.lights[0]} />
+      <Circle cx={radius + 2 * offset} cy={radius} r={radius} fill={palette.lights[1]} />
       <G clipPath={`url(#lens-${key})`}>
         <Circle cx={radius + 2 * offset} cy={radius} r={radius} fill={palette.lens} />
       </G>

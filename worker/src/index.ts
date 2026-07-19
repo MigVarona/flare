@@ -44,6 +44,8 @@ export default {
 
     const url = new URL(request.url);
     const body = (await request.json().catch(() => ({}))) as {
+      spaceId?: string;
+      /** Older app versions name the space this way. Same id, same document. */
       coupleId?: string;
       photoId?: string;
       recipientUid?: string;
@@ -52,24 +54,25 @@ export default {
       url?: string;
     };
 
-    if (!body.coupleId) return json({ error: 'coupleId' }, 400);
+    const spaceId = body.spaceId ?? body.coupleId;
+    if (!spaceId) return json({ error: 'spaceId' }, 400);
 
     if (url.pathname === '/upload/sign') {
       // Only members can read a space, so being able to read it *is* the proof.
-      const couple = await readDocumentAs(
+      const space = await readDocumentAs(
         token,
         env.FIREBASE_PROJECT_ID,
-        `couples/${body.coupleId}`,
+        `spaces/${spaceId}`,
       );
-      if (!couple) return json({ error: 'forbidden' }, 403);
+      if (!space) return json({ error: 'forbidden' }, 403);
 
-      return json(await signUpload(credentials, body.coupleId));
+      return json(await signUpload(credentials, spaceId));
     }
 
     if (url.pathname === '/photo/delete') {
       if (!body.photoId) return json({ error: 'photoId' }, 400);
 
-      const path = `couples/${body.coupleId}/photos/${body.photoId}`;
+      const path = `spaces/${spaceId}/photos/${body.photoId}`;
       const photo = await readDocumentAs(token, env.FIREBASE_PROJECT_ID, path);
       if (!photo) return json({ error: 'forbidden' }, 403);
 
@@ -94,12 +97,12 @@ export default {
       if (!body.title || body.title.length > 80) return json({ error: 'title' }, 400);
       if (!body.message || body.message.length > 500) return json({ error: 'message' }, 400);
 
-      const couple = await readDocumentAs(
+      const space = await readDocumentAs(
         token,
         env.FIREBASE_PROJECT_ID,
-        `couples/${body.coupleId}`,
+        `spaces/${spaceId}`,
       );
-      const memberValues = couple?.fields?.memberIds?.arrayValue?.values ?? [];
+      const memberValues = space?.fields?.memberIds?.arrayValue?.values ?? [];
       const memberIds = memberValues
         .map((entry) => entry.stringValue)
         .filter((entry): entry is string => Boolean(entry));
@@ -108,12 +111,11 @@ export default {
         return json({ error: 'forbidden' }, 403);
       }
 
-      const recipient = await readDocumentAs(
-        token,
-        env.FIREBASE_PROJECT_ID,
-        `users/${body.recipientUid}`,
-      );
-      const expoPushToken = recipient?.fields?.expoPushToken?.stringValue;
+      // The token travels on the space itself — user accounts are nobody else's to read,
+      // so the space's `members` map is the one place a co-member's phone can be found.
+      const expoPushToken =
+        space?.fields?.members?.mapValue?.fields?.[body.recipientUid]?.mapValue?.fields
+          ?.expoPushToken?.stringValue;
       if (!expoPushToken) return json({ ok: false, reason: 'no-token' });
 
       // Where tapping the notification lands you. A fixed list, not a free string: the app

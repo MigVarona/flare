@@ -1,5 +1,11 @@
 # Flare — Arquitectura (Firebase)
 
+> **Documento histórico (pre-pivote).** Describe el diseño original para parejas y algunas
+> decisiones que cambiaron después (Firebase Storage → Cloudinary + Worker; límite diario →
+> capacidad fija de 5 mensajes). Desde julio de 2026 el modelo es de **espacios de 1 a 8
+> personas** con avisos dirigidos: la referencia actual es el [README](../README.md) y la
+> propuesta [propuesta-flare-2.0.md](propuesta-flare-2.0.md).
+
 App móvil para parejas: recordatorios con push, galería de fotos compartida
 y mensajes limitados por día.
 
