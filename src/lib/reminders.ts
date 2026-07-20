@@ -25,3 +25,21 @@ export function nextRotationTarget(
   if (currentIndex === -1) return rotation.members[0];
   return rotation.members[(currentIndex + 1) % rotation.members.length];
 }
+
+/**
+ * Who should see a reminder was completed — everyone with a stake in it who isn't the one
+ * who just acted: whoever asked, and whoever else it was ringing on. That last part matters
+ * for a reminder aimed at several people at once ("para todos"): the others learn someone
+ * already handled it, instead of finding out by doing it twice.
+ */
+export function reminderDoneAudience(
+  createdByUid: string | undefined,
+  targetUids: string[] | undefined,
+  completedByUid: string,
+): string[] {
+  const audience = new Set(
+    [createdByUid, ...(targetUids ?? [])].filter((uid): uid is string => Boolean(uid)),
+  );
+  audience.delete(completedByUid);
+  return [...audience];
+}

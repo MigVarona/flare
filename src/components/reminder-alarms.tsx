@@ -16,7 +16,8 @@ import { Platform } from 'react-native';
 import { useSpace } from '@/context/space-context';
 import { formatDueDate, nextOccurrence, type RepeatFreq } from '@/lib/dates';
 import { db } from '@/lib/firebase';
-import { nextRotationTarget, type Rotation } from '@/lib/reminders';
+import { sendPushNotification } from '@/lib/push';
+import { nextRotationTarget, reminderDoneAudience, type Rotation } from '@/lib/reminders';
 
 type Alarm = {
   spaceId: string;
@@ -45,11 +46,21 @@ const DUE_CATEGORY = 'churri-reminder-due';
  * every other phone sees the answer too.
  */
 export function ReminderAlarms() {
-  const { user, spaces } = useSpace();
+  const { user, spaces, myName } = useSpace();
   /** Responses already dealt with, so a listener and the cold-start check can't both act. */
   const handled = useRef(new Set<string>());
   /** What each space currently wants ringing; the union is what gets scheduled. */
   const wantedBySpace = useRef(new Map<string, Alarm[]>());
+  /**
+   * The notification listener below is registered once, on mount, and never again — so its
+   * closure would otherwise freeze `user`/`myName` at whatever they were at that first
+   * render (usually nothing, since auth is still resolving). A ref reads the current value
+   * without asking the listener to be torn down and rebuilt every time either changes.
+   */
+  const identity = useRef({ user, myName });
+  useEffect(() => {
+    identity.current = { user, myName };
+  }, [user, myName]);
 
   useEffect(() => {
     const respond = async (response: Notifications.NotificationResponse) => {
@@ -73,7 +84,7 @@ export function ReminderAlarms() {
           : null;
 
       try {
-        if (response.actionIdentifier === 'done' && ref) {
+        if (response.actionIdentifier === 'done' && ref && spaceId) {
           // A repeating reminder answered from the shade needs the same rule the screen
           // uses — advance, don't close — which means reading it first to know whether
           // it repeats and from when.
@@ -81,6 +92,7 @@ export function ReminderAlarms() {
           const reminder = snapshot.data();
           const repeat = reminder?.repeat as { freq: RepeatFreq } | null | undefined;
           const dueAt = (reminder?.dueAt as Timestamp | null | undefined)?.toDate();
+          const { user: currentUser, myName: currentName } = identity.current;
 
           if (repeat && dueAt) {
             const next = nextOccurrence(dueAt, repeat.freq);
@@ -96,6 +108,25 @@ export function ReminderAlarms() {
             });
           } else {
             await updateDoc(ref, { status: 'done' });
+          }
+
+          // Answered from the shade or from inside the app, whoever asked still gets to
+          // see it happened without asking — same courtesy, same failure-is-fine posture.
+          if (currentUser) {
+            const audience = reminderDoneAudience(
+              reminder?.createdByUid as string | undefined,
+              reminder?.targetUids as string[] | undefined,
+              currentUser.uid,
+            );
+            for (const uid of audience) {
+              sendPushNotification(
+                spaceId,
+                uid,
+                'Hecho',
+                `${currentName} ha completado «${reminder?.title as string}»`,
+                '/reminders',
+              ).catch(() => undefined);
+            }
           }
           return;
         }

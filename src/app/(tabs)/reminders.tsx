@@ -58,7 +58,7 @@ import { usePalette } from "@/hooks/use-palette";
 import { formatDueDate, isOverdue, nextOccurrence, RepeatLabel, type RepeatFreq } from "@/lib/dates";
 import { db } from "@/lib/firebase";
 import { sendPushNotification } from "@/lib/push";
-import { nextRotationTarget, type Rotation } from "@/lib/reminders";
+import { nextRotationTarget, reminderDoneAudience, type Rotation } from "@/lib/reminders";
 
 /** How long "Hecho" can be undone before the reminder is actually deleted. */
 const UndoWindowMs = 4000;
@@ -239,9 +239,25 @@ export default function RemindersScreen() {
   };
 
   const markDone = (reminder: Reminder) => {
-    if (!spaceId) return;
+    if (!spaceId || !user) return;
     // Putting a light out is a physical act, so it lands in the wrist too.
     void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+
+    // Whoever asked, and whoever else it was ringing on, get to see it happened — without
+    // you having to tell them. Failing quietly here is deliberate: this is a courtesy on
+    // top of the real action, not the thing that's actually being asked for.
+    const audience = reminderDoneAudience(reminder.createdByUid, reminder.targetUids, user.uid);
+    const announceDone = () => {
+      for (const uid of audience) {
+        sendPushNotification(
+          spaceId,
+          uid,
+          "Hecho",
+          `${myName} ha completado «${reminder.title}»`,
+          "/reminders",
+        ).catch(() => undefined);
+      }
+    };
 
     // A repeating reminder isn't finished, it's due again: "Hecho" moves it forward instead
     // of closing it. Nothing is lost, so there's nothing to offer an undo for — getting the
@@ -256,7 +272,7 @@ export default function RemindersScreen() {
         dueLabel: formatDueDate(next),
         status: "pending",
         ...(nextTarget ? { targetUids: [nextTarget] } : {}),
-      });
+      }).then(announceDone);
       const nextName = nextTarget
         ? nextTarget === user?.uid
           ? "ti"
@@ -305,7 +321,9 @@ export default function RemindersScreen() {
 
     const timeout = setTimeout(() => {
       pendingDeletes.current.delete(reminder.id);
-      void deleteDoc(doc(db, "spaces", spaceId, "reminders", reminder.id));
+      // Only once the undo window has actually closed — a notification about something
+      // that got undone a second later would be exactly the noise this is meant to avoid.
+      void deleteDoc(doc(db, "spaces", spaceId, "reminders", reminder.id)).then(announceDone);
     }, UndoWindowMs);
     pendingDeletes.current.set(reminder.id, timeout);
   };
