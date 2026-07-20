@@ -58,6 +58,7 @@ import { usePalette } from "@/hooks/use-palette";
 import { formatDueDate, isOverdue, nextOccurrence, RepeatLabel, type RepeatFreq } from "@/lib/dates";
 import { db } from "@/lib/firebase";
 import { sendPushNotification } from "@/lib/push";
+import { nextRotationTarget, type Rotation } from "@/lib/reminders";
 
 /** How long "Hecho" can be undone before the reminder is actually deleted. */
 const UndoWindowMs = 4000;
@@ -75,6 +76,8 @@ type Reminder = {
   targetUids?: string[];
   /** Set once at creation and never touched again — the rules make sure of that. */
   repeat?: { freq: RepeatFreq } | null;
+  /** The fixed cast that takes turns, if this reminder rotates. Also create-only. */
+  rotation?: Rotation | null;
 };
 
 const RepeatOptions: { freq: RepeatFreq | null; label: string }[] = [
@@ -101,6 +104,8 @@ export default function RemindersScreen() {
   const [targetUids, setTargetUids] = useState<string[]>([]);
   /** Only makes sense once there's a date to repeat from. */
   const [repeatFreq, setRepeatFreq] = useState<RepeatFreq | null>(null);
+  /** Only makes sense with a repeat and more than one person selected. */
+  const [rotate, setRotate] = useState(false);
   const [canNotify, setCanNotify] = useState<boolean | null>(null);
   const [actingOn, setActingOn] = useState<Reminder | null>(null);
   /** Marked "Hecho" but still undoable: hidden from the list while its delete is pending. */
@@ -135,6 +140,7 @@ export default function RemindersScreen() {
             createdByUid: data.createdByUid as string | undefined,
             targetUids: data.targetUids as string[] | undefined,
             repeat: data.repeat as { freq: RepeatFreq } | null | undefined,
+            rotation: data.rotation as Rotation | null | undefined,
           }];
         }),
       );
@@ -149,22 +155,34 @@ export default function RemindersScreen() {
   const openForm = () => {
     setTargetUids(isAlone ? (user ? [user.uid] : []) : otherMembers.map((member) => member.uid));
     setRepeatFreq(null);
+    setRotate(false);
     setIsAdding(true);
   };
 
   const toggleTarget = (uid: string) => {
-    setTargetUids((current) =>
-      current.includes(uid)
+    setTargetUids((current) => {
+      const next = current.includes(uid)
         ? current.length > 1
           ? current.filter((entry) => entry !== uid)
           : current
-        : [...current, uid],
-    );
+        : [...current, uid];
+      // Rotating between one person is just having it — the toggle stops making sense
+      // the moment the cast shrinks below two.
+      if (next.length < 2) setRotate(false);
+      return next;
+    });
   };
 
   const addReminder = async () => {
     if (!spaceId || !user || !title.trim() || targetUids.length === 0) return;
     const reminderTitle = title.trim();
+
+    // A repeat with nothing to repeat *from* isn't meaningful, so neither can rotate
+    // without one — but a date can still change its mind, hence the extra guards here.
+    const repeat = dueAt && repeatFreq ? { freq: repeatFreq } : null;
+    const rotation = repeat && rotate && targetUids.length > 1 ? { members: targetUids } : null;
+    // Rotating means one turn at a time: whoever is first in the cast, not everyone at once.
+    const effectiveTargetUids = rotation ? [rotation.members[0]] : targetUids;
 
     setIsSending(true);
     try {
@@ -175,19 +193,19 @@ export default function RemindersScreen() {
         dueLabel: dueAt ? formatDueDate(dueAt) : "Sin fecha",
         status: "pending",
         createdByUid: user.uid,
-        targetUids,
-        // A repeat with nothing to repeat *from* isn't meaningful, so it can't be chosen
-        // without a date — but a date can still change its mind, hence the extra guard here.
-        repeat: dueAt && repeatFreq ? { freq: repeatFreq } : null,
+        targetUids: effectiveTargetUids,
+        repeat,
+        rotation,
         createdAt: Timestamp.now(),
       });
       setTitle("");
       setDueAt(undefined);
       setRepeatFreq(null);
+      setRotate(false);
       setIsAdding(false);
 
       // Everyone whose phone this will ring on hears about it now; your own needs no push.
-      for (const targetUid of targetUids) {
+      for (const targetUid of effectiveTargetUids) {
         if (targetUid === user.uid) continue;
         sendPushNotification(
           spaceId,
@@ -230,11 +248,20 @@ export default function RemindersScreen() {
     // date wrong is what "Posponer" is already for.
     if (reminder.repeat && reminder.dueAt) {
       const next = nextOccurrence(reminder.dueAt, reminder.repeat.freq);
+      const nextTarget = reminder.rotation
+        ? nextRotationTarget(reminder.rotation, reminder.targetUids)
+        : null;
       void updateDoc(doc(db, "spaces", spaceId, "reminders", reminder.id), {
         dueAt: Timestamp.fromDate(next),
         dueLabel: formatDueDate(next),
         status: "pending",
+        ...(nextTarget ? { targetUids: [nextTarget] } : {}),
       });
+      const nextName = nextTarget
+        ? nextTarget === user?.uid
+          ? "ti"
+          : members.find((member) => member.uid === nextTarget)?.name
+        : null;
       toast.show({
         placement: "top",
         duration: UndoWindowMs,
@@ -244,7 +271,11 @@ export default function RemindersScreen() {
             action="muted"
             variant="solid"
             className="mt-2 rounded-2xl border border-border bg-card px-4 py-3">
-            <ToastDescription>Hecho — vuelve {formatDueDate(next).toLowerCase()}</ToastDescription>
+            <ToastDescription>
+              {nextName
+                ? `Hecho — le toca a ${nextName}`
+                : `Hecho — vuelve ${formatDueDate(next).toLowerCase()}`}
+            </ToastDescription>
           </Toast>
         ),
       });
@@ -467,6 +498,35 @@ export default function RemindersScreen() {
                 </View>
               )}
 
+              {/* Rotation needs a repeat to advance on, and more than one person to hand
+                  the turn to — the two things above it in the form. */}
+              {dueAt && repeatFreq && targetUids.length > 1 && (
+                <Pressable
+                  onPress={() => setRotate((current) => !current)}
+                  className="flex-row items-center gap-3 rounded-2xl border px-4 py-3 active:opacity-70"
+                  style={
+                    rotate
+                      ? [{ backgroundColor: `${palette.accent}14`, borderColor: palette.accent }]
+                      : { borderColor: theme.border }
+                  }>
+                  <View
+                    className="h-5 w-5 items-center justify-center rounded-full border"
+                    style={{ borderColor: rotate ? palette.accent : theme.textSecondary }}>
+                    {rotate && (
+                      <View className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: palette.accent }} />
+                    )}
+                  </View>
+                  <View className="flex-1 gap-0.5">
+                    <ThemedText type="smallBold" style={{ color: rotate ? palette.accent : theme.text }}>
+                      Rotar entre ellos
+                    </ThemedText>
+                    <ThemedText type="small" className="text-muted-foreground">
+                      Cada vez le toca a otro, en el orden en que los elegiste
+                    </ThemedText>
+                  </View>
+                </Pressable>
+              )}
+
               <View className="mt-2 gap-2">
                 <GradientButton
                   title={
@@ -540,6 +600,7 @@ export default function RemindersScreen() {
                             {reminder.repeat && (
                               <ThemedText type="small" className="text-muted-foreground">
                                 · ↻ {RepeatLabel[reminder.repeat.freq]}
+                                {reminder.rotation ? " · rota" : ""}
                               </ThemedText>
                             )}
                             {overdue && (

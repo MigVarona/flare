@@ -34,6 +34,14 @@ service cloud.firestore {
             && value.freq in ['daily', 'weekly', 'monthly']);
     }
 
+    function isValidRotation(value) {
+      return value == null
+        || (value is map
+            && value.keys().hasOnly(['members'])
+            && value.members is list
+            && value.members.size() >= 2);
+    }
+
     // The slice of you that lives on a space: what the others need to paint your light and
     // ring your phone, and nothing else. Your account itself stays yours alone.
     function isValidMemberProfile(profile) {
@@ -189,6 +197,7 @@ service cloud.firestore {
             'createdByUid',
             'targetUids',
             'repeat',
+            'rotation',
             'createdAt'
           ])
           && isValidName(request.resource.data.title, 120)
@@ -203,17 +212,32 @@ service cloud.firestore {
           && get(/databases/$(database)/documents/spaces/$(spaceId)).data.memberIds
             .hasAll(request.resource.data.targetUids)
           && (!('repeat' in request.resource.data) || isValidRepeat(request.resource.data.repeat))
+          && (!('rotation' in request.resource.data) || isValidRotation(request.resource.data.rotation))
+          // Rotation starts on its first name: the cast is a promise about every future
+          // turn, but the turn ringing right now is still just one person, like any other.
+          && (!('rotation' in request.resource.data) || request.resource.data.rotation == null
+              || (get(/databases/$(database)/documents/spaces/$(spaceId)).data.memberIds
+                    .hasAll(request.resource.data.rotation.members)
+                  && request.resource.data.targetUids == [request.resource.data.rotation.members[0]]))
           && isValidCreatedAt(request.resource.data.createdAt);
         allow update: if isMemberOf(spaceId)
           && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
             'dueAt',
             'dueLabel',
             'status',
-            'completedAt'
+            'completedAt',
+            'targetUids'
           ])
           && (request.resource.data.dueAt == null || request.resource.data.dueAt is timestamp)
           && isValidOptionalString(request.resource.data.dueLabel, 80)
           && request.resource.data.status in ['pending', 'done']
+          // Handing a turn to the next person — or reassigning outright — same shape as
+          // creating one: a non-empty list of people who actually live in this space.
+          && (!('targetUids' in request.resource.data.diff(resource.data).affectedKeys())
+              || (request.resource.data.targetUids is list
+                  && request.resource.data.targetUids.size() >= 1
+                  && get(/databases/$(database)/documents/spaces/$(spaceId)).data.memberIds
+                    .hasAll(request.resource.data.targetUids)))
           && (!('completedAt' in request.resource.data)
               || request.resource.data.completedAt == null
               || request.resource.data.completedAt is timestamp);

@@ -16,6 +16,7 @@ import { Platform } from 'react-native';
 import { useSpace } from '@/context/space-context';
 import { formatDueDate, nextOccurrence, type RepeatFreq } from '@/lib/dates';
 import { db } from '@/lib/firebase';
+import { nextRotationTarget, type Rotation } from '@/lib/reminders';
 
 type Alarm = {
   spaceId: string;
@@ -83,10 +84,15 @@ export function ReminderAlarms() {
 
           if (repeat && dueAt) {
             const next = nextOccurrence(dueAt, repeat.freq);
+            const rotation = reminder?.rotation as Rotation | null | undefined;
+            const nextTarget = rotation
+              ? nextRotationTarget(rotation, reminder?.targetUids as string[] | undefined)
+              : null;
             await updateDoc(ref, {
               dueAt: Timestamp.fromDate(next),
               dueLabel: formatDueDate(next),
               status: 'pending',
+              ...(nextTarget ? { targetUids: [nextTarget] } : {}),
             });
           } else {
             await updateDoc(ref, { status: 'done' });
