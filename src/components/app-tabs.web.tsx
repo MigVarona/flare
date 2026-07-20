@@ -27,8 +27,8 @@ export default function AppTabs() {
           <TabTrigger name="reminders" href="/reminders" asChild>
             <TabButton>Avisos</TabButton>
           </TabTrigger>
-          <TabTrigger name="gallery" href="/gallery" asChild>
-            <TabButton>Fotos</TabButton>
+          <TabTrigger name="archive" href="/archive" asChild>
+            <TabButton>Archivo</TabButton>
           </TabTrigger>
           <TabTrigger name="board" href="/board" asChild>
             <TabButton>Tablón</TabButton>

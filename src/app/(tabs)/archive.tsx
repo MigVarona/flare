@@ -12,6 +12,7 @@ import {
   query,
   serverTimestamp,
   updateDoc,
+  where,
 } from 'firebase/firestore';
 import { useEffect, useState } from 'react';
 import { Pressable, useWindowDimensions, View } from 'react-native';
@@ -25,6 +26,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { Eyebrow, GhostButton, GlowCard, ScreenHeader } from '@/components/brand';
 import Svg, { Path } from 'react-native-svg';
 
+import { PinGlyph } from '@/components/icons';
 import { LightSignal, isSignalId, useSignalMeaning, type SignalId } from '@/components/light-signals';
 import { PhotoGridSkeleton } from '@/components/loading';
 import { SignalPicker } from '@/components/signal-picker';
@@ -41,7 +43,7 @@ import {
 } from '@/components/ui/actionsheet';
 import { Modal, ModalBackdrop, ModalContent } from '@/components/ui/modal';
 import { Spinner } from '@/components/ui/spinner';
-import { BottomTabInset, Colors, glow, neonBorder, Spacing } from '@/constants/theme';
+import { BottomTabInset, Colors, glow, MaxPinnedItems, neonBorder, Spacing } from '@/constants/theme';
 import { useSpace } from '@/context/space-context';
 import { useNotice } from '@/hooks/use-notice';
 import { usePalette } from '@/hooks/use-palette';
@@ -60,9 +62,28 @@ type Photo = {
   cloudinaryPublicId?: string;
   uploadedByUid: string;
   reactions: Record<string, SignalId>;
+  /** Pulled out of the timeline, so it's findable whatever else has piled up since. */
+  pinned: boolean;
 };
 
-export default function GalleryScreen() {
+function readPhoto(docSnapshot: { id: string; data: () => Record<string, unknown> }): Photo {
+  const data = docSnapshot.data();
+  return {
+    id: docSnapshot.id,
+    imageUrl: data.imageUrl as string,
+    cloudinaryPublicId: data.cloudinaryPublicId as string | undefined,
+    uploadedByUid: data.uploadedByUid as string,
+    reactions: (data.reactions as Record<string, SignalId>) ?? {},
+    pinned: (data.pinned as boolean | undefined) ?? false,
+  };
+}
+
+/**
+ * The Archivo — not a photo album, a practical memory. The DNI del niño, el contrato del
+ * alquiler, la matrícula, dónde aparcaste. It still holds every photo of you two as well;
+ * it's just stopped pretending that's the only reason a picture belongs here.
+ */
+export default function ArchiveScreen() {
   const insets = useSafeAreaInsets();
   const { width, height: screenHeight } = useWindowDimensions();
   const { spaceId, user, otherMembers, myName, isAlone } = useSpace();
@@ -71,6 +92,7 @@ export default function GalleryScreen() {
   const showSignalMeaning = useSignalMeaning();
 
   const [photos, setPhotos] = useState<Photo[]>([]);
+  const [pinnedPhotos, setPinnedPhotos] = useState<Photo[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isUploading, setIsUploading] = useState(false);
   const [viewing, setViewing] = useState<Photo | null>(null);
@@ -90,18 +112,22 @@ export default function GalleryScreen() {
       limit(pageSize),
     );
     return onSnapshot(photosQuery, (snapshot) => {
-      setPhotos(
-        snapshot.docs.map((docSnapshot) => ({
-          id: docSnapshot.id,
-          imageUrl: docSnapshot.data().imageUrl as string,
-          cloudinaryPublicId: docSnapshot.data().cloudinaryPublicId as string | undefined,
-          uploadedByUid: docSnapshot.data().uploadedByUid as string,
-          reactions: (docSnapshot.data().reactions as Record<string, SignalId>) ?? {},
-        })),
-      );
+      setPhotos(snapshot.docs.map(readPhoto));
       setIsLoading(false);
     });
   }, [spaceId, pageSize]);
+
+  // Pinned photos live outside the recency window the page above looks through — the whole
+  // point is finding one that's months old — so they get their own subscription, unpaginated.
+  // A plain equality filter needs no composite index; with at most two of them, sorting by
+  // hand after they arrive is simpler than asking Firestore to do it.
+  useEffect(() => {
+    if (!spaceId) return undefined;
+    const pinnedQuery = query(collection(db, 'spaces', spaceId, 'photos'), where('pinned', '==', true));
+    return onSnapshot(pinnedQuery, (snapshot) => {
+      setPinnedPhotos(snapshot.docs.map(readPhoto));
+    });
+  }, [spaceId]);
 
   const pickAndUploadPhoto = async () => {
     const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
@@ -124,7 +150,7 @@ export default function GalleryScreen() {
       });
 
       for (const member of otherMembers) {
-        sendPushNotification(spaceId, member.uid, 'Foto nueva', `${myName} ha subido una foto`, '/gallery').then(
+        sendPushNotification(spaceId, member.uid, 'Foto nueva', `${myName} ha subido una foto`, '/archive').then(
           (ok) => {
             if (!ok) notice('No hemos podido avisar a todos');
           },
@@ -146,6 +172,17 @@ export default function GalleryScreen() {
     });
   };
 
+  /** A soft house rule, kept here rather than fought over in the rules — see the Tablón. */
+  const togglePin = async (photo: Photo) => {
+    if (!spaceId) return;
+    if (!photo.pinned && pinnedPhotos.length >= MaxPinnedItems) {
+      notice(`Ya hay ${MaxPinnedItems} fotos fijadas — desfija una para poner otra`);
+      return;
+    }
+    void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    await updateDoc(doc(db, 'spaces', spaceId, 'photos', photo.id), { pinned: !photo.pinned });
+  };
+
   const removePhoto = async (photo: Photo) => {
     if (!spaceId) return;
     setActingOn(null);
@@ -159,6 +196,7 @@ export default function GalleryScreen() {
     }
   };
 
+  const regularPhotos = photos.filter((photo) => !photo.pinned);
   const mine = photos.filter((photo) => photo.uploadedByUid === user?.uid).length;
   const theirs = photos.length - mine;
 
@@ -168,6 +206,7 @@ export default function GalleryScreen() {
   // Two columns, edge to edge: the photos are the screen, not decoration inside a card.
   const gutter = Spacing[8];
   const columnWidth = (width - Spacing[24] * 2 - gutter) / 2;
+  const pinnedSize = (width - Spacing[24] * 2 - gutter) / 2;
   const viewingIsMine = viewing?.uploadedByUid === user?.uid;
 
   return (
@@ -181,7 +220,7 @@ export default function GalleryScreen() {
         }}>
         <View className="gap-4 px-6">
           <View>
-            <ScreenHeader title="Fotos" />
+            <ScreenHeader title="Archivo" />
 
             {/* The header already carries the two lights, so repeating them here would be
                 the third time this screen says "there are two of you". The count says whose
@@ -200,9 +239,38 @@ export default function GalleryScreen() {
             )}
           </View>
 
+          {pinnedPhotos.length > 0 && (
+            <View className="gap-2">
+              <Eyebrow color={palette.accent}>Fijadas</Eyebrow>
+              <View className="flex-row gap-2">
+                {pinnedPhotos.map((photo) => {
+                  const color = palette.colorFor(photo.uploadedByUid);
+                  const open = Gesture.Tap().numberOfTaps(1).onEnd(() => scheduleOnRN(setViewing, photo));
+
+                  return (
+                    <GestureDetector key={photo.id} gesture={open}>
+                      <View
+                        className="overflow-hidden rounded-3xl"
+                        style={[{ width: pinnedSize, height: pinnedSize }, neonBorder(color, 'BB')]}>
+                        <Image
+                          source={{ uri: photo.imageUrl }}
+                          style={{ width: '100%', height: '100%' }}
+                          contentFit="cover"
+                        />
+                        <View className="absolute right-2 top-2 rounded-full bg-background/70 p-1.5">
+                          <PinGlyph color={color} filled size={12} />
+                        </View>
+                      </View>
+                    </GestureDetector>
+                  );
+                })}
+              </View>
+            </View>
+          )}
+
           {isLoading ? (
             <PhotoGridSkeleton />
-          ) : photos.length === 0 ? (
+          ) : photos.length === 0 && pinnedPhotos.length === 0 ? (
             <GlowCard>
               <ThemedText className="leading-6 text-muted-foreground">
                 {isAlone ? 'Todavía no has subido ninguna.' : 'Todavía no habéis subido ninguna.'}
@@ -212,7 +280,7 @@ export default function GalleryScreen() {
             <View className="flex-row gap-2">
               {[0, 1].map((column) => (
                 <View key={column} className="flex-1 gap-2">
-                  {photos
+                  {regularPhotos
                     .filter((_, index) => index % 2 === column)
                     .map((photo, indexInColumn) => {
                       const color = palette.colorFor(photo.uploadedByUid);
@@ -223,7 +291,7 @@ export default function GalleryScreen() {
                       const signals = Object.entries(photo.reactions);
 
                       // One tap opens it; holding it down answers with light. Deleting your
-                      // own photos still lives in the full-screen view.
+                      // own photos, and pinning any of them, still live in the full-screen view.
                       const open = Gesture.Tap()
                         .numberOfTaps(1)
                         .onEnd(() => scheduleOnRN(setViewing, photo));
@@ -343,13 +411,35 @@ export default function GalleryScreen() {
                 className="rounded-full border border-border bg-background/80 px-4 py-3 active:opacity-70">
                 <ThemedText type="smallBold">Cerrar</ThemedText>
               </Pressable>
-              {viewingIsMine && viewing && (
-                <Pressable onPress={() => setActingOn(viewing)} hitSlop={12}>
-                  <ThemedText type="small" className="text-destructive">
-                    Borrar
-                  </ThemedText>
-                </Pressable>
-              )}
+              <View className="flex-row items-center gap-2">
+                {viewing && (
+                  <Pressable
+                    onPress={() => togglePin(viewing)}
+                    hitSlop={12}
+                    className="flex-row items-center gap-2 rounded-full border border-border bg-background/80 px-4 py-3 active:opacity-70">
+                    <PinGlyph
+                      color={viewing.pinned ? palette.accent : theme.textSecondary}
+                      filled={viewing.pinned}
+                      size={14}
+                    />
+                    <ThemedText
+                      type="smallBold"
+                      style={{ color: viewing.pinned ? palette.accent : theme.textSecondary }}>
+                      {viewing.pinned ? 'Fijada' : 'Fijar'}
+                    </ThemedText>
+                  </Pressable>
+                )}
+                {viewingIsMine && viewing && (
+                  <Pressable
+                    onPress={() => setActingOn(viewing)}
+                    hitSlop={12}
+                    className="rounded-full border border-border bg-background/80 px-4 py-3 active:opacity-70">
+                    <ThemedText type="small" className="text-destructive">
+                      Borrar
+                    </ThemedText>
+                  </Pressable>
+                )}
+              </View>
             </View>
           </View>
         </ModalContent>

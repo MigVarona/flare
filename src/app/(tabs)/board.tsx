@@ -39,7 +39,7 @@ import {
   BottomTabInset,
   Colors,
   glow,
-  MaxPinnedNotes,
+  MaxPinnedItems,
   Spacing,
 } from "@/constants/theme";
 import { useSpace } from "@/context/space-context";
@@ -206,8 +206,8 @@ export default function BoardScreen() {
    *  slots are kept here, on the client, rather than fought over in the rules. */
   const togglePin = async (note: Note) => {
     if (!spaceId) return;
-    if (!note.pinned && pinnedNotes.length >= MaxPinnedNotes) {
-      notice(`Ya hay ${MaxPinnedNotes} notas fijadas — desfija una para poner otra`);
+    if (!note.pinned && pinnedNotes.length >= MaxPinnedItems) {
+      notice(`Ya hay ${MaxPinnedItems} notas fijadas — desfija una para poner otra`);
       return;
     }
     void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);

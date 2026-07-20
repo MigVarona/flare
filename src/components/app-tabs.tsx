@@ -12,7 +12,7 @@ import { Colors, Spacing } from '@/constants/theme';
 import { usePalette } from '@/hooks/use-palette';
 
 const theme = Colors.dark;
-type TabName = 'Espacio' | 'Avisos' | 'Fotos' | 'Tablón';
+type TabName = 'Espacio' | 'Avisos' | 'Archivo' | 'Tablón';
 
 /**
  * The bar: a piece of frosted glass with one light moving along it.
@@ -47,8 +47,8 @@ export default function AppTabs() {
         <TabTrigger name="reminders" href="/reminders" asChild>
           <TabButton>Avisos</TabButton>
         </TabTrigger>
-        <TabTrigger name="gallery" href="/gallery" asChild>
-          <TabButton>Fotos</TabButton>
+        <TabTrigger name="archive" href="/archive" asChild>
+          <TabButton>Archivo</TabButton>
         </TabTrigger>
         <TabTrigger name="board" href="/board" asChild>
           <TabButton>Tablón</TabButton>
@@ -131,7 +131,7 @@ function TabIcon({ name, color, focused }: { name: TabName; color: string; focus
           />
         </>
       )}
-      {name === 'Fotos' && (
+      {name === 'Archivo' && (
         <>
           <Rect
             x={4.6}

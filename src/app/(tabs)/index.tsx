@@ -228,7 +228,7 @@ export default function HomeScreen() {
           member.uid,
           'Foto nueva',
           `${myName} ha subido una foto`,
-          '/gallery',
+          '/archive',
         ).then((ok) => {
           if (!ok) notice('No hemos podido avisar a todos');
         });
@@ -399,12 +399,12 @@ export default function HomeScreen() {
         )}
 
         {!isLoading && (
-          <Pressable onPress={() => router.push('/gallery')} className="active:opacity-80">
+          <Pressable onPress={() => router.push('/archive')} className="active:opacity-80">
             <View style={styles.section}>
               <View style={styles.photoHeader}>
                 <View style={styles.photoTitleBlock}>
                   <ThemedText type="headline" style={styles.sectionTitle}>
-                    Fotos
+                    Archivo
                   </ThemedText>
                   <View style={styles.photoIdentityRow}>
                     {members.map((member) => (

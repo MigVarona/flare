@@ -155,4 +155,9 @@ export const MaxContentWidth = 800;
  * the rest of the board gets.
  */
 export const BoardCapacity = 7;
-export const MaxPinnedNotes = 2;
+
+/**
+ * How many items can be pinned at once — on the Tablón, or in the Archivo. Same rule,
+ * applied independently in each: fixing two notes doesn't touch the two photos you can fix.
+ */
+export const MaxPinnedItems = 2;
