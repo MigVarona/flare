@@ -11,6 +11,15 @@ import {
   GradientRule,
   ScreenHeader,
 } from '@/components/brand';
+import {
+  Actionsheet,
+  ActionsheetBackdrop,
+  ActionsheetContent,
+  ActionsheetDragIndicator,
+  ActionsheetDragIndicatorWrapper,
+  ActionsheetItem,
+  ActionsheetItemText,
+} from '@/components/ui/actionsheet';
 import { ThemedText } from '@/components/themed-text';
 import { lightAt, paletteById } from '@/constants/palettes';
 import { Colors, glow, neonBorder, Radius, Spacing } from '@/constants/theme';
@@ -46,20 +55,27 @@ export default function SpacesScreen() {
 }
 
 function SpaceList({ onCreate, onJoin }: { onCreate: () => void; onJoin: () => void }) {
-  const { spaces, spaceId, setActiveSpace } = useSpace();
+  const { spaces, spaceId, setActiveSpace, setSpaceArchived } = useSpace();
   const palette = usePalette();
+  const [managing, setManaging] = useState<Space | null>(null);
+
+  const activeSpaces = spaces.filter((space) => !space.archived);
+  const archivedSpaces = spaces.filter((space) => space.archived);
+
+  const selectSpace = (space: Space) => {
+    setActiveSpace(space.id);
+    router.back();
+  };
 
   return (
     <View style={styles.stack}>
-      {spaces.map((space) => (
+      {activeSpaces.map((space) => (
         <SpaceRow
           key={space.id}
           space={space}
           isActive={space.id === spaceId}
-          onPress={() => {
-            setActiveSpace(space.id);
-            router.back();
-          }}
+          onPress={() => selectSpace(space)}
+          onLongPress={space.kind === 'shared' ? () => setManaging(space) : undefined}
         />
       ))}
 
@@ -67,6 +83,49 @@ function SpaceList({ onCreate, onJoin }: { onCreate: () => void; onJoin: () => v
         <GhostButton title="Crear un espacio" color={palette.you} onPress={onCreate} />
         <GhostButton title="Entrar con una llave" color={palette.partner} onPress={onJoin} />
       </View>
+
+      {activeSpaces.some((space) => space.kind === 'shared') && (
+        <ThemedText type="small" themeColor="textSecondary" style={styles.hint}>
+          Mantén pulsado un espacio compartido para archivarlo — sigue ahí, solo deja de estar en medio.
+        </ThemedText>
+      )}
+
+      {archivedSpaces.length > 0 && (
+        <View style={styles.archivedBlock}>
+          <Eyebrow>Archivados</Eyebrow>
+          {archivedSpaces.map((space) => (
+            <SpaceRow
+              key={space.id}
+              space={space}
+              isActive={space.id === spaceId}
+              onPress={() => selectSpace(space)}
+              onLongPress={() => setManaging(space)}
+              faded
+            />
+          ))}
+        </View>
+      )}
+
+      <Actionsheet isOpen={Boolean(managing)} onClose={() => setManaging(null)}>
+        <ActionsheetBackdrop />
+        <ActionsheetContent>
+          <ActionsheetDragIndicatorWrapper>
+            <ActionsheetDragIndicator />
+          </ActionsheetDragIndicatorWrapper>
+          <ActionsheetItem
+            onPress={() => {
+              if (managing) void setSpaceArchived(managing.id, !managing.archived);
+              setManaging(null);
+            }}>
+            <ActionsheetItemText>
+              {managing?.archived ? 'Desarchivar este espacio' : 'Archivar este espacio'}
+            </ActionsheetItemText>
+          </ActionsheetItem>
+          <ActionsheetItem onPress={() => setManaging(null)}>
+            <ActionsheetItemText>Cancelar</ActionsheetItemText>
+          </ActionsheetItem>
+        </ActionsheetContent>
+      </Actionsheet>
     </View>
   );
 }
@@ -75,15 +134,23 @@ function SpaceRow({
   space,
   isActive,
   onPress,
+  onLongPress,
+  faded,
 }: {
   space: Space;
   isActive: boolean;
   onPress: () => void;
+  onLongPress?: () => void;
+  /** An archived space isn't hidden, just dimmed — still here, just not the centre of it. */
+  faded?: boolean;
 }) {
   const spacePalette = paletteById(space.paletteId);
 
   return (
-    <Pressable onPress={onPress} style={({ pressed }) => pressed && styles.pressed}>
+    <Pressable
+      onPress={onPress}
+      onLongPress={onLongPress}
+      style={({ pressed }) => [faded && styles.faded, pressed && styles.pressed]}>
       <GlowCard color={isActive ? spacePalette.lens : undefined}>
         <View style={styles.rowHead}>
           <View style={styles.lightRow}>
@@ -279,6 +346,17 @@ const styles = StyleSheet.create({
   },
   titleBlock: {
     gap: Spacing[8],
+  },
+  hint: {
+    textAlign: 'center',
+    marginTop: -Spacing[8],
+  },
+  archivedBlock: {
+    gap: Spacing[12],
+    marginTop: Spacing[8],
+  },
+  faded: {
+    opacity: 0.55,
   },
   rowHead: {
     flexDirection: 'row',

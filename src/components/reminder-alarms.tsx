@@ -166,7 +166,11 @@ export function ReminderAlarms() {
   }, []);
 
   useEffect(() => {
-    if (!user || spaces.length === 0) return undefined;
+    // An archived space is a trip that's over — nothing in it should still be trying to
+    // ring your phone. Treating it exactly like a space you've left (below) means any
+    // alarm already scheduled for it gets cancelled by the same cleanup, not a new one.
+    const activeSpaces = spaces.filter((space) => !space.archived);
+    if (!user || activeSpaces.length === 0) return undefined;
 
     const syncUnion = () => {
       const merged = [...wantedBySpace.current.values()].flat();
@@ -175,7 +179,7 @@ export function ReminderAlarms() {
       });
     };
 
-    const unsubscribers = spaces.map((space) => {
+    const unsubscribers = activeSpaces.map((space) => {
       const remindersQuery = query(
         collection(db, 'spaces', space.id, 'reminders'),
         where('status', '==', 'pending'),
@@ -211,8 +215,8 @@ export function ReminderAlarms() {
       });
     });
 
-    // Spaces that are gone stop wanting anything.
-    const knownIds = new Set(spaces.map((space) => space.id));
+    // Spaces that are gone — or archived — stop wanting anything.
+    const knownIds = new Set(activeSpaces.map((space) => space.id));
     for (const spaceId of wantedBySpace.current.keys()) {
       if (!knownIds.has(spaceId)) wantedBySpace.current.delete(spaceId);
     }

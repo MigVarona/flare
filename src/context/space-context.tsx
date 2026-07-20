@@ -45,6 +45,8 @@ export type Space = {
   members: Record<string, MemberProfile>;
   inviteCode: string | null;
   paletteId: string;
+  /** A trip that's over, not a space that's gone: still there, just out of the way. */
+  archived: boolean;
 };
 
 export type SpaceMember = {
@@ -82,6 +84,9 @@ type SpaceContextValue = {
   joinSpace: (code: string) => Promise<boolean>;
   renameMe: (name: string) => Promise<void>;
   renameSpace: (name: string) => Promise<void>;
+  /** Freeze a shared space, or bring it back. Any member can do either; the personal space
+   *  can't be archived. Archiving the one you're looking at bounces you back to Personal. */
+  setSpaceArchived: (targetSpaceId: string, archived: boolean) => Promise<void>;
   /**
    * Walk out of the active shared space. If others remain, the space goes on without you;
    * if you were the last one, it goes with you. The personal space can't be left.
@@ -120,6 +125,7 @@ function readSpace(id: string, data: Record<string, unknown>): Space {
     members: (data.members as Record<string, MemberProfile> | undefined) ?? {},
     inviteCode: (data.inviteCode as string | undefined) ?? null,
     paletteId: (data.palette as string | undefined) ?? DefaultPalette.id,
+    archived: (data.archived as boolean | undefined) ?? false,
   };
 }
 
@@ -233,9 +239,12 @@ export function SpaceProvider({ children }: { children: ReactNode }) {
     if (user) void AsyncStorage.setItem(`flare.activeSpace.${user.uid}`, id);
   };
 
-  // The active space: the chosen one if you're still in it, your personal one otherwise.
+  // The active space: the chosen one, unless it's just been archived — from this phone or
+  // another — in which case there's nothing left to show, so it falls back like it would
+  // if you'd left. Your personal space otherwise.
+  const chosen = spaces?.find((entry) => entry.id === activeSpaceId);
   const space =
-    spaces?.find((entry) => entry.id === activeSpaceId) ??
+    (chosen && !chosen.archived ? chosen : undefined) ??
     spaces?.find((entry) => entry.kind === 'personal') ??
     spaces?.[0] ??
     null;
@@ -438,6 +447,10 @@ export function SpaceProvider({ children }: { children: ReactNode }) {
     await updateDoc(doc(db, 'spaces', space.id), { name: name.trim() });
   };
 
+  const setSpaceArchived = async (targetSpaceId: string, archived: boolean) => {
+    await updateDoc(doc(db, 'spaces', targetSpaceId), { archived });
+  };
+
   const isLoading =
     isAuthLoading || (Boolean(user) && (isProfileLoading || spaces === null || space === null));
 
@@ -465,6 +478,7 @@ export function SpaceProvider({ children }: { children: ReactNode }) {
       joinSpace,
       renameMe,
       renameSpace,
+      setSpaceArchived,
       leaveSpace,
       deleteAccount,
       isGoogleAccount,
