@@ -358,11 +358,11 @@ Conservamos los datos de cuenta mientras esta permanezca activa.
 
 Cuando eliminas tu cuenta, iniciamos la supresión o anonimización de los datos asociados, salvo aquellos que deban conservarse bloqueados por una obligación legal o para atender posibles responsabilidades.
 
-### 10.2. Mensajes
+### 10.2. Tablón
 
-El espacio conserva únicamente los **cinco mensajes más recientes**.
+El espacio conserva únicamente las **siete notas más recientes**. Hasta dos pueden fijarse y no cuentan para ese límite.
 
-Cuando se añade un mensaje nuevo y se supera este límite, el mensaje más antiguo se elimina del espacio para ambas personas.
+Cuando se añade una nota nueva y se supera este límite, la nota no fijada más antigua se elimina del espacio para todos sus miembros.
 
 ### 10.3. Fotografías, recordatorios y reacciones
 

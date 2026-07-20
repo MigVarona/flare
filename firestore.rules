@@ -265,6 +265,10 @@ service cloud.firestore {
         allow delete: if isMemberOf(spaceId);
       }
 
+      // The Tablón — the door-of-the-fridge note board. Its collection is still named
+      // `messages` (that predates the pivot and nobody outside this file ever sees it);
+      // what changed is the shape: notes can be pinned, and the client, not the rules,
+      // keeps the pinned count to two — that's a soft house rule, not a security boundary.
       match /messages/{messageId} {
         allow read: if isMemberOf(spaceId);
         allow create: if isMemberOf(spaceId)
@@ -273,7 +277,9 @@ service cloud.firestore {
           && request.resource.data.senderId == request.auth.uid
           && isValidCreatedAt(request.resource.data.createdAt);
         allow update: if isMemberOf(spaceId)
-          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['reactions']);
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['reactions', 'pinned'])
+          && (!('pinned' in request.resource.data.diff(resource.data).affectedKeys())
+              || request.resource.data.pinned is bool);
         allow delete: if isMemberOf(spaceId);
       }
     }

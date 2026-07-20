@@ -120,7 +120,7 @@ export default {
 
       // Where tapping the notification lands you. A fixed list, not a free string: the app
       // will navigate wherever this says, so it can only say places that exist.
-      const url = ['/reminders', '/chat', '/gallery'].includes(body.url ?? '')
+      const url = ['/reminders', '/board', '/gallery'].includes(body.url ?? '')
         ? body.url
         : undefined;
 

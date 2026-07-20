@@ -25,3 +25,26 @@ export function CalendarGlyph({ color, size = 18 }: { color: string; size?: numb
     </Svg>
   );
 }
+
+/** A drawing pin. Marks a note on the Tablón as one that doesn't fade with the others. */
+export function PinGlyph({
+  color,
+  size = 16,
+  filled = false,
+}: {
+  color: string;
+  size?: number;
+  filled?: boolean;
+}) {
+  return (
+    <Svg width={size} height={size} viewBox="0 0 24 24">
+      <Path
+        d="M14.8 3.2 20.8 9.2 17.6 12.4 18.7 16.9 15.7 19.9 11.1 15.3 6.3 20.1 4.9 18.7 9.7 13.9 5.1 9.3 8.1 6.3 12.6 7.4 15.8 4.2Z"
+        fill={filled ? color : 'none'}
+        stroke={color}
+        strokeWidth={filled ? 0 : 1.8}
+        strokeLinejoin="round"
+      />
+    </Svg>
+  );
+}

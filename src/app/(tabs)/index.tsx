@@ -488,10 +488,10 @@ export default function HomeScreen() {
         )}
 
         {!isLoading && (
-          <Pressable onPress={() => router.push('/chat')} className="active:opacity-80">
+          <Pressable onPress={() => router.push('/board')} className="active:opacity-80">
             <View style={styles.section}>
               <ThemedText type="headline" style={styles.sectionTitle}>
-                Mensajes
+                Tablón
               </ThemedText>
               {recentMessages.length > 0 ? (
                 <View style={styles.messageStack}>
@@ -528,7 +528,7 @@ export default function HomeScreen() {
               ) : (
                 <GlowCard style={styles.emptyCard}>
                   <ThemedText type="small" themeColor="textSecondary">
-                    Caben cinco. El primero sigue libre.
+                    Caben siete. El primero sigue libre.
                   </ThemedText>
                 </GlowCard>
               )}

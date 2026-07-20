@@ -30,8 +30,8 @@ export default function AppTabs() {
           <TabTrigger name="gallery" href="/gallery" asChild>
             <TabButton>Fotos</TabButton>
           </TabTrigger>
-          <TabTrigger name="chat" href="/chat" asChild>
-            <TabButton>Mensajes</TabButton>
+          <TabTrigger name="board" href="/board" asChild>
+            <TabButton>Tablón</TabButton>
           </TabTrigger>
         </CustomTabList>
       </TabList>

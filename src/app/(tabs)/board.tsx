@@ -27,6 +27,7 @@ import { scheduleOnRN } from "react-native-worklets";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { GlowCard, ScreenHeader } from "@/components/brand";
+import { PinGlyph } from "@/components/icons";
 import { LightSignal, isSignalId, useSignalMeaning, type SignalId } from "@/components/light-signals";
 import { MessageSkeletons } from "@/components/loading";
 import { DeathMs, MessageLight, StepMs } from "@/components/message-light";
@@ -34,10 +35,11 @@ import { SignalPicker } from "@/components/signal-picker";
 import { ThemedText } from "@/components/themed-text";
 import { Modal, ModalBackdrop, ModalContent } from "@/components/ui/modal";
 import {
+  BoardCapacity,
   BottomTabInset,
   Colors,
   glow,
-  MessageCapacity,
+  MaxPinnedNotes,
   Spacing,
 } from "@/constants/theme";
 import { useSpace } from "@/context/space-context";
@@ -48,14 +50,22 @@ import { sendPushNotification } from "@/lib/push";
 
 const theme = Colors.dark;
 
-type Message = {
+type Note = {
   id: string;
   text: string;
   senderId: string;
   reactions: Record<string, SignalId>;
+  /** Sits outside the count, and doesn't fade with age. At most two at a time. */
+  pinned: boolean;
 };
 
-export default function ChatScreen() {
+/**
+ * The Tablón — the door of the fridge, digital. Seven slots for what's true *now*: the wifi
+ * password, "llave en el buzón", a photo of the schedule. Not a chat: there's no history to
+ * scroll, so nothing here is trying to be remembered on its own — pin the one or two things
+ * that need to survive the rest ageing out.
+ */
+export default function BoardScreen() {
   const insets = useSafeAreaInsets();
   const { user, spaceId, otherMembers, myName, isAlone } = useSpace();
   const palette = usePalette();
@@ -63,20 +73,20 @@ export default function ChatScreen() {
   const showSignalMeaning = useSignalMeaning();
   const scrollRef = useRef<ScrollView>(null);
 
-  const [messages, setMessages] = useState<Message[]>([]);
+  const [notes, setNotes] = useState<Note[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [draft, setDraft] = useState("");
   const [isKeyboardOpen, setIsKeyboardOpen] = useState(false);
-  const [viewing, setViewing] = useState<Message | null>(null);
-  const [reactingTo, setReactingTo] = useState<Message | null>(null);
-  /** Messages we've already asked to delete, so a second snapshot doesn't ask again. */
+  const [viewing, setViewing] = useState<Note | null>(null);
+  const [reactingTo, setReactingTo] = useState<Note | null>(null);
+  /** Notes we've already asked to delete, so a second snapshot doesn't ask again. */
   const trimmed = useRef(new Set<string>());
   /** The ones the surge is on its way to put out. They're still here; they just aren't for long. */
   const [dying, setDying] = useState<string[]>([]);
   /** Bumped by every arrival. The bubbles watch it to know when to carry the surge. */
   const [surge, setSurge] = useState(0);
   const newest = useRef<string | null>(null);
-  /** Shown once, the first time this chat is opened, to explain that only 5 messages fit. */
+  /** Shown once, the first time the board is opened, to explain the capacity. */
   const [showCapacityNotice, setShowCapacityNotice] = useState(false);
 
   useEffect(() => {
@@ -93,53 +103,56 @@ export default function ChatScreen() {
   }, []);
 
   useEffect(() => {
-    AsyncStorage.getItem("chatCapacityNoticeSeen").then((seen) => {
+    AsyncStorage.getItem("boardCapacityNoticeSeen").then((seen) => {
       if (!seen) setShowCapacityNotice(true);
     });
   }, []);
 
   const dismissCapacityNotice = () => {
     setShowCapacityNotice(false);
-    void AsyncStorage.setItem("chatCapacityNoticeSeen", "true");
+    void AsyncStorage.setItem("boardCapacityNoticeSeen", "true");
   };
 
   useEffect(() => {
     if (!spaceId) return undefined;
-    const messagesQuery = query(
+    const notesQuery = query(
       collection(db, "spaces", spaceId, "messages"),
       orderBy("createdAt", "asc"),
     );
-    return onSnapshot(messagesQuery, (snapshot) => {
-      setMessages(
+    return onSnapshot(notesQuery, (snapshot) => {
+      setNotes(
         snapshot.docs.map((docSnapshot) => ({
           id: docSnapshot.id,
           text: docSnapshot.data().text as string,
           senderId: docSnapshot.data().senderId as string,
           reactions: (docSnapshot.data().reactions as Record<string, SignalId>) ?? {},
+          pinned: (docSnapshot.data().pinned as boolean | undefined) ?? false,
         })),
       );
       setIsLoading(false);
 
-      // An arrival sends a surge up the conversation. Not on first load, though: opening the
-      // chat is not an event, and lighting the whole screen up would say something happened.
+      // An arrival sends a surge up the board. Not on first load, though: opening it isn't
+      // an event, and lighting the whole screen up would say something happened.
       const arrived = snapshot.docs.at(-1)?.id ?? null;
       if (newest.current && arrived && arrived !== newest.current) {
         setSurge((count) => count + 1);
       }
       newest.current = arrived;
 
-      // The space holds five. Trimming used to be the sender's job, done against their own
-      // copy of the list — so two people writing at the same moment could each count five,
-      // and leave six standing, or throw the same one out twice.
+      // The board holds seven — pinned notes don't count against that, and don't get
+      // trimmed. Trimming used to be the sender's job, done against their own copy of the
+      // list — so two people writing at the same moment could each count seven and leave
+      // eight standing, or throw the same one out twice.
       //
-      // Whoever *sees* too many trims instead. Both phones may reach for the same message,
-      // and that's fine: deleting what's already gone changes nothing. They converge on five
+      // Whoever *sees* too many trims instead. Both phones may reach for the same note, and
+      // that's fine: deleting what's already gone changes nothing. They converge on seven
       // without having to agree on anything.
       //
       // The delay is the point: the light has to go out before the record does, or the
-      // message would simply blink out of existence and the rule would stay invisible.
-      const overflow = snapshot.docs.length - MessageCapacity;
-      for (const oldest of snapshot.docs.slice(0, Math.max(0, overflow))) {
+      // note would simply blink out of existence and the rule would stay invisible.
+      const regularDocs = snapshot.docs.filter((docSnapshot) => !docSnapshot.data().pinned);
+      const overflow = regularDocs.length - BoardCapacity;
+      for (const oldest of regularDocs.slice(0, Math.max(0, overflow))) {
         if (trimmed.current.has(oldest.id)) continue;
         trimmed.current.add(oldest.id);
         setDying((ids) => [...ids, oldest.id]);
@@ -150,9 +163,12 @@ export default function ChatScreen() {
     });
   }, [spaceId]);
 
+  const pinnedNotes = notes.filter((note) => note.pinned);
+  const regularNotes = notes.filter((note) => !note.pinned);
+
   const canSend = draft.trim().length > 0;
 
-  const sendMessage = async () => {
+  const sendNote = async () => {
     if (!spaceId || !user || !draft.trim()) return;
     const text = draft.trim();
     setDraft("");
@@ -166,24 +182,36 @@ export default function ChatScreen() {
     } catch {
       // The draft is already cleared — give it back rather than lose what they typed.
       setDraft(text);
-      notice("No se ha podido enviar el mensaje");
+      notice("No se ha podido dejar la nota");
       return;
     }
 
     for (const member of otherMembers) {
-      sendPushNotification(spaceId, member.uid, myName, text, "/chat").then((ok) => {
+      sendPushNotification(spaceId, member.uid, myName, text, "/board").then((ok) => {
         if (!ok) notice("No hemos podido avisar a todos");
       });
     }
   };
 
-  const react = async (message: Message, signal: SignalId | null) => {
+  const react = async (note: Note, signal: SignalId | null) => {
     if (!spaceId || !user) return;
     setReactingTo(null);
     void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
-    await updateDoc(doc(db, "spaces", spaceId, "messages", message.id), {
+    await updateDoc(doc(db, "spaces", spaceId, "messages", note.id), {
       [`reactions.${user.uid}`]: signal ?? deleteField(),
     });
+  };
+
+  /** Fixing something to the board is a soft house rule, not a security boundary — the two
+   *  slots are kept here, on the client, rather than fought over in the rules. */
+  const togglePin = async (note: Note) => {
+    if (!spaceId) return;
+    if (!note.pinned && pinnedNotes.length >= MaxPinnedNotes) {
+      notice(`Ya hay ${MaxPinnedNotes} notas fijadas — desfija una para poner otra`);
+      return;
+    }
+    void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    await updateDoc(doc(db, "spaces", spaceId, "messages", note.id), { pinned: !note.pinned });
   };
 
   return (
@@ -193,12 +221,13 @@ export default function ChatScreen() {
         style={{ paddingTop: insets.top + Spacing[24] }}
       >
         <View className="px-6">
-          <ScreenHeader title="Mensajes" />
+          <ScreenHeader title="Tablón" />
           {showCapacityNotice && (
             <GlowCard style={{ marginBottom: Spacing[16] }}>
               <ThemedText className="leading-6">
-                Este no es un chat de siempre. Aquí solo viven los últimos 5 mensajes: hablar del
-                ahora importa más que guardarlo todo.
+                No es un chat de siempre: es la puerta de la nevera. Caben siete notas — las más
+                viejas se apagan al llegar una nueva. Mantén pulsada una para fijarla y que no se
+                apague, hasta dos a la vez.
               </ThemedText>
               <Pressable onPress={dismissCapacityNotice} hitSlop={12} className="self-end">
                 <ThemedText type="smallBold" style={{ color: palette.accent }}>
@@ -221,77 +250,63 @@ export default function ChatScreen() {
         >
           {isLoading ? (
             <MessageSkeletons />
-          ) : messages.length === 0 ? (
-            <ThemedText className="py-16 text-center leading-6 text-muted-foreground">
-              {isAlone ? "Deja el primer mensaje encendido." : "Dejad el primer mensaje encendido."}
-            </ThemedText>
           ) : (
-            messages.map((message, index) => {
-              const isMine = message.senderId === user?.uid;
-              const color = palette.colorFor(message.senderId);
+            <>
+              {pinnedNotes.length > 0 && (
+                <View className="mb-2 gap-3">
+                  {pinnedNotes.map((note) => (
+                    <NoteBubble
+                      key={note.id}
+                      note={note}
+                      isMine={note.senderId === user?.uid}
+                      color={palette.colorFor(note.senderId)}
+                      rest={1}
+                      delay={0}
+                      isDying={false}
+                      onOpen={() => setViewing(note)}
+                      onLongPress={() => setReactingTo(note)}
+                      onTogglePin={() => togglePin(note)}
+                      showSignalMeaning={showSignalMeaning}
+                      colorFor={palette.colorFor}
+                    />
+                  ))}
+                  <View className="h-px bg-border" />
+                </View>
+              )}
 
-              // The oldest message is the faintest: it is already on its way out.
-              // The rule is shown as light, not explained in a label.
-              const distance = messages.length - 1 - index;
-              const rest = Math.max(
-                0.35,
-                1 - distance * (0.65 / Math.max(1, MessageCapacity - 1)),
-              );
-              const signals = Object.entries(message.reactions);
+              {regularNotes.length === 0 && pinnedNotes.length === 0 ? (
+                <ThemedText className="py-16 text-center leading-6 text-muted-foreground">
+                  {isAlone ? "Deja la primera nota encendida." : "Dejad la primera nota encendida."}
+                </ThemedText>
+              ) : (
+                regularNotes.map((note, index) => {
+                  // The oldest note is the faintest: it is already on its way out. The rule
+                  // is shown as light, not explained in a label.
+                  const distance = regularNotes.length - 1 - index;
+                  const rest = Math.max(
+                    0.35,
+                    1 - distance * (0.65 / Math.max(1, BoardCapacity - 1)),
+                  );
 
-              const open = Gesture.Tap()
-                .numberOfTaps(1)
-                .onEnd(() => scheduleOnRN(setViewing, message));
-              const answer = Gesture.LongPress()
-                .minDuration(350)
-                .onStart(() => scheduleOnRN(setReactingTo, message));
-              const gesture = Gesture.Exclusive(answer, open);
-
-              return (
-                <GestureDetector key={message.id} gesture={gesture}>
-                  <Animated.View
-                  key={message.id}
-                  entering={FadeIn.duration(260)}
-                  exiting={FadeOut.duration(220)}
-                  layout={LinearTransition.duration(260)}
-                  className={
-                    isMine ? "max-w-[82%] self-end" : "max-w-[82%] self-start"
-                  }
-                >
-                    <MessageLight
-                        color={color}
-                        isMine={isMine}
-                        rest={rest}
-                        delay={distance * StepMs}
-                        isDying={dying.includes(message.id)}
-                      >
-                        <ThemedText className="text-base leading-6">
-                          {message.text}
-                        </ThemedText>
-                        {signals.length > 0 && (
-                          <View className="mt-3 flex-row gap-1.5">
-                            {signals.map(([uid, signal]) =>
-                              isSignalId(signal) ? (
-                                <GestureDetector
-                                  key={uid}
-                                  gesture={Gesture.Tap().onEnd(() =>
-                                    scheduleOnRN(showSignalMeaning, signal),
-                                  )}>
-                                  <LightSignal
-                                    id={signal}
-                                    color={palette.colorFor(uid)}
-                                    size={16}
-                                  />
-                                </GestureDetector>
-                              ) : null,
-                            )}
-                          </View>
-                        )}
-                    </MessageLight>
-                  </Animated.View>
-                </GestureDetector>
-              );
-            })
+                  return (
+                    <NoteBubble
+                      key={note.id}
+                      note={note}
+                      isMine={note.senderId === user?.uid}
+                      color={palette.colorFor(note.senderId)}
+                      rest={rest}
+                      delay={distance * StepMs}
+                      isDying={dying.includes(note.id)}
+                      onOpen={() => setViewing(note)}
+                      onLongPress={() => setReactingTo(note)}
+                      onTogglePin={() => togglePin(note)}
+                      showSignalMeaning={showSignalMeaning}
+                      colorFor={palette.colorFor}
+                    />
+                  );
+                })
+              )}
+            </>
           )}
         </Animated.ScrollView>
 
@@ -312,10 +327,10 @@ export default function ChatScreen() {
               placeholder="Escribe…"
               placeholderTextColor={theme.textSecondary}
               className="flex-1 rounded-full border border-border bg-card px-6 py-4 text-base text-foreground"
-              onSubmitEditing={sendMessage}
+              onSubmitEditing={sendNote}
             />
             <Pressable
-              onPress={canSend ? sendMessage : undefined}
+              onPress={canSend ? sendNote : undefined}
               disabled={!canSend}
               className={`overflow-hidden rounded-full active:opacity-75 ${
                 canSend ? "" : "opacity-35"
@@ -352,13 +367,32 @@ export default function ChatScreen() {
               paddingBottom: insets.bottom + Spacing[24],
             }}
           >
-            <View className="absolute left-0 right-0 px-6" style={{ top: insets.top + Spacing[16] }}>
+            <View
+              className="absolute left-0 right-0 flex-row items-center justify-between px-6"
+              style={{ top: insets.top + Spacing[16] }}>
               <Pressable
                 onPress={() => setViewing(null)}
                 className="self-start rounded-full border border-border bg-background/80 px-4 py-3 active:opacity-70"
               >
                 <ThemedText type="smallBold">Cerrar</ThemedText>
               </Pressable>
+              {viewing && (
+                <Pressable
+                  onPress={() => togglePin(viewing)}
+                  hitSlop={12}
+                  className="flex-row items-center gap-2 rounded-full border border-border bg-background/80 px-4 py-3 active:opacity-70">
+                  <PinGlyph
+                    color={viewing.pinned ? palette.accent : theme.textSecondary}
+                    filled={viewing.pinned}
+                    size={14}
+                  />
+                  <ThemedText
+                    type="smallBold"
+                    style={{ color: viewing.pinned ? palette.accent : theme.textSecondary }}>
+                    {viewing.pinned ? "Fijada" : "Fijar"}
+                  </ThemedText>
+                </Pressable>
+              )}
             </View>
 
             {viewing && (
@@ -416,5 +450,80 @@ export default function ChatScreen() {
         onClose={() => setReactingTo(null)}
       />
     </KeyboardAvoidingView>
+  );
+}
+
+function NoteBubble({
+  note,
+  isMine,
+  color,
+  rest,
+  delay,
+  isDying,
+  onOpen,
+  onLongPress,
+  onTogglePin,
+  showSignalMeaning,
+  colorFor,
+}: {
+  note: Note;
+  isMine: boolean;
+  color: string;
+  rest: number;
+  delay: number;
+  isDying: boolean;
+  onOpen: () => void;
+  onLongPress: () => void;
+  onTogglePin: () => void;
+  showSignalMeaning: (signal: SignalId) => void;
+  colorFor: (uid: string) => string;
+}) {
+  const signals = Object.entries(note.reactions);
+
+  const open = Gesture.Tap().numberOfTaps(1).onEnd(() => scheduleOnRN(onOpen));
+  const answer = Gesture.LongPress().minDuration(350).onStart(() => scheduleOnRN(onLongPress));
+  const gesture = Gesture.Exclusive(answer, open);
+
+  return (
+    <GestureDetector gesture={gesture}>
+      <Animated.View
+        entering={FadeIn.duration(260)}
+        exiting={FadeOut.duration(220)}
+        layout={LinearTransition.duration(260)}
+        className={isMine ? "max-w-[82%] self-end" : "max-w-[82%] self-start"}
+      >
+        <MessageLight color={color} isMine={isMine} rest={rest} delay={delay} isDying={isDying}>
+          <View className="flex-row items-start gap-2">
+            <ThemedText className="flex-1 text-base leading-6">{note.text}</ThemedText>
+            <Pressable
+              onPress={(event) => {
+                event.stopPropagation();
+                onTogglePin();
+              }}
+              hitSlop={10}
+              className="active:opacity-60">
+              <PinGlyph
+                color={note.pinned ? color : `${theme.textSecondary}99`}
+                filled={note.pinned}
+                size={14}
+              />
+            </Pressable>
+          </View>
+          {signals.length > 0 && (
+            <View className="mt-3 flex-row gap-1.5">
+              {signals.map(([uid, signal]) =>
+                isSignalId(signal) ? (
+                  <GestureDetector
+                    key={uid}
+                    gesture={Gesture.Tap().onEnd(() => scheduleOnRN(showSignalMeaning, signal))}>
+                    <LightSignal id={signal} color={colorFor(uid)} size={16} />
+                  </GestureDetector>
+                ) : null,
+              )}
+            </View>
+          )}
+        </MessageLight>
+      </Animated.View>
+    </GestureDetector>
   );
 }

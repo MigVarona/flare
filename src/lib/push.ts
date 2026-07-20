@@ -7,7 +7,7 @@ export async function sendPushNotification(
   recipientUid: string,
   title: string,
   message: string,
-  /** Where tapping the notification lands: '/reminders', '/chat' or '/gallery'. */
+  /** Where tapping the notification lands: '/reminders', '/board' or '/gallery'. */
   url?: string,
 ) {
   const token = await auth.currentUser?.getIdToken();

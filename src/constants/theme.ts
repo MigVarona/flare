@@ -149,7 +149,10 @@ export const BottomTabInset = Platform.select({ ios: 50, android: 80 }) ?? 0;
 export const MaxContentWidth = 800;
 
 /**
- * How many messages the space holds. Not a setting — it's the rule the app is built on:
- * only what's present exists, so what you say has to be worth the room it takes.
+ * How many notes the Tablón holds — the door-of-the-fridge board, not a chat. Not a
+ * setting: it's the rule the app is built on, so what you pin up has to be worth the room
+ * it takes. Pinned notes sit outside this count; up to two can stand no matter how full
+ * the rest of the board gets.
  */
-export const MessageCapacity = 5;
+export const BoardCapacity = 7;
+export const MaxPinnedNotes = 2;
