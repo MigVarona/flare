@@ -55,7 +55,7 @@ import {
 import { useSpace } from "@/context/space-context";
 import { useNotice } from "@/hooks/use-notice";
 import { usePalette } from "@/hooks/use-palette";
-import { formatDueDate, isOverdue } from "@/lib/dates";
+import { formatDueDate, isOverdue, nextOccurrence, RepeatLabel, type RepeatFreq } from "@/lib/dates";
 import { db } from "@/lib/firebase";
 import { sendPushNotification } from "@/lib/push";
 
@@ -73,7 +73,16 @@ type Reminder = {
   createdByUid?: string;
   /** Whose phones it rings on. Reminders from before the pivot don't carry it. */
   targetUids?: string[];
+  /** Set once at creation and never touched again — the rules make sure of that. */
+  repeat?: { freq: RepeatFreq } | null;
 };
+
+const RepeatOptions: { freq: RepeatFreq | null; label: string }[] = [
+  { freq: null, label: "No se repite" },
+  { freq: "daily", label: "Cada día" },
+  { freq: "weekly", label: "Cada semana" },
+  { freq: "monthly", label: "Cada mes" },
+];
 
 export default function RemindersScreen() {
   const insets = useSafeAreaInsets();
@@ -90,6 +99,8 @@ export default function RemindersScreen() {
   const [dueAt, setDueAt] = useState<Date | undefined>(undefined);
   /** Whose phones the new reminder will ring on. At least one, always. */
   const [targetUids, setTargetUids] = useState<string[]>([]);
+  /** Only makes sense once there's a date to repeat from. */
+  const [repeatFreq, setRepeatFreq] = useState<RepeatFreq | null>(null);
   const [canNotify, setCanNotify] = useState<boolean | null>(null);
   const [actingOn, setActingOn] = useState<Reminder | null>(null);
   /** Marked "Hecho" but still undoable: hidden from the list while its delete is pending. */
@@ -123,6 +134,7 @@ export default function RemindersScreen() {
             dueAt: dueAtValue ? dueAtValue.toDate() : null,
             createdByUid: data.createdByUid as string | undefined,
             targetUids: data.targetUids as string[] | undefined,
+            repeat: data.repeat as { freq: RepeatFreq } | null | undefined,
           }];
         }),
       );
@@ -136,6 +148,7 @@ export default function RemindersScreen() {
    */
   const openForm = () => {
     setTargetUids(isAlone ? (user ? [user.uid] : []) : otherMembers.map((member) => member.uid));
+    setRepeatFreq(null);
     setIsAdding(true);
   };
 
@@ -163,10 +176,14 @@ export default function RemindersScreen() {
         status: "pending",
         createdByUid: user.uid,
         targetUids,
+        // A repeat with nothing to repeat *from* isn't meaningful, so it can't be chosen
+        // without a date — but a date can still change its mind, hence the extra guard here.
+        repeat: dueAt && repeatFreq ? { freq: repeatFreq } : null,
         createdAt: Timestamp.now(),
       });
       setTitle("");
       setDueAt(undefined);
+      setRepeatFreq(null);
       setIsAdding(false);
 
       // Everyone whose phone this will ring on hears about it now; your own needs no push.
@@ -207,6 +224,33 @@ export default function RemindersScreen() {
     if (!spaceId) return;
     // Putting a light out is a physical act, so it lands in the wrist too.
     void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+
+    // A repeating reminder isn't finished, it's due again: "Hecho" moves it forward instead
+    // of closing it. Nothing is lost, so there's nothing to offer an undo for — getting the
+    // date wrong is what "Posponer" is already for.
+    if (reminder.repeat && reminder.dueAt) {
+      const next = nextOccurrence(reminder.dueAt, reminder.repeat.freq);
+      void updateDoc(doc(db, "spaces", spaceId, "reminders", reminder.id), {
+        dueAt: Timestamp.fromDate(next),
+        dueLabel: formatDueDate(next),
+        status: "pending",
+      });
+      toast.show({
+        placement: "top",
+        duration: UndoWindowMs,
+        render: ({ id }) => (
+          <Toast
+            nativeID={`repeat-${id}`}
+            action="muted"
+            variant="solid"
+            className="mt-2 rounded-2xl border border-border bg-card px-4 py-3">
+            <ToastDescription>Hecho — vuelve {formatDueDate(next).toLowerCase()}</ToastDescription>
+          </Toast>
+        ),
+      });
+      return;
+    }
+
     setHiddenIds((ids) => new Set(ids).add(reminder.id));
 
     toast.show({
@@ -390,6 +434,39 @@ export default function RemindersScreen() {
                   </View>
                 </DateTimePickerTrigger>
               </DateTimePicker>
+
+              {/* Repeating only means something once there's a date to repeat from — so the
+                  option waits until one is picked, rather than being greyed out and asking
+                  to be explained. */}
+              {dueAt && (
+                <View className="flex-row flex-wrap gap-2">
+                  {RepeatOptions.map((option) => {
+                    const isSelected = option.freq === repeatFreq;
+
+                    return (
+                      <Pressable
+                        key={option.label}
+                        onPress={() => setRepeatFreq(option.freq)}
+                        className="rounded-full border px-4 py-2 active:opacity-70"
+                        style={
+                          isSelected
+                            ? [
+                                { backgroundColor: `${palette.accent}22`, borderColor: palette.accent },
+                                glow(palette.accent, 10, "33"),
+                              ]
+                            : { borderColor: theme.border }
+                        }>
+                        <ThemedText
+                          type="smallBold"
+                          style={{ color: isSelected ? palette.accent : theme.textSecondary }}>
+                          {option.label}
+                        </ThemedText>
+                      </Pressable>
+                    );
+                  })}
+                </View>
+              )}
+
               <View className="mt-2 gap-2">
                 <GradientButton
                   title={
@@ -460,6 +537,11 @@ export default function RemindersScreen() {
                             >
                               {reminder.dueAt ? formatDueDate(reminder.dueAt) : reminder.dueLabel}
                             </ThemedText>
+                            {reminder.repeat && (
+                              <ThemedText type="small" className="text-muted-foreground">
+                                · ↻ {RepeatLabel[reminder.repeat.freq]}
+                              </ThemedText>
+                            )}
                             {overdue && (
                               <ThemedText
                                 type="small"

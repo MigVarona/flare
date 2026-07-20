@@ -27,3 +27,41 @@ export function formatDueDate(date: Date) {
 export function isOverdue(date: Date) {
   return date.getTime() < Date.now();
 }
+
+export type RepeatFreq = 'daily' | 'weekly' | 'monthly';
+
+export const RepeatLabel: Record<RepeatFreq, string> = {
+  daily: 'Cada día',
+  weekly: 'Cada semana',
+  monthly: 'Cada mes',
+};
+
+/**
+ * The next time a repeating reminder is due, kept on the calendar rather than the clock.
+ *
+ * Moving by milliseconds (a day is 86 400 000 of them) drifts an hour across a DST change,
+ * because a "day" isn't a fixed span of time — it's "the same clock reading, one date
+ * later". `setDate`/`setMonth` ask for exactly that: they carry the hour and minute forward
+ * unchanged and let the calendar do the counting.
+ */
+export function nextOccurrence(date: Date, freq: RepeatFreq): Date {
+  const next = new Date(date);
+
+  if (freq === 'daily') {
+    next.setDate(next.getDate() + 1);
+    return next;
+  }
+  if (freq === 'weekly') {
+    next.setDate(next.getDate() + 7);
+    return next;
+  }
+
+  // Monthly has no fixed day count, so "the 31st, one month on" needs a landing that
+  // exists: the day clamps to whatever the next month's last day actually is.
+  const day = next.getDate();
+  next.setDate(1);
+  next.setMonth(next.getMonth() + 1);
+  const daysInNextMonth = new Date(next.getFullYear(), next.getMonth() + 1, 0).getDate();
+  next.setDate(Math.min(day, daysInNextMonth));
+  return next;
+}

@@ -1,11 +1,20 @@
 import * as Notifications from 'expo-notifications';
 import { router } from 'expo-router';
-import { collection, doc, onSnapshot, query, Timestamp, updateDoc, where } from 'firebase/firestore';
+import {
+  collection,
+  doc,
+  getDoc,
+  onSnapshot,
+  query,
+  Timestamp,
+  updateDoc,
+  where,
+} from 'firebase/firestore';
 import { useEffect, useRef } from 'react';
 import { Platform } from 'react-native';
 
 import { useSpace } from '@/context/space-context';
-import { formatDueDate } from '@/lib/dates';
+import { formatDueDate, nextOccurrence, type RepeatFreq } from '@/lib/dates';
 import { db } from '@/lib/firebase';
 
 type Alarm = {
@@ -64,7 +73,24 @@ export function ReminderAlarms() {
 
       try {
         if (response.actionIdentifier === 'done' && ref) {
-          await updateDoc(ref, { status: 'done' });
+          // A repeating reminder answered from the shade needs the same rule the screen
+          // uses — advance, don't close — which means reading it first to know whether
+          // it repeats and from when.
+          const snapshot = await getDoc(ref);
+          const reminder = snapshot.data();
+          const repeat = reminder?.repeat as { freq: RepeatFreq } | null | undefined;
+          const dueAt = (reminder?.dueAt as Timestamp | null | undefined)?.toDate();
+
+          if (repeat && dueAt) {
+            const next = nextOccurrence(dueAt, repeat.freq);
+            await updateDoc(ref, {
+              dueAt: Timestamp.fromDate(next),
+              dueLabel: formatDueDate(next),
+              status: 'pending',
+            });
+          } else {
+            await updateDoc(ref, { status: 'done' });
+          }
           return;
         }
 

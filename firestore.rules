@@ -27,6 +27,13 @@ service cloud.firestore {
       return value is timestamp || value is number;
     }
 
+    function isValidRepeat(value) {
+      return value == null
+        || (value is map
+            && value.keys().hasOnly(['freq'])
+            && value.freq in ['daily', 'weekly', 'monthly']);
+    }
+
     // The slice of you that lives on a space: what the others need to paint your light and
     // ring your phone, and nothing else. Your account itself stays yours alone.
     function isValidMemberProfile(profile) {
@@ -181,6 +188,7 @@ service cloud.firestore {
             'status',
             'createdByUid',
             'targetUids',
+            'repeat',
             'createdAt'
           ])
           && isValidName(request.resource.data.title, 120)
@@ -194,6 +202,7 @@ service cloud.firestore {
           && request.resource.data.targetUids.size() >= 1
           && get(/databases/$(database)/documents/spaces/$(spaceId)).data.memberIds
             .hasAll(request.resource.data.targetUids)
+          && (!('repeat' in request.resource.data) || isValidRepeat(request.resource.data.repeat))
           && isValidCreatedAt(request.resource.data.createdAt);
         allow update: if isMemberOf(spaceId)
           && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
