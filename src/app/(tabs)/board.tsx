@@ -432,12 +432,15 @@ function NoteBubble({
             }}
             hitSlop={10}
             style={{
+              // Positive, not negative: sitting just inside the bubble's own padding keeps
+              // this clear of the neon border — a negative offset here used to straddle the
+              // stroke itself, reading as a bite taken out of the corner rather than a badge.
               position: "absolute",
-              top: -6,
-              right: -6,
-              width: 22,
-              height: 22,
-              borderRadius: 11,
+              top: 6,
+              right: 6,
+              width: 20,
+              height: 20,
+              borderRadius: 10,
               alignItems: "center",
               justifyContent: "center",
               backgroundColor: theme.background,
