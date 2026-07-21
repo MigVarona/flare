@@ -3,11 +3,11 @@
  * links, lists) is handled by the markdown parser in @/lib/markdown, so nothing here should
  * be summarized, reworded, or reformatted relative to the source document.
  */
-export const TermsVersion = '2026-07-17';
+export const TermsVersion = '2026-07-21';
 
 export const TermsMarkdown = `# Términos de uso de Flare
 
-**Última actualización: 17 de julio de 2026**
+**Última actualización: 21 de julio de 2026**
 
 Estos Términos de uso regulan el acceso, registro y utilización de la aplicación **Flare** y de los servicios asociados a ella.
 
@@ -15,11 +15,11 @@ Lee estas condiciones antes de crear una cuenta o utilizar la aplicación. Al re
 
 ## 1. Qué es Flare
 
-Flare es una aplicación que permite crear un espacio digital privado compartido entre dos personas.
+Flare es una aplicación que permite crear espacios digitales privados: un espacio personal, de un solo miembro, y espacios compartidos de hasta ocho personas.
 
-Dentro de ese espacio, las personas usuarias pueden compartir contenidos y utilizar las funcionalidades disponibles en cada momento, como fotografías, mensajes, avisos, recordatorios u otros elementos similares.
+Dentro de esos espacios, las personas usuarias pueden compartir contenidos y utilizar las funcionalidades disponibles en cada momento, como fotografías, mensajes, avisos, recordatorios u otros elementos similares.
 
-Flare proporciona la infraestructura tecnológica necesaria para que ambas personas puedan utilizar ese espacio. No somos autores ni propietarios del contenido que suben las personas usuarias y no intervenimos en sus comunicaciones, salvo cuando sea necesario por razones técnicas, de seguridad, para atender un reporte o para cumplir una obligación legal.
+Flare proporciona la infraestructura tecnológica necesaria para que las personas de cada espacio puedan utilizarlo. No somos autores ni propietarios del contenido que suben las personas usuarias y no intervenimos en sus comunicaciones, salvo cuando sea necesario por razones técnicas, de seguridad, para atender un reporte o para cumplir una obligación legal.
 
 ## 2. Requisitos para utilizar Flare
 
@@ -51,17 +51,19 @@ Debes avisarnos cuanto antes a [info@wearecapa.es](mailto:info@wearecapa.es) si 
 
 Podremos pedirte información razonablemente necesaria para comprobar tu identidad o recuperar el acceso a la cuenta.
 
-## 4. Creación del espacio compartido
+## 4. Creación de espacios
 
-El espacio Flare está diseñado para ser utilizado por dos personas.
+Cada cuenta dispone de un espacio personal, de un solo miembro, desde el momento de su registro.
 
-La vinculación entre ambas cuentas podrá realizarse mediante una invitación, enlace, código u otro mecanismo habilitado en la aplicación. La persona invitada deberá aceptar la vinculación antes de acceder al espacio compartido.
+Además, las personas usuarias pueden crear espacios compartidos de hasta **ocho personas** — pareja, familia, un piso, un viaje u otro grupo similar — o unirse a uno ya existente.
 
-Eres responsable de enviar las invitaciones únicamente a la persona con la que deseas compartir el espacio y de comprobar que estás vinculando la cuenta correcta.
+La incorporación a un espacio compartido se realiza mediante una llave de acceso, enlace, código u otro mecanismo habilitado en la aplicación. Quien recibe la llave decide libremente si se une al espacio.
 
-Cada persona conserva el control de su propia cuenta y puede abandonar o desvincularse del espacio compartido conforme a las opciones disponibles en la aplicación.
+Eres responsable de compartir la llave de acceso únicamente con las personas con las que deseas compartir ese espacio.
 
-La creación de un espacio compartido no implica que Flare verifique la identidad, relación personal, consentimiento general o situación legal existente entre las dos personas.
+Cada persona conserva el control de su propia cuenta y puede abandonar un espacio compartido conforme a las opciones disponibles en la aplicación. Si permanecen otras personas en él, el espacio continúa existiendo para ellas.
+
+La creación o el uso de un espacio compartido no implica que Flare verifique la identidad, relación personal, consentimiento general o situación legal existente entre las personas que lo forman.
 
 ## 5. Responsabilidad sobre el contenido
 
@@ -70,7 +72,7 @@ Cada persona es responsable del contenido que sube, publica, envía o comparte m
 Antes de subir cualquier contenido, debes asegurarte de que:
 
 - Eres su autor o titular, o tienes permiso suficiente para utilizarlo.
-- Su publicación y comunicación a la otra persona es lícita.
+- Su publicación y comunicación a las demás personas del espacio es lícita.
 - Cuentas con el consentimiento necesario de las personas que aparecen o son identificables.
 - No vulnera la privacidad, intimidad, honor, imagen, propiedad intelectual u otros derechos de terceros.
 - No contiene información obtenida de forma ilícita.
@@ -116,7 +118,7 @@ Al subir contenido, nos concedes una licencia limitada, no exclusiva, gratuita y
 
 - Almacenar y alojar el contenido.
 - Procesarlo técnicamente.
-- Mostrarlo dentro del espacio compartido a la otra persona autorizada.
+- Mostrarlo dentro de cada espacio a las personas autorizadas.
 - Sincronizarlo entre dispositivos.
 - Crear copias de seguridad técnicas.
 - Mantener la seguridad y el funcionamiento del servicio.
@@ -136,18 +138,18 @@ No puedes copiar, modificar, distribuir, vender, alquilar, descompilar, realizar
 
 ## 9. Privacidad del espacio y límites de confidencialidad
 
-El espacio compartido está diseñado para que su contenido sea accesible únicamente por las dos cuentas vinculadas, salvo los accesos técnicos, de seguridad o legalmente necesarios que se describen en estos Términos y en la Política de Privacidad.
+Cada espacio compartido está diseñado para que su contenido sea accesible únicamente por las cuentas que forman parte de él, salvo los accesos técnicos, de seguridad o legalmente necesarios que se describen en estos Términos y en la Política de Privacidad.
 
-No obstante, debes tener en cuenta que la otra persona puede:
+No obstante, debes tener en cuenta que cualquier otra persona del espacio puede:
 
 - Ver el contenido que compartes.
 - Realizar capturas de pantalla.
 - Descargarlo, copiarlo o conservarlo fuera de Flare.
 - Mostrarlo a terceros utilizando medios externos a la aplicación.
 
-Flare no puede impedir ni revertir las copias o capturas realizadas fuera de sus sistemas. Por ello, solo debes compartir contenido con el que te sientas seguro y respecto del cual confíes en la otra persona.
+Flare no puede impedir ni revertir las copias o capturas realizadas fuera de sus sistemas. Por ello, solo debes compartir contenido con el que te sientas seguro y respecto del cual confíes en las demás personas del espacio.
 
-La consideración de un espacio como privado no supone una garantía absoluta de confidencialidad frente a acciones realizadas por la otra persona, ataques informáticos, fallos técnicos o requerimientos válidos de las autoridades.
+La consideración de un espacio como privado no supone una garantía absoluta de confidencialidad frente a acciones realizadas por otras personas del espacio, ataques informáticos, fallos técnicos o requerimientos válidos de las autoridades.
 
 ## 10. Proveedores tecnológicos
 
@@ -220,27 +222,28 @@ Puedes borrar el contenido que hayas subido utilizando las opciones disponibles 
 Cuando eliminas un contenido:
 
 - Deja de estar disponible para el uso ordinario dentro del espacio compartido.
-- La otra persona deja de poder acceder a él a través de Flare, salvo que el contenido forme parte de una función o registro que legítimamente deba conservarse.
+- Las demás personas del espacio dejan de poder acceder a él a través de Flare, salvo que el contenido forme parte de una función o registro que legítimamente deba conservarse.
 - La eliminación no afecta a capturas de pantalla, descargas, copias o reenvíos realizados previamente fuera de la aplicación.
 - Pueden permanecer copias residuales durante un periodo limitado en sistemas de respaldo o recuperación.
 - Podremos conservarlo cuando sea necesario para cumplir una obligación legal, atender una reclamación, investigar un uso indebido o proteger derechos y seguridad.
 
 Los plazos y criterios de conservación se explican con mayor detalle en la Política de Privacidad.
 
-## 15. Desvinculación y finalización de la relación entre las personas usuarias
+## 15. Salida de un espacio compartido
 
-Cualquiera de las dos personas puede abandonar o solicitar la desvinculación del espacio compartido mediante las funciones disponibles en Flare.
+Cualquier persona puede abandonar un espacio compartido mediante las funciones disponibles en Flare.
 
-La desvinculación puede implicar que ambas personas dejen de acceder al espacio común o que cada una conserve únicamente los contenidos y datos que le correspondan, según la configuración técnica disponible en ese momento.
+Cuando alguien abandona un espacio en el que permanecen otras personas, el espacio y su contenido continúan existiendo para quienes se quedan, y quien lo abandona pierde el acceso a él.
 
-Cuando una persona se desvincula:
+Cuando alguien abandona un espacio en el que no queda ninguna otra persona, el espacio se elimina junto con su contenido, conforme se explica en la Política de Privacidad.
 
-- La otra persona puede perder el acceso al contenido subido por quien abandona el espacio.
-- Cada persona podrá conservar el contenido que ella misma haya subido, cuando técnicamente sea posible y resulte compatible con los derechos de la otra persona.
-- Flare podrá impedir el acceso de ambas personas a determinados elementos para evitar conflictos, accesos no autorizados o riesgos para la privacidad.
+Al abandonar un espacio:
+
+- Pierdes el acceso al contenido que hubiera en él, incluido el que tú mismo hayas subido.
+- Las demás personas del espacio pueden conservar el contenido que permanezca en él, cuando técnicamente sea posible.
 - Las copias realizadas previamente fuera de la aplicación no se eliminan automáticamente.
 
-Si existe una disputa entre las dos personas sobre la propiedad, acceso o eliminación de un contenido, podremos bloquearlo temporalmente mientras revisamos la situación, pero no actuamos como mediadores de la relación personal ni resolvemos controversias privadas sobre hechos que no podamos verificar.
+Si existe una disputa entre personas de un mismo espacio sobre la propiedad, acceso o eliminación de un contenido, podremos bloquearlo temporalmente mientras revisamos la situación, pero no actuamos como mediadores de la relación personal entre ellas ni resolvemos controversias privadas sobre hechos que no podamos verificar.
 
 ## 16. Eliminación de la cuenta
 
@@ -249,9 +252,9 @@ Puedes solicitar la eliminación de tu cuenta desde la aplicación, cuando esta 
 La eliminación de la cuenta puede conllevar:
 
 - La pérdida de acceso a Flare.
-- La desvinculación del espacio compartido.
+- La eliminación de tu espacio personal y de su contenido.
+- Tu salida de cada espacio compartido del que formes parte: continuará existiendo para las demás personas si permanece alguna en él, o se eliminará junto con su contenido si eras la única persona que quedaba.
 - La eliminación o anonimización de tus datos personales.
-- La retirada del contenido que hayas subido del acceso ordinario de la otra persona.
 - La conservación temporal de ciertos datos o copias de seguridad cuando resulte necesario por razones técnicas o legales.
 
 Antes de eliminar tu cuenta, podrás descargar o guardar el contenido que desees conservar cuando Flare ofrezca una función para ello. No garantizamos que exista una herramienta de exportación para todos los tipos de contenido.
@@ -324,7 +327,7 @@ Flare se presta conforme a la funcionalidad disponible en cada momento.
 
 En la máxima medida permitida por la legislación aplicable, no somos responsables de:
 
-- Conflictos personales entre las dos personas vinculadas.
+- Conflictos personales entre las personas de un mismo espacio.
 - La veracidad, legalidad o consecuencias del contenido que suben las personas usuarias.
 - Capturas, descargas, copias o divulgaciones realizadas por otra persona fuera de Flare.
 - Daños causados por el uso ilícito o no autorizado de una cuenta por parte de terceros cuando no sea imputable a Flare.

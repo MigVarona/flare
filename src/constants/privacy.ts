@@ -3,13 +3,13 @@
  * links, lists) is handled by the markdown parser in @/lib/markdown, so nothing here should
  * be summarized, reworded, or reformatted relative to the source document.
  */
-export const PrivacyVersion = '2026-07-17';
+export const PrivacyVersion = '2026-07-21';
 
 export const PrivacyMarkdown = `# Política de Privacidad de Flare
 
-**Última actualización: 17 de julio de 2026**
+**Última actualización: 21 de julio de 2026**
 
-Flare es un espacio digital privado compartido entre dos personas. Esta Política de Privacidad explica de forma clara qué datos personales tratamos, para qué los utilizamos, quién puede acceder a ellos, dónde se almacenan, durante cuánto tiempo se conservan y cómo puedes ejercer tus derechos.
+Flare organiza tu actividad en espacios digitales privados: un espacio personal que es solo tuyo, y espacios compartidos de hasta ocho personas — tu pareja, tu familia, un piso, un viaje. Esta Política de Privacidad explica de forma clara qué datos personales tratamos, para qué los utilizamos, quién puede acceder a ellos, dónde se almacenan, durante cuánto tiempo se conservan y cómo puedes ejercer tus derechos.
 
 Esta Política de Privacidad forma parte de los Términos de uso de Flare.
 
@@ -19,7 +19,7 @@ Esta Política de Privacidad forma parte de los Términos de uso de Flare.
 - No vendemos tus datos personales.
 - No elaboramos perfiles comerciales.
 - No utilizamos tus fotos, mensajes o recordatorios para entrenar sistemas de inteligencia artificial.
-- El contenido del espacio está destinado a ser visto únicamente por las dos personas vinculadas.
+- El contenido de cada espacio está destinado a ser visto únicamente por quienes forman parte de él.
 - Utilizamos proveedores tecnológicos para prestar el servicio, principalmente Google Firebase, Cloudinary y Expo.
 - Puedes borrar contenido desde la app y eliminar tu cuenta cuando quieras.
 - Flare está dirigida exclusivamente a personas mayores de 16 años.
@@ -61,7 +61,7 @@ Tratamos las preferencias que eliges dentro de la aplicación, como:
 
 ### 3.3. Contenido del espacio compartido
 
-Tratamos el contenido que tú y la otra persona decidís crear o compartir, como:
+Tratamos el contenido que tú y el resto de personas de tus espacios decidís crear o compartir, como:
 
 - Recordatorios.
 - Fotografías.
@@ -70,7 +70,7 @@ Tratamos el contenido que tú y la otra persona decidís crear o compartir, como
 - Fechas, horas y autoría asociadas al contenido.
 - Datos necesarios para ordenar, sincronizar y mostrar cada elemento.
 
-Este contenido puede incluir información personal sobre ti, sobre la otra persona o sobre terceros.
+Este contenido puede incluir información personal sobre ti, sobre otras personas del espacio o sobre terceros.
 
 ### 3.4. Datos de notificaciones
 
@@ -127,10 +127,10 @@ Los datos pueden proceder:
 
 - Directamente de ti, cuando creas una cuenta o utilizas Flare.
 - De Google, si eliges iniciar sesión con tu cuenta de Google.
-- De la otra persona del espacio, cuando crea contenido en el que apareces o que se refiere a ti.
+- De otras personas de tus espacios, cuando crean contenido en el que apareces o que se refiere a ti.
 - De tu dispositivo y de nuestros proveedores tecnológicos, mediante registros técnicos necesarios para prestar y proteger el servicio.
 
-La otra persona es responsable de contar con permiso suficiente para subir contenido sobre ti o sobre terceros.
+Cada persona del espacio es responsable de contar con permiso suficiente para subir contenido sobre ti o sobre terceros.
 
 ## 5. Para qué utilizamos los datos y cuál es la base jurídica
 
@@ -142,7 +142,7 @@ Utilizamos tus datos para:
 - Permitir el inicio de sesión.
 - Mantener tu cuenta activa.
 - Recuperar el acceso cuando proceda.
-- Gestionar la vinculación con la otra persona.
+- Gestionar tu pertenencia a uno o varios espacios.
 
 **Base jurídica:** ejecución del contrato que aceptas mediante los Términos de uso.
 
@@ -151,7 +151,7 @@ Utilizamos tus datos para:
 Utilizamos el contenido para:
 
 - Guardarlo y sincronizarlo.
-- Mostrarlo a las dos personas autorizadas.
+- Mostrarlo a las personas autorizadas de cada espacio.
 - Permitir mensajes, fotografías, reacciones y recordatorios.
 - Aplicar las reglas de acceso del espacio.
 - Eliminarlo cuando lo solicites.
@@ -235,11 +235,11 @@ Nuestros proveedores pueden generar registros técnicos, de seguridad y rendimie
 
 ## 7. Quién puede acceder a los datos
 
-### 7.1. La otra persona del espacio
+### 7.1. Los demás miembros del espacio
 
-La otra persona vinculada puede acceder al contenido compartido conforme al funcionamiento de Flare.
+Quien forma parte de un mismo espacio puede acceder al contenido compartido en él, conforme al funcionamiento de Flare.
 
-Debes tener en cuenta que puede realizar capturas de pantalla, descargas o copias por medios externos. Flare no puede eliminar esas copias del dispositivo de la otra persona.
+Debes tener en cuenta que cualquier miembro puede realizar capturas de pantalla, descargas o copias por medios externos. Flare no puede eliminar esas copias de sus dispositivos.
 
 ### 7.2. Personal autorizado de Flare
 
@@ -314,7 +314,7 @@ No comunicaremos más información de la necesaria para la finalidad correspondi
 
 El espacio compartido no es público, no aparece en búsquedas y no se puede listar desde fuera de Flare.
 
-Aplicamos controles de acceso en el servidor para que cada cuenta solo pueda acceder al espacio al que está vinculada.
+Aplicamos controles de acceso en el servidor para que cada cuenta solo pueda acceder a los espacios de los que forma parte.
 
 Las fotografías se configuran como archivos privados y se muestran mediante mecanismos de acceso autorizado, como enlaces firmados o identificadores temporales.
 
@@ -413,12 +413,12 @@ Puedes borrar desde la aplicación el contenido que hayas subido, según las opc
 Cuando eliminas un contenido:
 
 - Deja de estar visible dentro de Flare.
-- La otra persona deja de poder acceder a él mediante la aplicación.
+- Los demás miembros del espacio dejan de poder acceder a él mediante la aplicación.
 - Se inicia su eliminación de los sistemas activos.
 - Las copias de seguridad pueden tardar un tiempo limitado en sobrescribirse.
 - No se eliminan las capturas, descargas o copias que otra persona haya realizado fuera de Flare.
 
-## 12. Cómo eliminar tu cuenta y el espacio
+## 12. Cómo eliminar tu cuenta y tus espacios
 
 Puedes eliminar tu cuenta desde:
 
@@ -429,12 +429,10 @@ La eliminación es irreversible.
 Según el funcionamiento actual de Flare, la eliminación de una cuenta provoca:
 
 - La eliminación de la cuenta de la persona solicitante.
-- La eliminación del espacio compartido.
-- La retirada del contenido del acceso ordinario.
-- La eliminación de fotografías, mensajes, recordatorios y reacciones almacenados en el espacio.
-- La pérdida de acceso al espacio por parte de la otra persona.
+- La eliminación de su espacio personal y de todo el contenido que contenía: fotografías, avisos, notas y reacciones.
+- Su salida de cada espacio compartido del que formara parte.
 
-La otra persona podrá conservar su propia cuenta si el funcionamiento de la aplicación lo permite, pero perderá el acceso al espacio eliminado.
+Cuando sales de un espacio compartido en el que quedan más personas, ese espacio y su contenido continúan existiendo para quienes se quedan en él, sin verse afectados. Un espacio compartido solo se elimina por completo si, en el momento de eliminar la cuenta, no queda ninguna otra persona en él.
 
 Si ya no tienes instalada la aplicación, puedes solicitar la eliminación escribiendo a [info@wearecapa.es](mailto:info@wearecapa.es) o utilizando la página de eliminación de cuenta indicada en la ficha de Flare en la tienda de aplicaciones.
 
@@ -491,7 +489,7 @@ Si crees que una persona menor de edad utiliza Flare, puedes avisarnos en [info@
 
 No debes subir fotografías, mensajes, datos personales o información íntima de otras personas si no tienes autorización suficiente.
 
-Si la otra persona del espacio sube contenido sobre ti sin permiso, puedes:
+Si otra persona de tu espacio sube contenido sobre ti sin permiso, puedes:
 
 - Pedirle que lo elimine.
 - Utilizar las funciones disponibles en la app.
@@ -552,4 +550,4 @@ Madrid, España
 
 ---
 
-**Flare — un espacio para dos.**`;
+**Flare — el espacio de los tuyos.**`;

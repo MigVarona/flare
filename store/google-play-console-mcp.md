@@ -63,30 +63,30 @@ Flare
 ### Descripcion corta
 
 ```text
-Avisos, fotos y cinco mensajes. Un espacio privado para dos personas.
+Avisos que suenan en el movil correcto. Espacios de 1 a 8, sin ruido.
 ```
 
 ### Descripcion completa
 
 ```text
-Flare es un espacio compartido entre dos personas. No hay feed, no hay audiencia, no hay nadie mas: entras con una llave que solo tiene la otra persona, y todo lo que hay dentro es de los dos.
+Flare es el espacio de los tuyos: solo, en pareja, con tu familia o con quien compartas piso. Cada cuenta empieza con un espacio personal que ya funciona desde el primer minuto, invitar a alguien es un paso mas, no un requisito. Los espacios compartidos admiten hasta 8 personas, con una llave que caduca en una semana y nunca es de un solo uso.
 
-AVISOS QUE LLEGAN A SU HORA
-Deja un aviso y a la otra persona le suena el movil en el momento. A la hora senalada, su telefono se lo recuerda con una alarma exacta, y puede marcarlo como hecho o posponerlo media hora directamente desde la notificacion, sin abrir la app. Si el aviso lo merece, se pasa al calendario con un toque.
+AVISOS QUE SUENAN EN EL MOVIL CORRECTO
+Deja un aviso para ti, para alguien concreto o para todo el espacio, y suena en el telefono que corresponde a la hora exacta, con "Hecho" y "+30 min" directamente desde la notificacion, sin abrir la app. Puede repetirse cada dia, semana o mes, y rotar entre las personas del espacio: la basura le toca esta semana a uno, la siguiente a otro, y el color dice de quien es el turno. Cuando alguien lo completa, los demas lo ven sin tener que preguntar.
 
-FOTOS SOLO PARA VOSOTROS
-Las fotos se guardan cifradas en transito y se sirven en privado: no hay enlaces publicos. Cada foto lleva el color de quien la trajo.
+EL TABLON
+No es un chat de siempre: es la puerta de la nevera. Caben siete notas, la mas antigua se apaga al llegar una nueva, y hasta dos se pueden fijar para que no se apaguen nunca: el wifi, la llave en el buzon, lo que hay que tener siempre a la vista.
 
-CINCO MENSAJES
-El espacio guarda solo los cinco ultimos mensajes. Cuando llega uno nuevo, el mas antiguo se apaga para los dos a la vez. Lo que os decis tiene que valer el sitio que ocupa.
+EL ARCHIVO
+Fotos privadas, cifradas en transito y sin enlaces publicos. Cada una lleva el color de quien la subio, y las que fijes se encuentran aunque sean de hace meses: el DNI, el contrato, la matricula del coche.
 
 EL COLOR DICE QUIEN
-Cada persona lleva una luz. Todo lo que haces en el espacio lleva tu color, y donde vuestras dos luces se cruzan aparece un tercero que no es de ninguno. Elegis la pareja de colores del espacio entre seis combinaciones.
+Cada persona lleva una luz fija desde el momento en que entra al espacio. Todo lo que crea la lleva puesta. Elegis la paleta del espacio entre seis combinaciones disenadas para convivir, tenga el espacio 2 personas o 8.
 
 PRIVADO POR DISENO
-Solo se entra con llave. Un espacio no se puede buscar ni listar. Sin publicidad, sin analitica de uso, sin vender datos. Y si os vais, todo se borra de verdad: tambien los archivos.
+Solo se entra con llave, y esa llave caduca. Un espacio no se puede buscar ni listar. Sin publicidad, sin analitica de uso, sin vender datos. Si sales de un espacio con mas gente dentro, sigue existiendo para ellos; si eras el ultimo, se borra de verdad, tambien los archivos.
 
-Flare es para dos: una pareja, dos hermanas, dos amigos a distancia. El numero lo pone la app; el vinculo lo poneis vosotros.
+Flare es para los tuyos, sean cuantos sean. El numero lo pones tu.
 ```
 
 ## Assets de ficha
@@ -126,7 +126,7 @@ RELLENAR_CON_CONTRASENA_DE_CUENTA_DE_PRUEBA
 Informacion adicional para acceder a la app, en ingles:
 
 ```text
-Open the app and sign in with the test account above. If the app asks for a pairing code, create a new space from the onboarding screen. The app can also be tested with a second account by joining the space using the generated pairing code. There are no paid features.
+Open the app and sign in with the test account above. Signing in opens the app directly into a personal space - no pairing step is required. To test a shared space, go to Ajustes > Espacios, create a shared space to get an access key, then sign in with a second account and use "Entrar con una llave" to join it. There are no paid features.
 ```
 
 Si no existe todavia una cuenta de prueba, crear una en la app antes de guardar esta seccion. Se puede usar un alias Gmail, por ejemplo:
@@ -221,7 +221,7 @@ Users can delete their account from the app settings. If they no longer have acc
 Si Play Console pregunta por `SCHEDULE_EXACT_ALARM`, usar esta justificacion:
 
 ```text
-La funcion principal de la app son recordatorios que la otra persona debe recibir a la hora exacta que se ha fijado. Una alarma inexacta puede retrasarse minutos u horas y haria inutil la funcion.
+La funcion principal de la app son recordatorios que la persona destinataria debe recibir a la hora exacta que se ha fijado. Una alarma inexacta puede retrasarse minutos u horas y haria inutil la funcion.
 ```
 
 ## Anuncios, monetizacion y pagos

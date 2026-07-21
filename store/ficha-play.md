@@ -14,43 +14,49 @@ corta y las capturas; el nombre no tiene que explicarse.
 ## Descripción corta (máx. 80)
 
 ```
-Avisos, fotos y cinco mensajes. Un espacio privado para dos personas.
+Avisos que suenan en el móvil correcto. Espacios de 1 a 8, sin ruido.
 ```
 
 ## Descripción completa (máx. 4000)
 
 ```
-Flare es un espacio compartido entre dos personas. No hay feed, no hay
-audiencia, no hay nadie más: entras con una llave que solo tiene la otra
-persona, y todo lo que hay dentro es de los dos.
+Flare es el espacio de los tuyos: solo, en pareja, con tu familia o con quien
+compartas piso. Cada cuenta empieza con un espacio personal que ya funciona
+desde el primer minuto — invitar a alguien es un paso más, no un requisito.
+Los espacios compartidos admiten hasta 8 personas, con una llave que caduca
+en una semana y nunca es de un solo uso.
 
-AVISOS QUE LLEGAN A SU HORA
-Deja un aviso y a la otra persona le suena el móvil en el momento. A la hora
-señalada, su teléfono se lo recuerda con una alarma exacta — y puede marcarlo
-como hecho o posponerlo media hora directamente desde la notificación, sin
-abrir la app. Si el aviso lo merece, se pasa al calendario con un toque.
+AVISOS QUE SUENAN EN EL MÓVIL CORRECTO
+Deja un aviso para ti, para alguien concreto o para todo el espacio, y suena
+en el teléfono que corresponde a la hora exacta — con "Hecho" y "+30 min"
+directamente desde la notificación, sin abrir la app. Puede repetirse cada
+día, semana o mes, y rotar entre las personas del espacio: la basura le toca
+esta semana a uno, la siguiente a otro, y el color dice de quién es el turno.
+Cuando alguien lo completa, los demás lo ven sin tener que preguntar.
 
-FOTOS SOLO PARA VOSOTROS
-Las fotos se guardan cifradas en tránsito y se sirven en privado: no hay
-enlaces públicos. Cada foto lleva el color de quien la trajo.
+EL TABLÓN
+No es un chat de siempre: es la puerta de la nevera. Caben siete notas —
+la más antigua se apaga al llegar una nueva — y hasta dos se pueden fijar
+para que no se apaguen nunca: el wifi, la llave en el buzón, lo que hay que
+tener siempre a la vista.
 
-CINCO MENSAJES
-El espacio guarda solo los cinco últimos mensajes. Cuando llega uno nuevo, el
-más antiguo se apaga — para los dos a la vez. Lo que os decís tiene que valer
-el sitio que ocupa.
+EL ARCHIVO
+Fotos privadas, cifradas en tránsito y sin enlaces públicos. Cada una lleva
+el color de quien la subió, y las que fijes se encuentran aunque sean de
+hace meses: el DNI, el contrato, la matrícula del coche.
 
 EL COLOR DICE QUIÉN
-Cada persona lleva una luz. Todo lo que haces en el espacio lleva tu color, y
-donde vuestras dos luces se cruzan aparece un tercero que no es de ninguno.
-Elegís la pareja de colores del espacio entre seis combinaciones.
+Cada persona lleva una luz fija desde el momento en que entra al espacio.
+Todo lo que crea la lleva puesta. Elegís la paleta del espacio entre seis
+combinaciones diseñadas para convivir, tenga el espacio 2 personas o 8.
 
 PRIVADO POR DISEÑO
-Solo se entra con llave. Un espacio no se puede buscar ni listar. Sin
-publicidad, sin analítica de uso, sin vender datos. Y si os vais, todo se
-borra de verdad: también los archivos.
+Solo se entra con llave, y esa llave caduca. Un espacio no se puede buscar
+ni listar. Sin publicidad, sin analítica de uso, sin vender datos. Si sales
+de un espacio con más gente dentro, sigue existiendo para ellos; si eras el
+último, se borra de verdad — también los archivos.
 
-Flare es para dos: una pareja, dos hermanas, dos amigos a distancia. El
-número lo pone la app; el vínculo lo ponéis vosotros.
+Flare es para los tuyos, sean cuantos sean. El número lo pones tú.
 ```
 
 ## Datos de la ficha
@@ -68,7 +74,8 @@ número lo pone la app; el vínculo lo ponéis vosotros.
 
 - Violencia, miedo, sexo, drogas, apuestas: **No** a todo.
 - ¿Los usuarios pueden interactuar o intercambiar contenido? **Sí**
-  (mensajes y fotos entre dos usuarios que se emparejan con un código).
+  (mensajes y fotos entre las personas de un mismo espacio, de hasta 8, que
+  se unen con una llave de acceso).
 - ¿Comparte la ubicación del usuario con otros? **No**
 - ¿Permite compras digitales? **No**
 - Resultado esperado (clasificación de contenido, IARC): **PEGI 3** con aviso
@@ -92,8 +99,8 @@ número lo pone la app; el vínculo lo ponéis vosotros.
 
 ## Alarmas exactas (SCHEDULE_EXACT_ALARM) — declaración
 
-> La función principal de la app son recordatorios que la otra persona debe
-> recibir a la hora exacta que se ha fijado. Una alarma inexacta puede
+> La función principal de la app son recordatorios que la persona destinataria
+> debe recibir a la hora exacta que se ha fijado. Una alarma inexacta puede
 > retrasarse minutos u horas y haría inútil la función.
 
 ## El camino (en orden)
