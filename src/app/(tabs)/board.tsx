@@ -419,22 +419,36 @@ function NoteBubble({
         className={isMine ? "max-w-[82%] self-end" : "max-w-[82%] self-start"}
       >
         <MessageLight color={color} isMine={isMine}>
-          <View className="flex-row items-start gap-2">
-            <ThemedText className="flex-1 text-base leading-6">{note.text}</ThemedText>
-            <Pressable
-              onPress={(event) => {
-                event.stopPropagation();
-                onTogglePin();
-              }}
-              hitSlop={10}
-              className="active:opacity-60">
-              <PinGlyph
-                color={note.pinned ? color : `${theme.textSecondary}99`}
-                filled={note.pinned}
-                size={14}
-              />
-            </Pressable>
-          </View>
+          {/* A row with a flex:1 text needs its container's width resolved before it can
+              divide it up — and this bubble's width is itself "whatever the text needs,
+              up to 82%", never a fixed number. That circularity is what silently collapsed
+              the text to nothing before: a badge overlaid in the corner sidesteps it
+              entirely, since the text goes back to being the only thing in the flow. */}
+          <ThemedText className="pr-5 text-base leading-6">{note.text}</ThemedText>
+          <Pressable
+            onPress={(event) => {
+              event.stopPropagation();
+              onTogglePin();
+            }}
+            hitSlop={10}
+            style={{
+              position: "absolute",
+              top: -6,
+              right: -6,
+              width: 22,
+              height: 22,
+              borderRadius: 11,
+              alignItems: "center",
+              justifyContent: "center",
+              backgroundColor: theme.background,
+            }}
+            className="active:opacity-60">
+            <PinGlyph
+              color={note.pinned ? color : `${theme.textSecondary}99`}
+              filled={note.pinned}
+              size={13}
+            />
+          </Pressable>
           {signals.length > 0 && (
             <View className="mt-3 flex-row gap-1.5">
               {signals.map(([uid, signal]) =>
