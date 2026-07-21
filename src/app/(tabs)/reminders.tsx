@@ -496,15 +496,16 @@ export default function RemindersScreen() {
                       <Pressable
                         key={option.label}
                         onPress={() => setRepeatFreq(option.freq)}
-                        className="rounded-full border px-4 py-2 active:opacity-70"
-                        style={
+                        className="items-center rounded-full border px-4 py-2 active:opacity-70"
+                        style={[
+                          styles.repeatOption,
                           isSelected
                             ? [
                                 { backgroundColor: `${palette.accent}22`, borderColor: palette.accent },
                                 glow(palette.accent, 10, "33"),
                               ]
-                            : { borderColor: theme.border }
-                        }>
+                            : { borderColor: theme.border },
+                        ]}>
                         <ThemedText
                           type="smallBold"
                           style={{ color: isSelected ? palette.accent : theme.textSecondary }}>
@@ -740,6 +741,13 @@ const styles = StyleSheet.create({
     fontFamily: "Outfit_400Regular",
     fontSize: 16,
     lineHeight: 24,
+  },
+  // Four fixed words, always the same four — a clean 2x2 grid reads as decided; letting
+  // "No se repite" and "Cada día" set the width of their row while the next one wraps
+  // shorter reads as whatever happened to fit.
+  repeatOption: {
+    flexBasis: "48%",
+    flexGrow: 1,
   },
   identityPoint: {
     width: 11,

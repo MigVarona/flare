@@ -8,6 +8,7 @@ import { ThemedText } from './themed-text';
 
 import { Spinner } from '@/components/ui/spinner';
 import { Brand, BrandGradient, Colors, glow, neonBorder, Radius, Spacing } from '@/constants/theme';
+import { useSpace } from '@/context/space-context';
 import { usePalette } from '@/hooks/use-palette';
 
 const theme = Colors.dark;
@@ -89,32 +90,39 @@ export function BrandLockup({ size = 40 }: { size?: number }) {
 }
 
 /**
- * How every screen opens: its name, and the two of you underneath it.
+ * How every screen opens: its name, and whoever's actually in the space underneath it.
  *
  * It used to be a small grey label above a big title, and on half the screens the label just
  * said the title again in capitals ("VUESTRAS FOTOS" over "Fotos"). Saying a thing twice
  * isn't emphasis, it's noise. What goes there instead is the only thing that's actually
- * true on every screen: two lights, one for each of you.
+ * true on every screen: one light per person in the space, in arrival order.
+ *
+ * Alone in your personal space, there's nobody to say — the row simply doesn't draw. It
+ * used to draw a fixed pair here regardless, one of them always standing in for a second
+ * person who might not exist; that stopped being true the moment a space could hold one.
  */
 export function ScreenHeader({ title }: { title: string }) {
+  const { members } = useSpace();
+  const palette = usePalette();
+
   return (
     <View style={styles.screenHeader}>
       <ThemedText type="title">{title}</ThemedText>
-      {/* On the same line as the name, not underneath it. Stacked, the two lights claimed a
+      {/* On the same line as the name, not underneath it. Stacked, the lights would claim a
           whole row of the screen to say something that fits in the gap after a word. */}
-      <View style={styles.screenLights}>
-        <IdentityDot isMine size={14} />
-        <IdentityDot isMine={false} size={14} />
-      </View>
+      {members.length > 1 && (
+        <View style={styles.screenLights}>
+          {members.map((member) => (
+            <IdentityDot key={member.uid} color={palette.colorFor(member.uid)} size={14} />
+          ))}
+        </View>
+      )}
     </View>
   );
 }
 
 /** A single light standing for one person. */
-export function IdentityDot({ isMine, size = 8 }: { isMine: boolean; size?: number }) {
-  const palette = usePalette();
-  const color = isMine ? palette.you : palette.partner;
-
+export function IdentityDot({ color, size = 8 }: { color: string; size?: number }) {
   return (
     <View
       style={[
