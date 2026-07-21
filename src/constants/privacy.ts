@@ -360,9 +360,7 @@ Cuando eliminas tu cuenta, iniciamos la supresión o anonimización de los datos
 
 ### 10.2. Tablón
 
-El espacio conserva únicamente las **siete notas más recientes**. Hasta dos pueden fijarse y no cuentan para ese límite.
-
-Cuando se añade una nota nueva y se supera este límite, la nota no fijada más antigua se elimina del espacio para todos sus miembros.
+Las notas del Tablón se conservan mientras exista el espacio, no las elimines desde la aplicación o no resulte necesario retirarlas por una razón legal o de seguridad. Hasta dos pueden fijarse para encontrarlas con independencia de su antigüedad.
 
 ### 10.3. Fotografías, recordatorios y reacciones
 

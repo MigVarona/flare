@@ -75,7 +75,7 @@ AVISOS QUE SUENAN EN EL MOVIL CORRECTO
 Deja un aviso para ti, para alguien concreto o para todo el espacio, y suena en el telefono que corresponde a la hora exacta, con "Hecho" y "+30 min" directamente desde la notificacion, sin abrir la app. Puede repetirse cada dia, semana o mes, y rotar entre las personas del espacio: la basura le toca esta semana a uno, la siguiente a otro, y el color dice de quien es el turno. Cuando alguien lo completa, los demas lo ven sin tener que preguntar.
 
 EL TABLON
-No es un chat de siempre: es la puerta de la nevera. Caben siete notas, la mas antigua se apaga al llegar una nueva, y hasta dos se pueden fijar para que no se apaguen nunca: el wifi, la llave en el buzon, lo que hay que tener siempre a la vista.
+No es un chat que se pierde entre miles de mensajes: es la puerta de la nevera. Deja lo que importa ahora, el wifi, la llave en el buzon, y fija hasta dos notas para que no se entierren entre las demas.
 
 EL ARCHIVO
 Fotos privadas, cifradas en transito y sin enlaces publicos. Cada una lleva el color de quien la subio, y las que fijes se encuentran aunque sean de hace meses: el DNI, el contrato, la matricula del coche.

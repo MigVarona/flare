@@ -1,47 +1,36 @@
-import AsyncStorage from "@react-native-async-storage/async-storage";
 import * as Haptics from "expo-haptics";
 import { LinearGradient } from "expo-linear-gradient";
 import {
   addDoc,
   collection,
-  deleteDoc,
   deleteField,
   doc,
+  limit,
   onSnapshot,
   orderBy,
   query,
   serverTimestamp,
   updateDoc,
+  where,
 } from "firebase/firestore";
 import { useEffect, useRef, useState } from "react";
 import { Keyboard, Pressable, ScrollView, TextInput, View } from "react-native";
 // React Native's own keyboard handling broke on Android once Expo turned on edge-to-edge.
 import { KeyboardAvoidingView } from "react-native-keyboard-controller";
-import Animated, {
-  FadeIn,
-  FadeOut,
-  LinearTransition,
-} from "react-native-reanimated";
+import Animated, { FadeIn, FadeOut, LinearTransition } from "react-native-reanimated";
 import { Gesture, GestureDetector } from "react-native-gesture-handler";
 import { scheduleOnRN } from "react-native-worklets";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
-import { GlowCard, ScreenHeader } from "@/components/brand";
+import { Eyebrow, GhostButton, GlowCard, ScreenHeader } from "@/components/brand";
 import { PinGlyph } from "@/components/icons";
 import { LightSignal, isSignalId, useSignalMeaning, type SignalId } from "@/components/light-signals";
 import { MessageSkeletons } from "@/components/loading";
-import { DeathMs, MessageLight, StepMs } from "@/components/message-light";
+import { MessageLight } from "@/components/message-light";
 import { SignalPicker } from "@/components/signal-picker";
 import { ThemedText } from "@/components/themed-text";
 import { Modal, ModalBackdrop, ModalContent } from "@/components/ui/modal";
-import {
-  BoardCapacity,
-  BottomTabInset,
-  Colors,
-  glow,
-  MaxPinnedItems,
-  Spacing,
-} from "@/constants/theme";
+import { BottomTabInset, Colors, glow, MaxPinnedItems, Spacing } from "@/constants/theme";
 import { useSpace } from "@/context/space-context";
 import { useNotice } from "@/hooks/use-notice";
 import { usePalette } from "@/hooks/use-palette";
@@ -50,20 +39,34 @@ import { sendPushNotification } from "@/lib/push";
 
 const theme = Colors.dark;
 
+/** How many notes arrive at a time. Enough to fill the screen a few times over. */
+const PageSize = 40;
+
 type Note = {
   id: string;
   text: string;
   senderId: string;
   reactions: Record<string, SignalId>;
-  /** Sits outside the count, and doesn't fade with age. At most two at a time. */
+  /** Sits outside the page, and doesn't get buried by however much the board grows. */
   pinned: boolean;
 };
 
+function readNote(docSnapshot: { id: string; data: () => Record<string, unknown> }): Note {
+  const data = docSnapshot.data();
+  return {
+    id: docSnapshot.id,
+    text: data.text as string,
+    senderId: data.senderId as string,
+    reactions: (data.reactions as Record<string, SignalId>) ?? {},
+    pinned: (data.pinned as boolean | undefined) ?? false,
+  };
+}
+
 /**
- * The Tablón — the door of the fridge, digital. Seven slots for what's true *now*: the wifi
- * password, "llave en el buzón", a photo of the schedule. Not a chat: there's no history to
- * scroll, so nothing here is trying to be remembered on its own — pin the one or two things
- * that need to survive the rest ageing out.
+ * The Tablón — the door of the fridge, digital. Notes for what's true *now*: the wifi
+ * password, "llave en el buzón", a photo of the schedule. Nothing here ages out on its own
+ * any more — fix the one or two things that matter most so they stay at the top, and scroll
+ * for the rest, same as the Archivo.
  */
 export default function BoardScreen() {
   const insets = useSafeAreaInsets();
@@ -74,28 +77,18 @@ export default function BoardScreen() {
   const scrollRef = useRef<ScrollView>(null);
 
   const [notes, setNotes] = useState<Note[]>([]);
+  const [pinnedNotes, setPinnedNotes] = useState<Note[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [draft, setDraft] = useState("");
   const [isKeyboardOpen, setIsKeyboardOpen] = useState(false);
   const [viewing, setViewing] = useState<Note | null>(null);
   const [reactingTo, setReactingTo] = useState<Note | null>(null);
-  /** Notes we've already asked to delete, so a second snapshot doesn't ask again. */
-  const trimmed = useRef(new Set<string>());
-  /** The ones the surge is on its way to put out. They're still here; they just aren't for long. */
-  const [dying, setDying] = useState<string[]>([]);
-  /** Bumped by every arrival. The bubbles watch it to know when to carry the surge. */
-  const [surge, setSurge] = useState(0);
-  const newest = useRef<string | null>(null);
-  /** Shown once, the first time the board is opened, to explain the capacity. */
-  const [showCapacityNotice, setShowCapacityNotice] = useState(false);
+  /** How far back we're looking — a page grows on request, not on its own. */
+  const [pageSize, setPageSize] = useState(PageSize);
 
   useEffect(() => {
-    const shown = Keyboard.addListener("keyboardDidShow", () =>
-      setIsKeyboardOpen(true),
-    );
-    const hidden = Keyboard.addListener("keyboardDidHide", () =>
-      setIsKeyboardOpen(false),
-    );
+    const shown = Keyboard.addListener("keyboardDidShow", () => setIsKeyboardOpen(true));
+    const hidden = Keyboard.addListener("keyboardDidHide", () => setIsKeyboardOpen(false));
     return () => {
       shown.remove();
       hidden.remove();
@@ -103,67 +96,42 @@ export default function BoardScreen() {
   }, []);
 
   useEffect(() => {
-    AsyncStorage.getItem("boardCapacityNoticeSeen").then((seen) => {
-      if (!seen) setShowCapacityNotice(true);
-    });
-  }, []);
-
-  const dismissCapacityNotice = () => {
-    setShowCapacityNotice(false);
-    void AsyncStorage.setItem("boardCapacityNoticeSeen", "true");
-  };
-
-  useEffect(() => {
     if (!spaceId) return undefined;
     const notesQuery = query(
       collection(db, "spaces", spaceId, "messages"),
-      orderBy("createdAt", "asc"),
+      orderBy("createdAt", "desc"),
+      limit(pageSize),
     );
     return onSnapshot(notesQuery, (snapshot) => {
-      setNotes(
-        snapshot.docs.map((docSnapshot) => ({
-          id: docSnapshot.id,
-          text: docSnapshot.data().text as string,
-          senderId: docSnapshot.data().senderId as string,
-          reactions: (docSnapshot.data().reactions as Record<string, SignalId>) ?? {},
-          pinned: (docSnapshot.data().pinned as boolean | undefined) ?? false,
-        })),
-      );
+      setNotes(snapshot.docs.map(readNote).reverse());
       setIsLoading(false);
+    });
+  }, [spaceId, pageSize]);
 
-      // An arrival sends a surge up the board. Not on first load, though: opening it isn't
-      // an event, and lighting the whole screen up would say something happened.
-      const arrived = snapshot.docs.at(-1)?.id ?? null;
-      if (newest.current && arrived && arrived !== newest.current) {
-        setSurge((count) => count + 1);
-      }
-      newest.current = arrived;
+  // Scroll to the newest note — but only when one actually arrives. "Ver más" also grows
+  // this list, by adding older notes above what's already on screen, and jumping to the
+  // bottom right when someone asked to read further back would undo the point of asking.
+  const newestId = useRef<string | null>(null);
+  useEffect(() => {
+    const latest = notes.at(-1)?.id ?? null;
+    if (latest !== newestId.current) {
+      newestId.current = latest;
+      scrollRef.current?.scrollToEnd({ animated: true });
+    }
+  }, [notes]);
 
-      // The board holds seven — pinned notes don't count against that, and don't get
-      // trimmed. Trimming used to be the sender's job, done against their own copy of the
-      // list — so two people writing at the same moment could each count seven and leave
-      // eight standing, or throw the same one out twice.
-      //
-      // Whoever *sees* too many trims instead. Both phones may reach for the same note, and
-      // that's fine: deleting what's already gone changes nothing. They converge on seven
-      // without having to agree on anything.
-      //
-      // The delay is the point: the light has to go out before the record does, or the
-      // note would simply blink out of existence and the rule would stay invisible.
-      const regularDocs = snapshot.docs.filter((docSnapshot) => !docSnapshot.data().pinned);
-      const overflow = regularDocs.length - BoardCapacity;
-      for (const oldest of regularDocs.slice(0, Math.max(0, overflow))) {
-        if (trimmed.current.has(oldest.id)) continue;
-        trimmed.current.add(oldest.id);
-        setDying((ids) => [...ids, oldest.id]);
-        // A light going out is felt, not just seen. It's the one thing here you can't undo.
-        void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
-        setTimeout(() => void deleteDoc(oldest.ref), DeathMs);
-      }
+  // Pinned notes live outside the page above, however far back it reaches — the whole point
+  // is finding one months later — so they get their own subscription. A plain equality
+  // filter needs no composite index; with at most two of them, sorting by hand is simpler
+  // than asking Firestore to do it.
+  useEffect(() => {
+    if (!spaceId) return undefined;
+    const pinnedQuery = query(collection(db, "spaces", spaceId, "messages"), where("pinned", "==", true));
+    return onSnapshot(pinnedQuery, (snapshot) => {
+      setPinnedNotes(snapshot.docs.map(readNote));
     });
   }, [spaceId]);
 
-  const pinnedNotes = notes.filter((note) => note.pinned);
   const regularNotes = notes.filter((note) => !note.pinned);
 
   const canSend = draft.trim().length > 0;
@@ -202,8 +170,7 @@ export default function BoardScreen() {
     });
   };
 
-  /** Fixing something to the board is a soft house rule, not a security boundary — the two
-   *  slots are kept here, on the client, rather than fought over in the rules. */
+  /** A soft house rule, kept here rather than fought over in the rules — see the Archivo. */
   const togglePin = async (note: Note) => {
     if (!spaceId) return;
     if (!note.pinned && pinnedNotes.length >= MaxPinnedItems) {
@@ -222,20 +189,6 @@ export default function BoardScreen() {
       >
         <View className="px-6">
           <ScreenHeader title="Tablón" />
-          {showCapacityNotice && (
-            <GlowCard style={{ marginBottom: Spacing[16] }}>
-              <ThemedText className="leading-6">
-                No es un chat de siempre: es la puerta de la nevera. Caben siete notas — las más
-                viejas se apagan al llegar una nueva. Mantén pulsada una para fijarla y que no se
-                apague, hasta dos a la vez.
-              </ThemedText>
-              <Pressable onPress={dismissCapacityNotice} hitSlop={12} className="self-end">
-                <ThemedText type="smallBold" style={{ color: palette.accent }}>
-                  Entendido
-                </ThemedText>
-              </Pressable>
-            </GlowCard>
-          )}
         </View>
 
         <Animated.ScrollView
@@ -244,9 +197,6 @@ export default function BoardScreen() {
           contentContainerClassName="gap-3 px-6 py-6"
           showsVerticalScrollIndicator={false}
           keyboardShouldPersistTaps="handled"
-          onContentSizeChange={() =>
-            scrollRef.current?.scrollToEnd({ animated: true })
-          }
         >
           {isLoading ? (
             <MessageSkeletons />
@@ -260,9 +210,6 @@ export default function BoardScreen() {
                       note={note}
                       isMine={note.senderId === user?.uid}
                       color={palette.colorFor(note.senderId)}
-                      rest={1}
-                      delay={0}
-                      isDying={false}
                       onOpen={() => setViewing(note)}
                       onLongPress={() => setReactingTo(note)}
                       onTogglePin={() => togglePin(note)}
@@ -279,32 +226,27 @@ export default function BoardScreen() {
                   {isAlone ? "Deja la primera nota encendida." : "Dejad la primera nota encendida."}
                 </ThemedText>
               ) : (
-                regularNotes.map((note, index) => {
-                  // The oldest note is the faintest: it is already on its way out. The rule
-                  // is shown as light, not explained in a label.
-                  const distance = regularNotes.length - 1 - index;
-                  const rest = Math.max(
-                    0.35,
-                    1 - distance * (0.65 / Math.max(1, BoardCapacity - 1)),
-                  );
+                regularNotes.map((note) => (
+                  <NoteBubble
+                    key={note.id}
+                    note={note}
+                    isMine={note.senderId === user?.uid}
+                    color={palette.colorFor(note.senderId)}
+                    onOpen={() => setViewing(note)}
+                    onLongPress={() => setReactingTo(note)}
+                    onTogglePin={() => togglePin(note)}
+                    showSignalMeaning={showSignalMeaning}
+                    colorFor={palette.colorFor}
+                  />
+                ))
+              )}
 
-                  return (
-                    <NoteBubble
-                      key={note.id}
-                      note={note}
-                      isMine={note.senderId === user?.uid}
-                      color={palette.colorFor(note.senderId)}
-                      rest={rest}
-                      delay={distance * StepMs}
-                      isDying={dying.includes(note.id)}
-                      onOpen={() => setViewing(note)}
-                      onLongPress={() => setReactingTo(note)}
-                      onTogglePin={() => togglePin(note)}
-                      showSignalMeaning={showSignalMeaning}
-                      colorFor={palette.colorFor}
-                    />
-                  );
-                })
+              {/* A full page probably means there's more behind it. Asking for it is a
+                  choice, not something the screen does on its own while you scroll. */}
+              {notes.length >= pageSize && (
+                <View className="mt-2">
+                  <GhostButton title="Ver más" onPress={() => setPageSize(pageSize + PageSize)} />
+                </View>
               )}
             </>
           )}
@@ -397,24 +339,14 @@ export default function BoardScreen() {
 
             {viewing && (
               <View className={viewing.senderId === user?.uid ? "items-end" : "items-start"}>
-                <MessageLight
-                  color={palette.colorFor(viewing.senderId)}
-                  isMine={viewing.senderId === user?.uid}
-                  rest={1}
-                  delay={0}
-                  isDying={false}
-                >
+                <MessageLight color={palette.colorFor(viewing.senderId)} isMine={viewing.senderId === user?.uid}>
                   <ThemedText className="text-2xl leading-8">{viewing.text}</ThemedText>
                   {Object.entries(viewing.reactions).length > 0 && (
                     <View className="mt-4 flex-row gap-2">
                       {Object.entries(viewing.reactions).map(([uid, signal]) =>
                         isSignalId(signal) ? (
                           <Pressable key={uid} onPress={() => showSignalMeaning(signal)} hitSlop={8}>
-                            <LightSignal
-                              id={signal}
-                              color={palette.colorFor(uid)}
-                              size={22}
-                            />
+                            <LightSignal id={signal} color={palette.colorFor(uid)} size={22} />
                           </Pressable>
                         ) : null,
                       )}
@@ -457,9 +389,6 @@ function NoteBubble({
   note,
   isMine,
   color,
-  rest,
-  delay,
-  isDying,
   onOpen,
   onLongPress,
   onTogglePin,
@@ -469,9 +398,6 @@ function NoteBubble({
   note: Note;
   isMine: boolean;
   color: string;
-  rest: number;
-  delay: number;
-  isDying: boolean;
   onOpen: () => void;
   onLongPress: () => void;
   onTogglePin: () => void;
@@ -492,7 +418,7 @@ function NoteBubble({
         layout={LinearTransition.duration(260)}
         className={isMine ? "max-w-[82%] self-end" : "max-w-[82%] self-start"}
       >
-        <MessageLight color={color} isMine={isMine} rest={rest} delay={delay} isDying={isDying}>
+        <MessageLight color={color} isMine={isMine}>
           <View className="flex-row items-start gap-2">
             <ThemedText className="flex-1 text-base leading-6">{note.text}</ThemedText>
             <Pressable

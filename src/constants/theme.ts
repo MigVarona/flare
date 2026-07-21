@@ -149,14 +149,6 @@ export const BottomTabInset = Platform.select({ ios: 50, android: 80 }) ?? 0;
 export const MaxContentWidth = 800;
 
 /**
- * How many notes the Tablón holds — the door-of-the-fridge board, not a chat. Not a
- * setting: it's the rule the app is built on, so what you pin up has to be worth the room
- * it takes. Pinned notes sit outside this count; up to two can stand no matter how full
- * the rest of the board gets.
- */
-export const BoardCapacity = 7;
-
-/**
  * How many items can be pinned at once — on the Tablón, or in the Archivo. Same rule,
  * applied independently in each: fixing two notes doesn't touch the two photos you can fix.
  */

@@ -528,7 +528,7 @@ export default function HomeScreen() {
               ) : (
                 <GlowCard style={styles.emptyCard}>
                   <ThemedText type="small" themeColor="textSecondary">
-                    Caben siete. El primero sigue libre.
+                    Todavía nada. El primero sigue libre.
                   </ThemedText>
                 </GlowCard>
               )}

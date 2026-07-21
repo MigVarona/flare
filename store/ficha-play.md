@@ -35,10 +35,9 @@ esta semana a uno, la siguiente a otro, y el color dice de quién es el turno.
 Cuando alguien lo completa, los demás lo ven sin tener que preguntar.
 
 EL TABLÓN
-No es un chat de siempre: es la puerta de la nevera. Caben siete notas —
-la más antigua se apaga al llegar una nueva — y hasta dos se pueden fijar
-para que no se apaguen nunca: el wifi, la llave en el buzón, lo que hay que
-tener siempre a la vista.
+No es un chat que se pierde entre miles de mensajes: es la puerta de la
+nevera. Deja lo que importa ahora — el wifi, la llave en el buzón — y fija
+hasta dos notas para que no se entierren entre las demás.
 
 EL ARCHIVO
 Fotos privadas, cifradas en tránsito y sin enlaces públicos. Cada una lleva
