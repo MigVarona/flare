@@ -44,7 +44,7 @@ const styles = StyleSheet.create({
   },
   /** What every screen is called. */
   title: {
-    fontFamily: 'Outfit_700Bold',
+    fontFamily: 'Outfit_600SemiBold',
     fontSize: 31,
     lineHeight: 37,
     letterSpacing: 0,
