@@ -172,15 +172,20 @@ service cloud.firestore {
                 || (request.resource.data.archived is bool && resource.data.kind == 'shared')))
 
           // Someone holding the key walking in: the one moment a non-member may write, and
-          // only to append themselves — to the list and to `members`, nothing else.
+          // only to append themselves — to the list, to `members`, and to un-archive the
+          // space if a fresh join found it frozen. A new member is the clearest possible
+          // sign a "finished" space is active again; they can only ever clear the flag,
+          // never set it.
           || (resource.data.kind == 'shared'
             && !(request.auth.uid in resource.data.memberIds)
             && resource.data.memberIds.size() < 8
             && request.resource.data.diff(resource.data).affectedKeys()
-              .hasOnly(['memberIds', 'members'])
+              .hasOnly(['memberIds', 'members', 'archived'])
             && request.resource.data.memberIds == resource.data.memberIds.concat([request.auth.uid])
             && touchesOnlyOwnMemberEntry()
-            && isValidMemberProfile(request.resource.data.members[request.auth.uid]))
+            && isValidMemberProfile(request.resource.data.members[request.auth.uid])
+            && (!('archived' in request.resource.data.diff(resource.data).affectedKeys())
+                || request.resource.data.archived == false))
 
           // A member walking out while others stay: they remove exactly themselves. The
           // last one out doesn't pass through here — they delete the space instead.

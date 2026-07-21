@@ -385,6 +385,11 @@ export function SpaceProvider({ children }: { children: ReactNode }) {
     // would always be rejected too. `arrayUnion` needs no prior read: Firestore resolves it
     // against the document as it actually stands on the server, and the rules validate the
     // same resulting value — including the 8-member cap, enforced there, not here.
+    //
+    // `archived: false` rides along unconditionally rather than needing to know beforehand
+    // whether the space was archived — writing the same value it already had is a no-op
+    // the rules don't even see as a change, so this only actually does anything when a
+    // join reaches a space that had been frozen.
     try {
       await updateDoc(doc(db, 'spaces', joinedSpaceId), {
         memberIds: arrayUnion(user.uid),
@@ -392,6 +397,7 @@ export function SpaceProvider({ children }: { children: ReactNode }) {
           name: myName,
           ...(myPushToken ? { expoPushToken: myPushToken } : {}),
         },
+        archived: false,
       });
     } catch {
       return { ok: false, reason: 'full' };
