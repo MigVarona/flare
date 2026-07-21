@@ -94,17 +94,23 @@ service cloud.firestore {
      * A key on its own, so that using one means *knowing* it.
      *
      * There is no list: you can only open the door whose code you already have. The code
-     * now outlives the first guest — it works until the space fills up or a member takes
-     * it down — because a space is no longer a thing that seats exactly two.
+     * outlives the first guest — several people can walk in on the same one — but not
+     * forever: every code expires a week after it's cut, so a leaked or forgotten one
+     * doesn't stay live indefinitely. The actual guessing rate is throttled a layer up, by
+     * the Worker (it's the one Firestore Rules can't do: remembering the last attempt to
+     * compare this one against) — this only bounds how long any single code stays a target.
      */
     match /invites/{code} {
       allow get: if isSignedIn();
       allow create: if isSignedIn()
         && code.matches('^[A-Z0-9]{6}$')
-        && request.resource.data.keys().hasOnly(['spaceId', 'createdAt'])
+        && request.resource.data.keys().hasOnly(['spaceId', 'createdAt', 'expiresAt'])
         && isMemberOf(request.resource.data.spaceId)
         && get(/databases/$(database)/documents/spaces/$(request.resource.data.spaceId)).data.kind == 'shared'
-        && isValidCreatedAt(request.resource.data.createdAt);
+        && isValidCreatedAt(request.resource.data.createdAt)
+        && request.resource.data.expiresAt is timestamp
+        && request.resource.data.expiresAt > request.time
+        && request.resource.data.expiresAt <= request.time + duration.value(8, 'd');
       allow delete: if isSignedIn() && isMemberOf(resource.data.spaceId);
     }
 

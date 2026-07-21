@@ -39,6 +39,7 @@ export default function SettingsScreen() {
     renameMe,
     paletteId,
     setPalette,
+    regenerateInviteCode,
     signOutUser,
     leaveSpace,
     deleteAccount,
@@ -57,6 +58,7 @@ export default function SettingsScreen() {
   const [password, setPassword] = useState('');
   const [deleteError, setDeleteError] = useState<string | null>(null);
   const [isDeletingNow, setIsDeletingNow] = useState(false);
+  const [isRegeneratingKey, setIsRegeneratingKey] = useState(false);
   const [showTerms, setShowTerms] = useState(false);
   const [showPrivacy, setShowPrivacy] = useState(false);
 
@@ -75,6 +77,17 @@ export default function SettingsScreen() {
       await renameMe(ownName);
     } finally {
       setIsSavingOwn(false);
+    }
+  };
+
+  const handleRegenerateKey = async () => {
+    setIsRegeneratingKey(true);
+    try {
+      await regenerateInviteCode();
+    } catch {
+      notice('No se ha podido generar una llave nueva');
+    } finally {
+      setIsRegeneratingKey(false);
     }
   };
 
@@ -188,8 +201,16 @@ export default function SettingsScreen() {
               {inviteCode}
             </ThemedText>
             <ThemedText type="small" className="text-muted-foreground">
-              Hace falta para entrar. Sirve hasta que el espacio se llene.
+              Hace falta para entrar. Caduca en una semana, o antes si generas una nueva.
             </ThemedText>
+            <View className="mt-2">
+              <GhostButton
+                title={isRegeneratingKey ? 'Generando…' : 'Generar nueva llave'}
+                color={palette.accent}
+                disabled={isRegeneratingKey}
+                onPress={handleRegenerateKey}
+              />
+            </View>
           </GlowCard>
         )}
 

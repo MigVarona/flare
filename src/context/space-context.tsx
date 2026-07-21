@@ -19,6 +19,7 @@ import {
   onSnapshot,
   query,
   setDoc,
+  Timestamp,
   updateDoc,
   where,
 } from 'firebase/firestore';
@@ -28,8 +29,16 @@ import { createContext, useContext, useEffect, useMemo, useState, type ReactNode
 
 import { DefaultPalette, MaxMembers } from '@/constants/palettes';
 import { auth, db } from '@/lib/firebase';
+import { resolveInviteCode } from '@/lib/invites';
 import { sendPushNotification } from '@/lib/push';
 import { getGoogleCredential, signInWithGoogle, signOutFromGoogle } from '@/lib/google-auth';
+
+/** How long a key stays live before it needs to be cut again. */
+const InviteLifetimeMs = 7 * 24 * 60 * 60 * 1000;
+
+function inviteExpiry() {
+  return Timestamp.fromDate(new Date(Date.now() + InviteLifetimeMs));
+}
 
 export type SpaceKind = 'personal' | 'shared';
 
@@ -48,6 +57,10 @@ export type Space = {
   /** A trip that's over, not a space that's gone: still there, just out of the way. */
   archived: boolean;
 };
+
+export type JoinSpaceResult =
+  | { ok: true }
+  | { ok: false; reason: 'not-found' | 'expired' | 'rate-limited' | 'full' | 'error' };
 
 export type SpaceMember = {
   uid: string;
@@ -81,12 +94,14 @@ type SpaceContextValue = {
   signInGoogle: () => Promise<void>;
   signOutUser: () => Promise<void>;
   createSpace: (name: string) => Promise<{ spaceId: string; code: string }>;
-  joinSpace: (code: string) => Promise<boolean>;
+  joinSpace: (code: string) => Promise<JoinSpaceResult>;
   renameMe: (name: string) => Promise<void>;
   renameSpace: (name: string) => Promise<void>;
   /** Freeze a shared space, or bring it back. Any member can do either; the personal space
    *  can't be archived. Archiving the one you're looking at bounces you back to Personal. */
   setSpaceArchived: (targetSpaceId: string, archived: boolean) => Promise<void>;
+  /** Cut a fresh key for the active space — the old one, expired or not, stops working. */
+  regenerateInviteCode: () => Promise<string>;
   /**
    * Walk out of the active shared space. If others remain, the space goes on without you;
    * if you were the last one, it goes with you. The personal space can't be left.
@@ -312,23 +327,49 @@ export function SpaceProvider({ children }: { children: ReactNode }) {
       createdAt: Date.now(),
     });
     // The key also lives on its own, so that walking in means knowing the code rather
-    // than being able to ask for the list of every space there is.
-    await setDoc(doc(db, 'invites', code), { spaceId: spaceRef.id, createdAt: Date.now() });
+    // than being able to ask for the list of every space there is. It's good for a week —
+    // long enough to actually reach the people you're sending it to, short enough that a
+    // code someone forgot about doesn't stay a live door forever.
+    await setDoc(doc(db, 'invites', code), {
+      spaceId: spaceRef.id,
+      createdAt: Date.now(),
+      expiresAt: inviteExpiry(),
+    });
     setActiveSpace(spaceRef.id);
     return { spaceId: spaceRef.id, code };
   };
 
-  const joinSpace = async (code: string) => {
+  /**
+   * A fresh key for a space that already has one — because the old one expired, because
+   * someone who shouldn't have it got hold of it, or just because. The old code is left
+   * alone rather than actively torn down: it's already a dead end once nothing on the
+   * space points to it any more, and once its own week is up it stops working regardless.
+   */
+  const regenerateInviteCode = async () => {
+    if (!space) throw new Error('No hay espacio activo');
+    if (space.kind !== 'shared') throw new Error('Este espacio no tiene llave');
+
+    const code = await generateInviteCode();
+    await setDoc(doc(db, 'invites', code), {
+      spaceId: space.id,
+      createdAt: Date.now(),
+      expiresAt: inviteExpiry(),
+    });
+    await updateDoc(doc(db, 'spaces', space.id), { inviteCode: code });
+    return code;
+  };
+
+  const joinSpace = async (code: string): Promise<JoinSpaceResult> => {
     if (!user) throw new Error('No hay usuario');
     const trimmedCode = code.trim().toUpperCase();
-    if (!trimmedCode) return false;
+    if (!trimmedCode) return { ok: false, reason: 'not-found' };
 
-    // Straight to the door this key opens. Nothing else is readable, so a wrong code
-    // tells you nothing except that it's wrong.
-    const invite = await getDoc(doc(db, 'invites', trimmedCode));
-    if (!invite.exists()) return false;
+    // The Worker checks this one, throttled — a plain Firestore read here would let anyone
+    // sit in a loop guessing codes for free (their free, our Firestore bill).
+    const resolved = await resolveInviteCode(trimmedCode);
+    if (!resolved.ok) return resolved;
 
-    const joinedSpaceId = invite.data().spaceId as string;
+    const joinedSpaceId = resolved.spaceId;
     const spaceRef = doc(db, 'spaces', joinedSpaceId);
     const snapshot = await getDoc(spaceRef).catch(() => null);
 
@@ -337,12 +378,12 @@ export function SpaceProvider({ children }: { children: ReactNode }) {
     // the rules as a whole.
     const currentMemberIds =
       (snapshot?.data()?.memberIds as string[] | undefined) ?? [];
-    if (currentMemberIds.length >= MaxMembers || currentMemberIds.includes(user.uid)) {
-      if (currentMemberIds.includes(user.uid)) {
-        setActiveSpace(joinedSpaceId);
-        return true;
-      }
-      return false;
+    if (currentMemberIds.includes(user.uid)) {
+      setActiveSpace(joinedSpaceId);
+      return { ok: true };
+    }
+    if (currentMemberIds.length >= MaxMembers) {
+      return { ok: false, reason: 'full' };
     }
     await updateDoc(spaceRef, {
       memberIds: [...currentMemberIds, user.uid],
@@ -352,7 +393,7 @@ export function SpaceProvider({ children }: { children: ReactNode }) {
       },
     });
     setActiveSpace(joinedSpaceId);
-    return true;
+    return { ok: true };
   };
 
   /**
@@ -479,6 +520,7 @@ export function SpaceProvider({ children }: { children: ReactNode }) {
       renameMe,
       renameSpace,
       setSpaceArchived,
+      regenerateInviteCode,
       leaveSpace,
       deleteAccount,
       isGoogleAccount,

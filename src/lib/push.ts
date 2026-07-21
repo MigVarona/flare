@@ -1,6 +1,5 @@
 import { auth } from '@/lib/firebase';
-
-const WORKER_URL = 'https://churri-photos.migvarona.workers.dev';
+import { WORKER_URL } from '@/lib/worker';
 
 export async function sendPushNotification(
   spaceId: string,

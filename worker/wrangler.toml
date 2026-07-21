@@ -6,6 +6,12 @@ compatibility_date = "2026-07-01"
 FIREBASE_PROJECT_ID = "retiro360-51909"
 CLOUDINARY_CLOUD_NAME = "dyji6w7iu"
 
+# Attempt counters for invite-code guessing, keyed by uid and by IP. Not a KV namespace
+# id worth hiding — it names a bucket the Worker can write to, not a way in on its own.
+[[kv_namespaces]]
+binding = "RATE_LIMITS"
+id = "0224ed77355348589afc363fe25c4c65"
+
 # CLOUDINARY_API_KEY and CLOUDINARY_API_SECRET are not here on purpose: they go in with
 #   npx wrangler secret put CLOUDINARY_API_SECRET
 # so they never touch the repository.

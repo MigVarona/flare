@@ -114,6 +114,7 @@ export async function readDocumentAs(token: string, projectId: string, path: str
 
 type FirestoreValue = {
   stringValue?: string;
+  timestampValue?: string;
   arrayValue?: { values?: Array<{ stringValue?: string }> };
   mapValue?: { fields?: Record<string, FirestoreValue> };
 };

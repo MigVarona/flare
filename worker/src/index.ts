@@ -11,13 +11,19 @@
  */
 import { destroyAsset, signUpload } from './cloudinary';
 import { deleteDocumentAs, readDocumentAs, verifyIdToken } from './firebase';
+import { checkRateLimit } from './rate-limit';
 
 type Env = {
   FIREBASE_PROJECT_ID: string;
   CLOUDINARY_CLOUD_NAME: string;
   CLOUDINARY_API_KEY: string;
   CLOUDINARY_API_SECRET: string;
+  RATE_LIMITS: KVNamespace;
 };
+
+/** How many code guesses one account, or one network origin, gets before waiting it out. */
+const InviteAttemptLimit = 8;
+const InviteAttemptWindowSeconds = 15 * 60;
 
 function json(body: unknown, status = 200) {
   return new Response(JSON.stringify(body), {
@@ -36,12 +42,6 @@ export default {
     const uid = await verifyIdToken(token, env.FIREBASE_PROJECT_ID);
     if (!uid) return json({ error: 'auth' }, 401);
 
-    const credentials = {
-      cloudName: env.CLOUDINARY_CLOUD_NAME,
-      apiKey: env.CLOUDINARY_API_KEY,
-      apiSecret: env.CLOUDINARY_API_SECRET,
-    };
-
     const url = new URL(request.url);
     const body = (await request.json().catch(() => ({}))) as {
       spaceId?: string;
@@ -52,6 +52,19 @@ export default {
       title?: string;
       message?: string;
       url?: string;
+      code?: string;
+    };
+
+    // Resolving an invite code has no space to check membership against yet — that's the
+    // whole point — so it's the one route with nothing in common with the rest below.
+    if (url.pathname === '/invite/resolve') {
+      return resolveInvite(request, env, token, uid, body.code);
+    }
+
+    const credentials = {
+      cloudName: env.CLOUDINARY_CLOUD_NAME,
+      apiKey: env.CLOUDINARY_API_KEY,
+      apiSecret: env.CLOUDINARY_API_SECRET,
     };
 
     const spaceId = body.spaceId ?? body.coupleId;
@@ -132,6 +145,47 @@ export default {
     return json({ error: 'not found' }, 404);
   },
 };
+
+/**
+ * Look up an invite code — the one Firestore read the app can't just make directly any
+ * more. Reading `invites/{code}` was always gated on being signed in, nothing stronger,
+ * which meant any account could sit in a loop guessing codes: each miss costs us a
+ * Firestore read and tells the guesser nothing except "try again," so nothing there ever
+ * stopped them. This does: a KV counter, keyed by account *and* by network origin, ahead
+ * of the Firestore call — someone hammering guesses hits a 429 long before they'd ever
+ * reach the search space that matters.
+ *
+ * It doesn't join anything. The app still does the actual write — adding itself to
+ * `memberIds` — straight through the Firestore rules, unchanged. This only answers
+ * "does this code still open a door, and which one," at a rate a guesser can't outrun.
+ */
+async function resolveInvite(
+  request: Request,
+  env: Env,
+  token: string,
+  uid: string,
+  code: string | undefined,
+): Promise<Response> {
+  if (!code || !/^[A-Z0-9]{6}$/.test(code)) return json({ ok: false, reason: 'not-found' });
+
+  const ip = request.headers.get('cf-connecting-ip') ?? 'unknown';
+  const [uidOk, ipOk] = await Promise.all([
+    checkRateLimit(env.RATE_LIMITS, `invite:uid:${uid}`, InviteAttemptLimit, InviteAttemptWindowSeconds),
+    checkRateLimit(env.RATE_LIMITS, `invite:ip:${ip}`, InviteAttemptLimit, InviteAttemptWindowSeconds),
+  ]);
+  if (!uidOk || !ipOk) return json({ ok: false, reason: 'rate-limited' }, 429);
+
+  const invite = await readDocumentAs(token, env.FIREBASE_PROJECT_ID, `invites/${code}`);
+  const spaceId = invite?.fields?.spaceId?.stringValue;
+  if (!spaceId) return json({ ok: false, reason: 'not-found' });
+
+  const expiresAt = invite?.fields?.expiresAt?.timestampValue;
+  if (expiresAt && new Date(expiresAt).getTime() < Date.now()) {
+    return json({ ok: false, reason: 'expired' });
+  }
+
+  return json({ ok: true, spaceId });
+}
 
 async function sendExpoPush(expoPushToken: string, title: string, body: string, url?: string) {
   const response = await fetch('https://exp.host/--/api/v2/push/send', {

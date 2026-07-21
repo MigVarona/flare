@@ -1,6 +1,6 @@
 import { File, UploadType } from 'expo-file-system';
 
-import { auth } from '@/lib/firebase';
+import { callWorker } from '@/lib/worker';
 
 /**
  * Photos go straight to Cloudinary, but never on the app's own authority.
@@ -10,7 +10,6 @@ import { auth } from '@/lib/firebase';
  * Worker for permission, and the Worker — which holds the secret — grants it only for a
  * space you actually belong to. The bytes still travel directly, so nothing gets slower.
  */
-const WORKER_URL = 'https://churri-photos.migvarona.workers.dev';
 
 export type UploadedCloudinaryPhoto = {
   imageUrl: string;
@@ -25,23 +24,6 @@ type UploadPermission = {
   type: string;
   signature: string;
 };
-
-async function callWorker<T>(path: string, body: Record<string, string>): Promise<T> {
-  const token = await auth.currentUser?.getIdToken();
-  if (!token) throw new Error('No hay sesión');
-
-  const response = await fetch(`${WORKER_URL}${path}`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-    body: JSON.stringify(body),
-  });
-
-  if (!response.ok) {
-    throw new Error(`El servidor de fotos respondió ${response.status}`);
-  }
-
-  return (await response.json()) as T;
-}
 
 export async function uploadPhotoToCloudinary(
   localUri: string,

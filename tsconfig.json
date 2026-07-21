@@ -13,5 +13,11 @@
     ".expo/types/**/*.ts",
     "expo-env.d.ts",
     "src/uniwind-types.d.ts"
+  ],
+  "exclude": [
+    "node_modules",
+    // Its own project: a different runtime (Cloudflare Workers, not React Native) with its
+    // own ambient globals (KVNamespace and friends) and its own tsconfig.json to check them.
+    "worker"
   ]
 }

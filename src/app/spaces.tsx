@@ -251,7 +251,7 @@ function CreateSpace({ onBack }: { onBack: () => void }) {
         </ThemedText>
         <GradientRule />
         <ThemedText type="small" themeColor="textSecondary" style={styles.centerText}>
-          Quien la tenga puede entrar, así que dásela solo a los tuyos.
+          Quien la tenga puede entrar, así que dásela solo a los tuyos. Caduca en una semana.
         </ThemedText>
       </View>
 
@@ -280,12 +280,20 @@ function JoinSpace({ onBack }: { onBack: () => void }) {
     if (code.trim().length < 6) return;
     setIsSubmitting(true);
     try {
-      const isValid = await joinSpace(code);
-      if (!isValid) {
-        setError('Esa llave no abre ningún espacio');
-      } else {
+      const result = await joinSpace(code);
+      if (result.ok) {
         router.back();
+        return;
       }
+      setError(
+        result.reason === 'expired'
+          ? 'Esa llave ha caducado — pide una nueva'
+          : result.reason === 'rate-limited'
+            ? 'Demasiados intentos. Espera un poco antes de volver a probar'
+            : result.reason === 'full'
+              ? 'Ese espacio ya está completo'
+              : 'Esa llave no abre ningún espacio',
+      );
     } catch {
       setError('No se pudo entrar, inténtalo de nuevo');
     } finally {
