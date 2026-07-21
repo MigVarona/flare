@@ -12,7 +12,7 @@ import {
   Timestamp,
   where,
 } from 'firebase/firestore';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import {
   NativeScrollEvent,
   NativeSyntheticEvent,
@@ -28,7 +28,7 @@ import Animated from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { BrandLockup, Eyebrow, GlowCard } from '@/components/brand';
 import { CalendarGlyph, ChevronGlyph, SettingsGlyph } from '@/components/icons';
-import { SpaceSwitcherSheet } from '@/components/space-switcher-sheet';
+import { SpaceSwitcherMenu, type SwitcherAnchor } from '@/components/space-switcher-menu';
 import { CardSkeletons } from '@/components/loading';
 import { ThemedText } from '@/components/themed-text';
 import { Spinner } from '@/components/ui/spinner';
@@ -89,6 +89,20 @@ export default function HomeScreen() {
   const [isLoading, setIsLoading] = useState(true);
   const [isUploadingPhoto, setIsUploadingPhoto] = useState(false);
   const [isSwitcherOpen, setIsSwitcherOpen] = useState(false);
+  const [switcherAnchor, setSwitcherAnchor] = useState<SwitcherAnchor | null>(null);
+  const spaceSwitcherRef = useRef<View>(null);
+
+  // Anchored to the pill itself, measured on open — not guessed from a fixed offset, which
+  // would drift the moment the header's layout changes on some device this wasn't tried on.
+  const openSwitcher = () => {
+    spaceSwitcherRef.current?.measureInWindow((x, viewportY, measuredWidth, measuredHeight) => {
+      setSwitcherAnchor({
+        top: viewportY + measuredHeight + Spacing[8],
+        right: width - (x + measuredWidth),
+      });
+      setIsSwitcherOpen(true);
+    });
+  };
 
   const reminderCardWidth = Math.min(MaxContentWidth - Spacing[48], width - Spacing[48]);
   const reminderSnapWidth = reminderCardWidth + Spacing[12];
@@ -259,7 +273,8 @@ export default function HomeScreen() {
                   reads as a control you tap to change, the way a small caps label sitting
                   next to "Ajustes" never did: the two looked like the same kind of thing. */}
               <Pressable
-                onPress={() => setIsSwitcherOpen(true)}
+                ref={spaceSwitcherRef}
+                onPress={openSwitcher}
                 style={({ pressed }) => [styles.spaceSwitcher, pressed && styles.pressed]}>
                 <ThemedText type="smallBold" numberOfLines={1} style={styles.spaceSwitcherText}>
                   {space?.kind === 'personal' ? 'Personal' : (space?.name ?? 'Espacios')}
@@ -542,7 +557,11 @@ export default function HomeScreen() {
         )}
       </View>
     </Animated.ScrollView>
-      <SpaceSwitcherSheet isOpen={isSwitcherOpen} onClose={() => setIsSwitcherOpen(false)} />
+      <SpaceSwitcherMenu
+        isOpen={isSwitcherOpen}
+        anchor={switcherAnchor}
+        onClose={() => setIsSwitcherOpen(false)}
+      />
     </View>
   );
 }

@@ -1,15 +1,8 @@
 import { router } from 'expo-router';
-import { Pressable, StyleSheet, View } from 'react-native';
+import { Modal, Pressable, StyleSheet, View } from 'react-native';
 
 import { ThemedText } from './themed-text';
 
-import {
-  Actionsheet,
-  ActionsheetBackdrop,
-  ActionsheetContent,
-  ActionsheetDragIndicator,
-  ActionsheetDragIndicatorWrapper,
-} from '@/components/ui/actionsheet';
 import { lightAt, paletteById } from '@/constants/palettes';
 import { Colors, glow, Radius, Spacing } from '@/constants/theme';
 import { useSpace, type Space } from '@/context/space-context';
@@ -20,14 +13,26 @@ const theme = Colors.dark;
  * naming people, not showing them. */
 const MaxRowLights = 3;
 
+export type SwitcherAnchor = { top: number; right: number };
+
 /**
- * The fast way to switch spaces, from wherever you are — one tap on the pill in the home
- * header, one tap on where you're going. The full spaces screen still exists for the slower
- * work (creating, joining, archiving); this is only ever for "which one am I looking at."
+ * The fast way to switch spaces — a menu anchored right under the pill that opened it, not
+ * a sheet arriving from some other part of the screen. One tap on where you are, one tap on
+ * where you're going. The full spaces screen still exists for the slower work (creating,
+ * joining, archiving); this is only ever for "which one am I looking at."
  */
-export function SpaceSwitcherSheet({ isOpen, onClose }: { isOpen: boolean; onClose: () => void }) {
+export function SpaceSwitcherMenu({
+  isOpen,
+  anchor,
+  onClose,
+}: {
+  isOpen: boolean;
+  /** Where the pill actually measured to, in window coordinates — null until it has. */
+  anchor: SwitcherAnchor | null;
+  onClose: () => void;
+}) {
   const { spaces, spaceId, setActiveSpace } = useSpace();
-  // Archived spaces are deliberately out of the way everywhere else; a quick switcher isn't
+  // Archived spaces are deliberately out of the way everywhere else; this quick menu isn't
   // where that changes. They're still one tap away, inside "Gestionar espacios".
   const activeSpaces = spaces.filter((space) => !space.archived);
 
@@ -36,23 +41,20 @@ export function SpaceSwitcherSheet({ isOpen, onClose }: { isOpen: boolean; onClo
     onClose();
   };
 
+  if (!anchor) return null;
+
   return (
-    <Actionsheet isOpen={isOpen} onClose={onClose}>
-      <ActionsheetBackdrop />
-      <ActionsheetContent>
-        <ActionsheetDragIndicatorWrapper>
-          <ActionsheetDragIndicator />
-        </ActionsheetDragIndicatorWrapper>
-        <View style={styles.list}>
-          {activeSpaces.map((space) => (
-            <SwitcherRow
-              key={space.id}
-              space={space}
-              isActive={space.id === spaceId}
-              onPress={() => select(space.id)}
-            />
-          ))}
-        </View>
+    <Modal visible={isOpen} transparent animationType="fade" statusBarTranslucent onRequestClose={onClose}>
+      <Pressable style={StyleSheet.absoluteFill} onPress={onClose} />
+      <View style={[styles.menu, { top: anchor.top, right: anchor.right }]}>
+        {activeSpaces.map((space) => (
+          <SwitcherRow
+            key={space.id}
+            space={space}
+            isActive={space.id === spaceId}
+            onPress={() => select(space.id)}
+          />
+        ))}
         <Pressable
           onPress={() => {
             onClose();
@@ -63,8 +65,8 @@ export function SpaceSwitcherSheet({ isOpen, onClose }: { isOpen: boolean; onClo
             Gestionar espacios
           </ThemedText>
         </Pressable>
-      </ActionsheetContent>
-    </Actionsheet>
+      </View>
+    </Modal>
   );
 }
 
@@ -108,40 +110,52 @@ function SwitcherRow({
 }
 
 const styles = StyleSheet.create({
-  list: {
-    gap: Spacing[4],
-    paddingBottom: Spacing[8],
+  menu: {
+    position: 'absolute',
+    width: 230,
+    borderRadius: Radius.medium,
+    borderWidth: 1,
+    borderColor: theme.border,
+    backgroundColor: theme.backgroundElement,
+    paddingVertical: Spacing[8],
+    paddingHorizontal: Spacing[8],
+    elevation: 12,
+    shadowColor: '#000',
+    shadowOpacity: 0.4,
+    shadowRadius: 16,
+    shadowOffset: { width: 0, height: 8 },
   },
   row: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: Spacing[12],
-    paddingVertical: Spacing[12],
-    paddingHorizontal: Spacing[4],
-    borderRadius: Radius.medium,
+    paddingVertical: Spacing[8],
+    paddingHorizontal: Spacing[8],
+    borderRadius: Radius.small,
   },
   rowLights: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: Spacing[4],
-    minWidth: 56,
+    minWidth: 44,
   },
   dot: {
-    width: 10,
-    height: 10,
+    width: 9,
+    height: 9,
     borderRadius: Radius.pill,
   },
   rowText: {
     flex: 1,
   },
   activeDot: {
-    width: 8,
-    height: 8,
+    width: 7,
+    height: 7,
     borderRadius: Radius.pill,
   },
   manageRow: {
-    marginTop: Spacing[8],
-    paddingVertical: Spacing[16],
+    marginTop: Spacing[4],
+    paddingVertical: Spacing[12],
+    paddingHorizontal: Spacing[8],
     alignItems: 'center',
     borderTopWidth: 1,
     borderTopColor: theme.border,
