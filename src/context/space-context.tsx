@@ -10,6 +10,7 @@ import {
   type User,
 } from 'firebase/auth';
 import {
+  arrayUnion,
   collection,
   deleteDoc,
   deleteField,
@@ -27,7 +28,7 @@ import * as Crypto from 'expo-crypto';
 import * as Notifications from 'expo-notifications';
 import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from 'react';
 
-import { DefaultPalette, MaxMembers } from '@/constants/palettes';
+import { DefaultPalette } from '@/constants/palettes';
 import { auth, db } from '@/lib/firebase';
 import { resolveInviteCode } from '@/lib/invites';
 import { sendPushNotification } from '@/lib/push';
@@ -370,28 +371,32 @@ export function SpaceProvider({ children }: { children: ReactNode }) {
     if (!resolved.ok) return resolved;
 
     const joinedSpaceId = resolved.spaceId;
-    const spaceRef = doc(db, 'spaces', joinedSpaceId);
-    const snapshot = await getDoc(spaceRef).catch(() => null);
 
-    // Joining is appending yourself: to the arrival list (which fixes your colour) and to
-    // `members` (which is how the others' phones learn your name). One write, checked by
-    // the rules as a whole.
-    const currentMemberIds =
-      (snapshot?.data()?.memberIds as string[] | undefined) ?? [];
-    if (currentMemberIds.includes(user.uid)) {
+    // Already in it — your own membership query would already have this space in `spaces`,
+    // so there's nothing to write; just switch to it.
+    if ((spaces ?? []).some((entry) => entry.id === joinedSpaceId)) {
       setActiveSpace(joinedSpaceId);
       return { ok: true };
     }
-    if (currentMemberIds.length >= MaxMembers) {
+
+    // No pre-read here on purpose: the space's own rules only grant a `get` to someone
+    // already in `memberIds`, which you aren't yet — a read-then-concat would always be
+    // denied and (as it used to) silently default to an empty array, so the write below
+    // would always be rejected too. `arrayUnion` needs no prior read: Firestore resolves it
+    // against the document as it actually stands on the server, and the rules validate the
+    // same resulting value — including the 8-member cap, enforced there, not here.
+    try {
+      await updateDoc(doc(db, 'spaces', joinedSpaceId), {
+        memberIds: arrayUnion(user.uid),
+        [`members.${user.uid}`]: {
+          name: myName,
+          ...(myPushToken ? { expoPushToken: myPushToken } : {}),
+        },
+      });
+    } catch {
       return { ok: false, reason: 'full' };
     }
-    await updateDoc(spaceRef, {
-      memberIds: [...currentMemberIds, user.uid],
-      [`members.${user.uid}`]: {
-        name: myName,
-        ...(myPushToken ? { expoPushToken: myPushToken } : {}),
-      },
-    });
+
     setActiveSpace(joinedSpaceId);
     return { ok: true };
   };
