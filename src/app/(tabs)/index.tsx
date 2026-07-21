@@ -27,7 +27,7 @@ import {
 import Animated from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { BrandLockup, Eyebrow, GlowCard } from '@/components/brand';
-import { CalendarGlyph } from '@/components/icons';
+import { CalendarGlyph, ChevronGlyph, SettingsGlyph } from '@/components/icons';
 import { CardSkeletons } from '@/components/loading';
 import { ThemedText } from '@/components/themed-text';
 import { Spinner } from '@/components/ui/spinner';
@@ -253,19 +253,22 @@ export default function HomeScreen() {
           <View style={styles.headerTop}>
             <BrandLockup size={34} />
             <View style={styles.headerLinks}>
+              {/* The current space, not a label about it — a filled pill with a chevron
+                  reads as a control you tap to change, the way a small caps label sitting
+                  next to "Ajustes" never did: the two looked like the same kind of thing. */}
               <Pressable
                 onPress={() => router.push('/spaces')}
-                hitSlop={12}
-                style={({ pressed }) => pressed && styles.pressed}>
-                <Eyebrow color={palette.accent}>
+                style={({ pressed }) => [styles.spaceSwitcher, pressed && styles.pressed]}>
+                <ThemedText type="smallBold" numberOfLines={1} style={styles.spaceSwitcherText}>
                   {space?.kind === 'personal' ? 'Personal' : (space?.name ?? 'Espacios')}
-                </Eyebrow>
+                </ThemedText>
+                <ChevronGlyph color={theme.textSecondary} size={12} />
               </Pressable>
               <Pressable
                 onPress={() => router.push('/settings')}
-                hitSlop={12}
-                style={({ pressed }) => pressed && styles.pressed}>
-                <Eyebrow>Ajustes</Eyebrow>
+                hitSlop={8}
+                style={({ pressed }) => [styles.settingsButton, pressed && styles.pressed]}>
+                <SettingsGlyph color={theme.textSecondary} size={18} />
               </Pressable>
             </View>
           </View>
@@ -593,7 +596,28 @@ const styles = StyleSheet.create({
   headerLinks: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: Spacing[16],
+    gap: Spacing[8],
+  },
+  spaceSwitcher: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing[4],
+    maxWidth: 150,
+    paddingVertical: Spacing[8],
+    paddingHorizontal: Spacing[12],
+    borderRadius: Radius.pill,
+    backgroundColor: theme.backgroundElement,
+  },
+  spaceSwitcherText: {
+    flexShrink: 1,
+  },
+  settingsButton: {
+    width: 34,
+    height: 34,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: Radius.pill,
+    backgroundColor: theme.backgroundElement,
   },
   photoIdentityDot: {
     width: 8,
