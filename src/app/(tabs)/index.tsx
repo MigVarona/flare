@@ -26,7 +26,7 @@ import {
 } from 'react-native';
 import Animated from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { BrandLockup, Eyebrow, GhostButton, GlowCard } from '@/components/brand';
+import { BrandLockup, Eyebrow, GlowCard } from '@/components/brand';
 import { CalendarGlyph } from '@/components/icons';
 import { CardSkeletons } from '@/components/loading';
 import { ThemedText } from '@/components/themed-text';
@@ -289,27 +289,27 @@ export default function HomeScreen() {
           </View>
         </View>
 
+        {/* A waiting state, not an achievement — it shouldn't out-shout Avisos for it. The
+            full-size key belongs to the screen where cutting it is the entire point
+            (spaces.tsx); here it's a quiet reminder that something's still pending. */}
         {space?.kind === 'shared' && isAlone && inviteCode && (
-          <GlowCard color={palette.accent}>
-            <Eyebrow color={palette.accent}>La llave</Eyebrow>
-            <ThemedText type="key" selectable>
-              {inviteCode}
-            </ThemedText>
-            <ThemedText type="small" themeColor="textSecondary">
-              Hace falta para entrar
-            </ThemedText>
-            <View style={styles.cardAction}>
-              <GhostButton
-                title="Compartir llave"
-                color={palette.partner}
-                onPress={() =>
-                  Share.share({
-                    message: `Esta es la llave de nuestro espacio en Flare: ${inviteCode}`,
-                  })
-                }
-              />
+          <Pressable
+            onPress={() =>
+              Share.share({ message: `Esta es la llave de nuestro espacio en Flare: ${inviteCode}` })
+            }
+            style={({ pressed }) => [styles.inviteRow, pressed && styles.pressed]}>
+            <View style={styles.inviteRowText}>
+              <ThemedText type="small" themeColor="textSecondary">
+                Comparte la llave para que entren
+              </ThemedText>
+              <ThemedText type="smallBold" selectable style={styles.inviteRowCode}>
+                {inviteCode}
+              </ThemedText>
             </View>
-          </GlowCard>
+            <ThemedText type="smallBold" style={{ color: palette.accent }}>
+              Compartir
+            </ThemedText>
+          </Pressable>
         )}
 
         {isLoading && <CardSkeletons count={2} />}
@@ -602,6 +602,25 @@ const styles = StyleSheet.create({
   },
   cardAction: {
     marginTop: Spacing[8],
+  },
+  inviteRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: Spacing[12],
+    paddingVertical: Spacing[12],
+    paddingHorizontal: Spacing[16],
+    borderRadius: Radius.medium,
+    borderWidth: 1,
+    borderColor: theme.border,
+    backgroundColor: theme.backgroundElement,
+  },
+  inviteRowText: {
+    flex: 1,
+    gap: Spacing[2],
+  },
+  inviteRowCode: {
+    letterSpacing: 3,
   },
   section: {
     gap: Spacing[12],
