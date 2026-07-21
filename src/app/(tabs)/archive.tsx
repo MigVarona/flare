@@ -15,8 +15,13 @@ import {
   where,
 } from 'firebase/firestore';
 import { useEffect, useState } from 'react';
-import { Pressable, useWindowDimensions, View } from 'react-native';
-import Animated, { useAnimatedStyle, useSharedValue, withTiming } from 'react-native-reanimated';
+import { FlatList, Pressable, useWindowDimensions, View } from 'react-native';
+import Animated, {
+  useAnimatedReaction,
+  useAnimatedStyle,
+  useSharedValue,
+  withTiming,
+} from 'react-native-reanimated';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import { scheduleOnRN } from 'react-native-worklets';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -95,7 +100,13 @@ export default function ArchiveScreen() {
   const [pinnedPhotos, setPinnedPhotos] = useState<Photo[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isUploading, setIsUploading] = useState(false);
-  const [viewing, setViewing] = useState<Photo | null>(null);
+  // The list you're paging through, not just the one photo you tapped — swiping needs to
+  // know what comes next. Pinned and regular photos are laid out in separate sections, so
+  // which list that is depends on which one you opened from.
+  const [viewingList, setViewingList] = useState<Photo[] | null>(null);
+  const [viewingIndex, setViewingIndex] = useState(0);
+  // While a photo is pinch-zoomed, a swipe should pan it, not flip to the next one.
+  const [isZoomed, setIsZoomed] = useState(false);
   const [actingOn, setActingOn] = useState<Photo | null>(null);
   const [reactingTo, setReactingTo] = useState<Photo | null>(null);
   /**
@@ -183,10 +194,18 @@ export default function ArchiveScreen() {
     await updateDoc(doc(db, 'spaces', spaceId, 'photos', photo.id), { pinned: !photo.pinned });
   };
 
+  /** Opens the full-screen viewer onto one photo, remembering which list it can swipe through. */
+  const openViewer = (list: Photo[], photo: Photo) => {
+    const index = list.findIndex((candidate) => candidate.id === photo.id);
+    setViewingList(list);
+    setViewingIndex(index < 0 ? 0 : index);
+    setIsZoomed(false);
+  };
+
   const removePhoto = async (photo: Photo) => {
     if (!spaceId) return;
     setActingOn(null);
-    setViewing(null);
+    setViewingList(null);
     try {
       // The Worker takes down the file and then the record. Deleting the record from here
       // would only forget where the photo was: the image itself would stay up for good.
@@ -207,7 +226,11 @@ export default function ArchiveScreen() {
   const gutter = Spacing[8];
   const columnWidth = (width - Spacing[24] * 2 - gutter) / 2;
   const pinnedSize = (width - Spacing[24] * 2 - gutter) / 2;
+  const viewing = viewingList ? viewingList[viewingIndex] : null;
   const viewingIsMine = viewing?.uploadedByUid === user?.uid;
+  // A horizontal FlatList's cross-axis doesn't stretch to fill its parent on its own — it
+  // needs a real number, not "100%" or flex: 1, or every page collapses to its content height.
+  const viewerHeight = screenHeight - insets.top - insets.bottom - Spacing[16] * 2;
 
   return (
     <>
@@ -245,7 +268,9 @@ export default function ArchiveScreen() {
               <View className="flex-row gap-2">
                 {pinnedPhotos.map((photo) => {
                   const color = palette.colorFor(photo.uploadedByUid);
-                  const open = Gesture.Tap().numberOfTaps(1).onEnd(() => scheduleOnRN(setViewing, photo));
+                  const open = Gesture.Tap()
+                    .numberOfTaps(1)
+                    .onEnd(() => scheduleOnRN(openViewer, pinnedPhotos, photo));
 
                   return (
                     <GestureDetector key={photo.id} gesture={open}>
@@ -294,7 +319,7 @@ export default function ArchiveScreen() {
                       // own photos, and pinning any of them, still live in the full-screen view.
                       const open = Gesture.Tap()
                         .numberOfTaps(1)
-                        .onEnd(() => scheduleOnRN(setViewing, photo));
+                        .onEnd(() => scheduleOnRN(openViewer, regularPhotos, photo));
                       const answer = Gesture.LongPress()
                         .minDuration(350)
                         .onStart(() => scheduleOnRN(setReactingTo, photo));
@@ -384,24 +409,45 @@ export default function ArchiveScreen() {
         </LinearGradient>
       </Fab>
 
-      <Modal isOpen={Boolean(viewing)} onClose={() => setViewing(null)} size="full">
+      <Modal isOpen={Boolean(viewingList)} onClose={() => setViewingList(null)} size="full">
         <ModalBackdrop className="bg-background/95" />
         <ModalContent
           className="h-full rounded-none border-0 bg-transparent p-0 shadow-none"
           style={{ height: screenHeight }}>
           <View
-            className="h-full w-full items-center justify-center"
+            className="h-full w-full"
             style={{
               paddingTop: insets.top + Spacing[16],
               paddingBottom: insets.bottom + Spacing[16],
-              paddingHorizontal: Spacing[8],
             }}>
-            {viewing && <ZoomableImage key={viewing.id} uri={viewing.imageUrl} />}
+            {viewingList && (
+              <FlatList
+                key={viewingList.map((photo) => photo.id).join(',')}
+                data={viewingList}
+                horizontal
+                pagingEnabled
+                showsHorizontalScrollIndicator={false}
+                scrollEnabled={!isZoomed}
+                initialScrollIndex={viewingIndex}
+                getItemLayout={(_, index) => ({ length: width, offset: width * index, index })}
+                keyExtractor={(photo) => photo.id}
+                onMomentumScrollEnd={(event) => {
+                  setViewingIndex(Math.round(event.nativeEvent.contentOffset.x / width));
+                  setIsZoomed(false);
+                }}
+                style={{ height: viewerHeight }}
+                renderItem={({ item }) => (
+                  <View style={{ width, height: viewerHeight, paddingHorizontal: Spacing[8] }}>
+                    <ZoomableImage uri={item.imageUrl} onZoomChange={setIsZoomed} />
+                  </View>
+                )}
+              />
+            )}
             <View
               className="absolute left-0 right-0 flex-row items-center justify-between px-6"
               style={{ top: insets.top + Spacing[16] }}>
               <Pressable
-                onPress={() => setViewing(null)}
+                onPress={() => setViewingList(null)}
                 className="rounded-full border border-border bg-background/80 px-4 py-3 active:opacity-70">
                 <ThemedText type="smallBold">Cerrar</ThemedText>
               </Pressable>
@@ -474,13 +520,27 @@ const MaxZoom = 4;
  * cropped by default — so panning only has to do anything once you've actually zoomed in
  * past that. A double tap is the shortcut past pinching by hand.
  */
-function ZoomableImage({ uri }: { uri: string }) {
+function ZoomableImage({
+  uri,
+  onZoomChange,
+}: {
+  uri: string;
+  /** Lets the pager above know to stop swiping between photos while this one is zoomed in. */
+  onZoomChange: (zoomed: boolean) => void;
+}) {
   const scale = useSharedValue(1);
   const savedScale = useSharedValue(1);
   const translateX = useSharedValue(0);
   const translateY = useSharedValue(0);
   const savedTranslateX = useSharedValue(0);
   const savedTranslateY = useSharedValue(0);
+
+  useAnimatedReaction(
+    () => scale.value > 1,
+    (zoomed, previouslyZoomed) => {
+      if (zoomed !== previouslyZoomed) scheduleOnRN(onZoomChange, zoomed);
+    },
+  );
 
   const reset = () => {
     'worklet';
