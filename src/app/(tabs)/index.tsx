@@ -703,16 +703,13 @@ const styles = StyleSheet.create({
     lineHeight: 26,
     transform: [{ translateY: -1 }],
   },
+  // No enclosing box on purpose — the full Archivo screen doesn't wrap its grid in one
+  // either. A fixed-width card behind a variable number of thumbnails just leaves dead
+  // space next to the pile whenever it's a photo or two shy of full.
   photoPreviewCard: {
-    minHeight: 104,
-    borderRadius: Radius.large,
-    backgroundColor: theme.backgroundElement,
-    borderWidth: 1,
-    borderColor: `${theme.textSecondary}35`,
     flexDirection: 'row',
     alignItems: 'center',
     gap: Spacing[8],
-    padding: Spacing[12],
   },
   photoThumb: {
     overflow: 'hidden',
