@@ -579,9 +579,7 @@ export default function RemindersScreen() {
               {pending.length === 0 && !isAdding && (
                 <GlowCard>
                   <ThemedText className="leading-6 text-muted-foreground">
-                    {isAlone
-                      ? "Nada pendiente. Cuando pongas uno, este teléfono sonará a su hora."
-                      : "Nada pendiente. Cuando pongas uno, sonará en el móvil que elijas a su hora."}
+                    Nada pendiente por ahora.
                   </ThemedText>
                 </GlowCard>
               )}

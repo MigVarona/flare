@@ -133,6 +133,7 @@ service cloud.firestore {
           'memberIds',
           'members',
           'inviteCode',
+          'inviteCodeExpiresAt',
           'palette',
           'createdAt'
         ])
@@ -148,9 +149,14 @@ service cloud.firestore {
           // being derived from the uid is what makes creating it idempotent and race-free.
           (request.resource.data.kind == 'personal'
             && spaceId == 'personal_' + request.auth.uid
-            && request.resource.data.inviteCode == null)
+            && request.resource.data.inviteCode == null
+            && !('inviteCodeExpiresAt' in request.resource.data))
           || (request.resource.data.kind == 'shared'
-            && request.resource.data.inviteCode.matches('^[A-Z0-9]{6}$'))
+            && request.resource.data.inviteCode.matches('^[A-Z0-9]{6}$')
+            && request.resource.data.inviteCodeExpiresAt is int
+            && request.resource.data.inviteCodeExpiresAt > request.time.toMillis()
+            && request.resource.data.inviteCodeExpiresAt
+              <= request.time.toMillis() + 8 * 24 * 60 * 60 * 1000)
         );
 
       allow update: if isSignedIn()
@@ -159,7 +165,7 @@ service cloud.firestore {
           // in `members` that belongs to them.
           (request.auth.uid in resource.data.memberIds
             && request.resource.data.diff(resource.data).affectedKeys()
-              .hasOnly(['name', 'palette', 'members', 'archived'])
+              .hasOnly(['name', 'palette', 'members', 'archived', 'inviteCode', 'inviteCodeExpiresAt'])
             && isValidName(request.resource.data.name, 28)
             && (!('palette' in request.resource.data)
                 || request.resource.data.palette in ['neon', 'brasa', 'selva', 'cobalto', 'coral', 'lima'])
@@ -169,7 +175,18 @@ service cloud.firestore {
             // A trip that's over, not a space that's gone — and not something the one
             // space with no door in or out has any meaning for.
             && (!('archived' in request.resource.data.diff(resource.data).affectedKeys())
-                || (request.resource.data.archived is bool && resource.data.kind == 'shared')))
+                || (request.resource.data.archived is bool && resource.data.kind == 'shared'))
+            // A fresh key for a space that already has one — the personal space never has
+            // a door, so it never gets to touch either of these.
+            && (!('inviteCode' in request.resource.data.diff(resource.data).affectedKeys())
+                || (resource.data.kind == 'shared'
+                    && request.resource.data.inviteCode.matches('^[A-Z0-9]{6}$')))
+            && (!('inviteCodeExpiresAt' in request.resource.data.diff(resource.data).affectedKeys())
+                || (resource.data.kind == 'shared'
+                    && request.resource.data.inviteCodeExpiresAt is int
+                    && request.resource.data.inviteCodeExpiresAt > request.time.toMillis()
+                    && request.resource.data.inviteCodeExpiresAt
+                      <= request.time.toMillis() + 8 * 24 * 60 * 60 * 1000)))
 
           // Someone holding the key walking in: the one moment a non-member may write, and
           // only to append themselves — to the list, to `members`, and to un-archive the

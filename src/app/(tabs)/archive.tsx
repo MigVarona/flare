@@ -15,7 +15,7 @@ import {
   where,
 } from 'firebase/firestore';
 import { useEffect, useState } from 'react';
-import { FlatList, Pressable, useWindowDimensions, View } from 'react-native';
+import { FlatList, Pressable, StyleSheet, useWindowDimensions, View } from 'react-native';
 import Animated, {
   useAnimatedReaction,
   useAnimatedStyle,
@@ -31,7 +31,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { Eyebrow, GhostButton, GlowCard, ScreenHeader } from '@/components/brand';
 import Svg, { Path } from 'react-native-svg';
 
-import { PinGlyph } from '@/components/icons';
+import { CloseGlyph, PinGlyph, TrashGlyph } from '@/components/icons';
 import { LightSignal, isSignalId, useSignalMeaning, type SignalId } from '@/components/light-signals';
 import { PhotoGridSkeleton } from '@/components/loading';
 import { SignalPicker } from '@/components/signal-picker';
@@ -48,7 +48,7 @@ import {
 } from '@/components/ui/actionsheet';
 import { Modal, ModalBackdrop, ModalContent } from '@/components/ui/modal';
 import { Spinner } from '@/components/ui/spinner';
-import { BottomTabInset, Colors, glow, MaxPinnedItems, neonBorder, Spacing } from '@/constants/theme';
+import { BottomTabInset, Colors, glow, MaxPinnedItems, neonBorder, Radius, Spacing } from '@/constants/theme';
 import { useSpace } from '@/context/space-context';
 import { useNotice } from '@/hooks/use-notice';
 import { usePalette } from '@/hooks/use-palette';
@@ -443,40 +443,37 @@ export default function ArchiveScreen() {
                 )}
               />
             )}
+            {/* Icon-only, the way the gear on Home already reads a screen's controls: a
+                circle of chrome with a glyph in it, nothing spelled out. The photo fills the
+                screen — there's nothing here that needs a label to be understood. */}
             <View
               className="absolute left-0 right-0 flex-row items-center justify-between px-6"
               style={{ top: insets.top + Spacing[16] }}>
               <Pressable
                 onPress={() => setViewingList(null)}
-                className="rounded-full border border-border bg-background/80 px-4 py-3 active:opacity-70">
-                <ThemedText type="smallBold">Cerrar</ThemedText>
+                hitSlop={8}
+                style={({ pressed }) => [styles.iconButton, pressed && styles.pressed]}>
+                <CloseGlyph color={theme.text} size={16} />
               </Pressable>
               <View className="flex-row items-center gap-2">
                 {viewing && (
                   <Pressable
                     onPress={() => togglePin(viewing)}
-                    hitSlop={12}
-                    className="flex-row items-center gap-2 rounded-full border border-border bg-background/80 px-4 py-3 active:opacity-70">
+                    hitSlop={8}
+                    style={({ pressed }) => [styles.iconButton, pressed && styles.pressed]}>
                     <PinGlyph
                       color={viewing.pinned ? palette.accent : theme.textSecondary}
                       filled={viewing.pinned}
-                      size={14}
+                      size={16}
                     />
-                    <ThemedText
-                      type="smallBold"
-                      style={{ color: viewing.pinned ? palette.accent : theme.textSecondary }}>
-                      {viewing.pinned ? 'Fijada' : 'Fijar'}
-                    </ThemedText>
                   </Pressable>
                 )}
                 {viewingIsMine && viewing && (
                   <Pressable
                     onPress={() => setActingOn(viewing)}
-                    hitSlop={12}
-                    className="rounded-full border border-border bg-background/80 px-4 py-3 active:opacity-70">
-                    <ThemedText type="small" className="text-destructive">
-                      Borrar
-                    </ThemedText>
+                    hitSlop={8}
+                    style={({ pressed }) => [styles.iconButton, pressed && styles.pressed]}>
+                    <TrashGlyph color={theme.destructive} size={16} />
                   </Pressable>
                 )}
               </View>
@@ -602,3 +599,19 @@ function ZoomableImage({
     </GestureDetector>
   );
 }
+
+const styles = StyleSheet.create({
+  // Matches the gear button on Home: a circle of chrome, sized as a real touch target rather
+  // than however big the label happened to make it.
+  iconButton: {
+    width: 34,
+    height: 34,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: Radius.pill,
+    backgroundColor: `${theme.background}CC`,
+  },
+  pressed: {
+    opacity: 0.7,
+  },
+});

@@ -54,6 +54,9 @@ export type Space = {
   memberIds: string[];
   members: Record<string, MemberProfile>;
   inviteCode: string | null;
+  /** When the current code stops working, so the UI can say so before someone finds out
+   * the hard way by trying to use it. */
+  inviteCodeExpiresAt: number | null;
   paletteId: string;
   /** A trip that's over, not a space that's gone: still there, just out of the way. */
   archived: boolean;
@@ -88,6 +91,7 @@ type SpaceContextValue = {
   /** Nobody else in the active space (always true for the personal one). */
   isAlone: boolean;
   inviteCode: string | null;
+  inviteCodeExpiresAt: number | null;
   paletteId: string;
   setPalette: (id: string) => Promise<void>;
   signUp: (email: string, password: string, name: string) => Promise<void>;
@@ -140,6 +144,7 @@ function readSpace(id: string, data: Record<string, unknown>): Space {
     memberIds: (data.memberIds as string[] | undefined) ?? [],
     members: (data.members as Record<string, MemberProfile> | undefined) ?? {},
     inviteCode: (data.inviteCode as string | undefined) ?? null,
+    inviteCodeExpiresAt: (data.inviteCodeExpiresAt as number | undefined) ?? null,
     paletteId: (data.palette as string | undefined) ?? DefaultPalette.id,
     archived: (data.archived as boolean | undefined) ?? false,
   };
@@ -325,6 +330,7 @@ export function SpaceProvider({ children }: { children: ReactNode }) {
         [user.uid]: { name: myName, ...(myPushToken ? { expoPushToken: myPushToken } : {}) },
       },
       inviteCode: code,
+      inviteCodeExpiresAt: Date.now() + InviteLifetimeMs,
       createdAt: Date.now(),
     });
     // The key also lives on its own, so that walking in means knowing the code rather
@@ -356,7 +362,10 @@ export function SpaceProvider({ children }: { children: ReactNode }) {
       createdAt: Date.now(),
       expiresAt: inviteExpiry(),
     });
-    await updateDoc(doc(db, 'spaces', space.id), { inviteCode: code });
+    await updateDoc(doc(db, 'spaces', space.id), {
+      inviteCode: code,
+      inviteCodeExpiresAt: Date.now() + InviteLifetimeMs,
+    });
     return code;
   };
 
@@ -520,6 +529,7 @@ export function SpaceProvider({ children }: { children: ReactNode }) {
       myName: myName || 'Tú',
       isAlone: otherMembers.length === 0,
       inviteCode: space?.inviteCode ?? null,
+      inviteCodeExpiresAt: space?.inviteCodeExpiresAt ?? null,
       paletteId: space?.paletteId ?? DefaultPalette.id,
       setPalette,
       signUp,

@@ -60,6 +60,48 @@ export function SettingsGlyph({ color, size = 18 }: { color: string; size?: numb
   );
 }
 
+/** A close mark. Two strokes, nothing that needs a label next to it. */
+export function CloseGlyph({ color, size = 18 }: { color: string; size?: number }) {
+  return (
+    <Svg width={size} height={size} viewBox="0 0 24 24">
+      <Path
+        d="M6 6l12 12M18 6 6 18"
+        stroke={color}
+        strokeWidth={2.2}
+        strokeLinecap="round"
+      />
+    </Svg>
+  );
+}
+
+/** A wastebasket. What "Borrar" means without having to say it. */
+export function TrashGlyph({ color, size = 18 }: { color: string; size?: number }) {
+  return (
+    <Svg width={size} height={size} viewBox="0 0 24 24">
+      <Path
+        d="M5 7h14M9 7V4.8c0-.6.4-1 1-1h4c.6 0 1 .4 1 1V7M7 7l1 12.2c0 .5.4 1 1 1h6c.5 0 1-.5 1-1L17 7"
+        stroke={color}
+        strokeWidth={1.8}
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        fill="none"
+      />
+      <Path d="M10 11v6M14 11v6" stroke={color} strokeWidth={1.8} strokeLinecap="round" />
+    </Svg>
+  );
+}
+
+/** Three dots. What a row offers beyond the one thing tapping it already does. */
+export function MoreGlyph({ color, size = 18 }: { color: string; size?: number }) {
+  return (
+    <Svg width={size} height={size} viewBox="0 0 24 24">
+      <Circle cx={5} cy={12} r={2.1} fill={color} />
+      <Circle cx={12} cy={12} r={2.1} fill={color} />
+      <Circle cx={19} cy={12} r={2.1} fill={color} />
+    </Svg>
+  );
+}
+
 /** A drawing pin. Marks a note on the Tablón as one that doesn't fade with the others. */
 export function PinGlyph({
   color,

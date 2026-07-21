@@ -320,7 +320,7 @@ export default function HomeScreen() {
             style={({ pressed }) => [styles.inviteRow, pressed && styles.pressed]}>
             <View style={styles.inviteRowText}>
               <ThemedText type="small" themeColor="textSecondary">
-                Comparte la llave para que entren
+                Llave de acceso
               </ThemedText>
               <ThemedText type="smallBold" selectable style={styles.inviteRowCode}>
                 {inviteCode}

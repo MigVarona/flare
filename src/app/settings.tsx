@@ -17,6 +17,7 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
 } from '@/components/ui/alert-dialog';
+import { MaxMembers } from '@/constants/palettes';
 import { Colors, glow } from '@/constants/theme';
 import { PrivacyMarkdown } from '@/constants/privacy';
 import { TermsMarkdown } from '@/constants/terms';
@@ -35,6 +36,7 @@ export default function SettingsScreen() {
     members,
     isAlone,
     inviteCode,
+    inviteCodeExpiresAt,
     myName,
     renameMe,
     paletteId,
@@ -65,6 +67,11 @@ export default function SettingsScreen() {
   // Leaving only ends the space when you're the last one in it; with others inside, it
   // simply goes on without you. The personal space isn't leavable at all.
   const isSharedSpace = space?.kind === 'shared';
+  const isFull = members.length >= MaxMembers;
+  const isKeyExpired = inviteCodeExpiresAt != null && Date.now() > inviteCodeExpiresAt;
+  const daysUntilExpiry = inviteCodeExpiresAt != null
+    ? Math.ceil((inviteCodeExpiresAt - Date.now()) / (24 * 60 * 60 * 1000))
+    : null;
 
   // The names arrive from Firestore after the first render, so the fields have to catch up.
   useEffect(() => setOwnName(myName), [myName]);
@@ -194,23 +201,37 @@ export default function SettingsScreen() {
           <PalettePicker selectedId={paletteId} onSelect={setPalette} />
         </GlowCard>
 
-        {isSharedSpace && inviteCode && members.length < 8 && (
-          <GlowCard color={palette.accent}>
-            <Eyebrow color={palette.accent}>La llave</Eyebrow>
-            <ThemedText type="key" selectable>
-              {inviteCode}
-            </ThemedText>
-            <ThemedText type="small" className="text-muted-foreground">
-              Hace falta para entrar. Caduca en una semana, o antes si generas una nueva.
-            </ThemedText>
-            <View className="mt-2">
-              <GhostButton
-                title={isRegeneratingKey ? 'Generando…' : 'Generar nueva llave'}
-                color={palette.accent}
-                disabled={isRegeneratingKey}
-                onPress={handleRegenerateKey}
-              />
-            </View>
+        {isSharedSpace && inviteCode && (
+          <GlowCard color={isKeyExpired ? theme.destructive : palette.accent}>
+            <Eyebrow color={isKeyExpired ? theme.destructive : palette.accent}>La llave</Eyebrow>
+            {isFull ? (
+              <ThemedText type="small" className="text-muted-foreground">
+                El espacio está completo — no hace falta llave para nadie más.
+              </ThemedText>
+            ) : (
+              <>
+                <ThemedText type="key" selectable>
+                  {inviteCode}
+                </ThemedText>
+                <ThemedText
+                  type="small"
+                  style={{ color: isKeyExpired ? theme.destructive : theme.textSecondary }}>
+                  {isKeyExpired
+                    ? 'Ha caducado — nadie puede entrar ya con ella.'
+                    : daysUntilExpiry !== null && daysUntilExpiry <= 1
+                      ? 'Caduca hoy.'
+                      : `Caduca en ${daysUntilExpiry} días.`}
+                </ThemedText>
+                <View className="mt-2">
+                  <GhostButton
+                    title={isRegeneratingKey ? 'Generando…' : 'Generar nueva llave'}
+                    color={isKeyExpired ? theme.destructive : palette.accent}
+                    disabled={isRegeneratingKey}
+                    onPress={handleRegenerateKey}
+                  />
+                </View>
+              </>
+            )}
           </GlowCard>
         )}
 
@@ -243,9 +264,7 @@ export default function SettingsScreen() {
               <View className="mt-2 gap-1">
                 <ThemedText type="smallBold">Salir de este espacio</ThemedText>
                 <ThemedText type="small" className="leading-5 text-muted-foreground">
-                  {isAlone
-                    ? 'Nadie más ha entrado, así que el espacio se borra sin más. Tu cuenta y tu espacio personal siguen intactos.'
-                    : 'El espacio sigue para los demás, sin ti. Lo que dejaste dentro se queda; tu cuenta y tus otros espacios no se tocan.'}
+                  Perderás el acceso a este espacio.
                 </ThemedText>
                 <View className="mt-2">
                   <GhostButton
@@ -263,9 +282,7 @@ export default function SettingsScreen() {
               }>
               <ThemedText type="smallBold">Eliminar mi cuenta</ThemedText>
               <ThemedText type="small" className="leading-5 text-muted-foreground">
-                Desaparecen tu cuenta y tu espacio personal con todo lo que contiene. De los
-                espacios compartidos sales como si te fueras: siguen para quienes se quedan, y se
-                borran solo aquellos donde estabas únicamente tú.
+                Esta acción no se puede deshacer.
               </ThemedText>
               <View className="mt-2">
                 <GhostButton
@@ -287,7 +304,7 @@ export default function SettingsScreen() {
           </AlertDialogHeader>
           <AlertDialogBody className="mt-2 mb-4">
             <ThemedText type="small" className="leading-6 text-muted-foreground">
-              El espacio y todo lo que hay dentro sigue donde está. Puedes volver cuando quieras.
+              Puedes volver cuando quieras.
             </ThemedText>
           </AlertDialogBody>
           <AlertDialogFooter className="gap-2">
@@ -318,8 +335,8 @@ export default function SettingsScreen() {
           <AlertDialogBody className="mt-2 mb-4">
             <ThemedText type="small" className="leading-6 text-muted-foreground">
               {isAlone
-                ? 'Nadie más ha entrado, así que el espacio se borra sin más. Tu cuenta y tu espacio personal siguen intactos, y puedes crear otro o entrar en uno con una llave.'
-                : 'El espacio sigue para los demás, sin ti. Para volver necesitarás que alguien te pase la llave otra vez.'}
+                ? 'Al ser el único miembro, el espacio se elimina. Tu cuenta no se ve afectada.'
+                : 'Seguirá para los demás. Necesitarás una llave nueva para volver a entrar.'}
             </ThemedText>
           </AlertDialogBody>
           <AlertDialogFooter className="gap-2">
@@ -351,9 +368,8 @@ export default function SettingsScreen() {
           </AlertDialogHeader>
           <AlertDialogBody className="mt-2 mb-4 gap-3">
             <ThemedText type="small" className="leading-6 text-muted-foreground">
-              Se van tu cuenta y tu espacio personal: las fotos, los avisos y lo que hayas
-              escrito. De los espacios compartidos sales sin llevarte lo de los demás — solo se
-              borran aquellos donde estabas únicamente tú. No hay vuelta atrás.
+              Se eliminan tu cuenta, tu espacio personal y los espacios donde eras el único
+              miembro. No hay vuelta atrás.
             </ThemedText>
 
             {isGoogleAccount ? (

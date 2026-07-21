@@ -20,6 +20,7 @@ import {
   ActionsheetItem,
   ActionsheetItemText,
 } from '@/components/ui/actionsheet';
+import { MoreGlyph } from '@/components/icons';
 import { ThemedText } from '@/components/themed-text';
 import { lightAt, paletteById } from '@/constants/palettes';
 import { Colors, glow, neonBorder, Radius, Spacing } from '@/constants/theme';
@@ -75,7 +76,7 @@ function SpaceList({ onCreate, onJoin }: { onCreate: () => void; onJoin: () => v
           space={space}
           isActive={space.id === spaceId}
           onPress={() => selectSpace(space)}
-          onLongPress={space.kind === 'shared' ? () => setManaging(space) : undefined}
+          onManage={space.kind === 'shared' ? () => setManaging(space) : undefined}
         />
       ))}
 
@@ -83,12 +84,6 @@ function SpaceList({ onCreate, onJoin }: { onCreate: () => void; onJoin: () => v
         <GhostButton title="Crear un espacio" color={palette.you} onPress={onCreate} />
         <GhostButton title="Entrar con una llave" color={palette.partner} onPress={onJoin} />
       </View>
-
-      {activeSpaces.some((space) => space.kind === 'shared') && (
-        <ThemedText type="small" themeColor="textSecondary" style={styles.hint}>
-          Mantén pulsado un espacio compartido para archivarlo — sigue ahí, solo deja de estar en medio.
-        </ThemedText>
-      )}
 
       {archivedSpaces.length > 0 && (
         <View style={styles.archivedBlock}>
@@ -99,7 +94,7 @@ function SpaceList({ onCreate, onJoin }: { onCreate: () => void; onJoin: () => v
               space={space}
               isActive={space.id === spaceId}
               onPress={() => selectSpace(space)}
-              onLongPress={() => setManaging(space)}
+              onManage={() => setManaging(space)}
               faded
             />
           ))}
@@ -134,23 +129,21 @@ function SpaceRow({
   space,
   isActive,
   onPress,
-  onLongPress,
+  onManage,
   faded,
 }: {
   space: Space;
   isActive: boolean;
   onPress: () => void;
-  onLongPress?: () => void;
+  /** Archiving lives behind this — a visible control, not a gesture you'd have to be told about. */
+  onManage?: () => void;
   /** An archived space isn't hidden, just dimmed — still here, just not the centre of it. */
   faded?: boolean;
 }) {
   const spacePalette = paletteById(space.paletteId);
 
   return (
-    <Pressable
-      onPress={onPress}
-      onLongPress={onLongPress}
-      style={({ pressed }) => [faded && styles.faded, pressed && styles.pressed]}>
+    <Pressable onPress={onPress} style={({ pressed }) => [faded && styles.faded, pressed && styles.pressed]}>
       <GlowCard color={isActive ? spacePalette.lens : undefined}>
         <View style={styles.rowHead}>
           <View style={styles.lightRow}>
@@ -165,7 +158,17 @@ function SpaceRow({
               />
             ))}
           </View>
-          {isActive && <Eyebrow color={spacePalette.lens}>Ahora</Eyebrow>}
+          <View style={styles.rowActions}>
+            {isActive && <Eyebrow color={spacePalette.lens}>Activo</Eyebrow>}
+            {onManage && (
+              <Pressable
+                onPress={onManage}
+                hitSlop={10}
+                style={({ pressed }) => [styles.manageButton, pressed && styles.pressed]}>
+                <MoreGlyph color={theme.textSecondary} size={16} />
+              </Pressable>
+            )}
+          </View>
         </View>
         <ThemedText type="headline">{space.kind === 'personal' ? 'Personal' : space.name}</ThemedText>
         <ThemedText type="small" themeColor="textSecondary">
@@ -207,8 +210,7 @@ function CreateSpace({ onBack }: { onBack: () => void }) {
         <View style={styles.titleBlock}>
           <Eyebrow color={palette.you}>Nuevo espacio</Eyebrow>
           <ThemedText themeColor="textSecondary">
-            Ponle nombre — Casa, Familia, un viaje — y genera una llave para que entren los tuyos.
-            Caben hasta 8.
+            Ponle nombre y genera una llave para invitar. Caben hasta 8 personas.
           </ThemedText>
         </View>
 
@@ -240,9 +242,7 @@ function CreateSpace({ onBack }: { onBack: () => void }) {
     <View style={styles.stack}>
       <View style={styles.titleBlock}>
         <Eyebrow color={palette.you}>La llave</Eyebrow>
-        <ThemedText themeColor="textSecondary">
-          Compártela con quien quieras dentro. Sirve hasta que el espacio se llene.
-        </ThemedText>
+        <ThemedText themeColor="textSecondary">Compártela para invitar a tu espacio.</ThemedText>
       </View>
 
       <View style={[styles.keyBox, neonBorder(palette.accent, '44'), glow(palette.accent, 40, '33')]}>
@@ -251,7 +251,7 @@ function CreateSpace({ onBack }: { onBack: () => void }) {
         </ThemedText>
         <GradientRule />
         <ThemedText type="small" themeColor="textSecondary" style={styles.centerText}>
-          Quien la tenga puede entrar, así que dásela solo a los tuyos. Caduca en una semana.
+          Compártela solo con quien quieras dentro. Caduca en una semana.
         </ThemedText>
       </View>
 
@@ -355,10 +355,6 @@ const styles = StyleSheet.create({
   titleBlock: {
     gap: Spacing[8],
   },
-  hint: {
-    textAlign: 'center',
-    marginTop: -Spacing[8],
-  },
   archivedBlock: {
     gap: Spacing[12],
     marginTop: Spacing[8],
@@ -374,6 +370,21 @@ const styles = StyleSheet.create({
   lightRow: {
     flexDirection: 'row',
     gap: Spacing[8],
+  },
+  rowActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing[8],
+  },
+  // Matches the icon-button language used everywhere else (Home's gear, the photo viewer):
+  // a circle of chrome sized as a real touch target, not however big a label would make it.
+  manageButton: {
+    width: 28,
+    height: 28,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: Radius.pill,
+    backgroundColor: theme.backgroundElement,
   },
   light: {
     width: 12,
