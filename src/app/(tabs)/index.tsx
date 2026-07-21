@@ -267,7 +267,7 @@ export default function HomeScreen() {
       <View style={styles.inner}>
         <View style={styles.header}>
           <View style={styles.headerTop}>
-            <BrandLockup size={34} />
+            <BrandLockup size={42} />
             <View style={styles.headerLinks}>
               {/* The current space, not a label about it — a filled pill with a chevron
                   reads as a control you tap to change, the way a small caps label sitting

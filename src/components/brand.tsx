@@ -280,7 +280,8 @@ const styles = StyleSheet.create({
   wordmark: {
     fontFamily: 'Gabarito_800ExtraBold',
     color: theme.text,
-    letterSpacing: -1.5,
+    // Was -1.5 — tight enough that the letters ran together instead of reading as a word.
+    letterSpacing: -0.5,
     textAlign: 'center',
   },
   wordmarkGhost: {
