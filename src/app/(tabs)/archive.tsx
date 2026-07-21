@@ -16,7 +16,7 @@ import {
 } from 'firebase/firestore';
 import { useEffect, useState } from 'react';
 import { Pressable, useWindowDimensions, View } from 'react-native';
-import Animated from 'react-native-reanimated';
+import Animated, { useAnimatedStyle, useSharedValue, withTiming } from 'react-native-reanimated';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import { scheduleOnRN } from 'react-native-worklets';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -396,13 +396,7 @@ export default function ArchiveScreen() {
               paddingBottom: insets.bottom + Spacing[16],
               paddingHorizontal: Spacing[8],
             }}>
-            {viewing && (
-              <Image
-                source={{ uri: viewing.imageUrl }}
-                style={{ width: '100%', height: '100%' }}
-                contentFit="contain"
-              />
-            )}
+            {viewing && <ZoomableImage key={viewing.id} uri={viewing.imageUrl} />}
             <View
               className="absolute left-0 right-0 flex-row items-center justify-between px-6"
               style={{ top: insets.top + Spacing[16] }}>
@@ -467,5 +461,84 @@ export default function ArchiveScreen() {
         </ActionsheetContent>
       </Actionsheet>
     </>
+  );
+}
+
+/** How far in a photo can be pinched — past this it's just pixels, not detail. */
+const MaxZoom = 4;
+
+/**
+ * The full-screen photo, pinch-to-zoom and pannable once it's bigger than the screen.
+ *
+ * `contentFit="contain"` means the whole photo always fits at rest — nothing is ever
+ * cropped by default — so panning only has to do anything once you've actually zoomed in
+ * past that. A double tap is the shortcut past pinching by hand.
+ */
+function ZoomableImage({ uri }: { uri: string }) {
+  const scale = useSharedValue(1);
+  const savedScale = useSharedValue(1);
+  const translateX = useSharedValue(0);
+  const translateY = useSharedValue(0);
+  const savedTranslateX = useSharedValue(0);
+  const savedTranslateY = useSharedValue(0);
+
+  const reset = () => {
+    'worklet';
+    scale.value = withTiming(1);
+    savedScale.value = 1;
+    translateX.value = withTiming(0);
+    translateY.value = withTiming(0);
+    savedTranslateX.value = 0;
+    savedTranslateY.value = 0;
+  };
+
+  const pinch = Gesture.Pinch()
+    .onUpdate((event) => {
+      scale.value = Math.min(Math.max(savedScale.value * event.scale, 1), MaxZoom);
+    })
+    .onEnd(() => {
+      savedScale.value = scale.value;
+      if (scale.value <= 1) reset();
+    });
+
+  const pan = Gesture.Pan()
+    .onUpdate((event) => {
+      // Below 1x there's nothing to pan across — the photo already fits the screen.
+      if (savedScale.value <= 1) return;
+      translateX.value = savedTranslateX.value + event.translationX;
+      translateY.value = savedTranslateY.value + event.translationY;
+    })
+    .onEnd(() => {
+      savedTranslateX.value = translateX.value;
+      savedTranslateY.value = translateY.value;
+    });
+
+  const doubleTap = Gesture.Tap()
+    .numberOfTaps(2)
+    .onEnd(() => {
+      if (savedScale.value > 1) {
+        reset();
+      } else {
+        scale.value = withTiming(2.5);
+        savedScale.value = 2.5;
+      }
+    });
+
+  const gesture = Gesture.Exclusive(doubleTap, Gesture.Simultaneous(pinch, pan));
+
+  const animatedStyle = useAnimatedStyle(() => ({
+    transform: [
+      { translateX: translateX.value },
+      { translateY: translateY.value },
+      { scale: scale.value },
+    ],
+  }));
+
+  return (
+    <GestureDetector gesture={gesture}>
+      <Animated.View style={[{ width: '100%', height: '100%' }, animatedStyle]}>
+        <Image source={{ uri }} style={{ width: '100%', height: '100%' }} contentFit="contain" />
+      </Animated.View>
+    </GestureDetector>
   );
 }
