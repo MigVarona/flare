@@ -93,7 +93,9 @@ export default {
       // Photos from before the folder existed have no public id. The record still goes;
       // there's simply no file we can name.
       if (publicId) {
-        const destroyed = await destroyAsset(credentials, publicId);
+        // Documents went up as 'raw'; everything before that field existed was a photo.
+        const resourceType = photo.fields?.kind?.stringValue === 'document' ? 'raw' : 'image';
+        const destroyed = await destroyAsset(credentials, publicId, resourceType);
         if (!destroyed) return json({ error: 'cloudinary' }, 502);
       }
 

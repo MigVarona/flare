@@ -51,7 +51,7 @@ export function BrandMark({ size = 128 }: { size?: number }) {
  * The wordmark, carrying the same gradient as the mark: from one light, through the place
  * where they meet, to the other. It isn't decoration — it's the mark again, spelled out.
  *
- * The type is Gabarito ExtraBold: circular geometry, like the circles beside it. The gradient is
+ * The type is Gabarito SemiBold: circular geometry, like the circles beside it. The gradient is
  * painted through the letters with a mask rather than drawn as SVG text, because on Android
  * a custom font only holds up when it goes through the normal text pipeline.
  */
@@ -278,10 +278,9 @@ export function GradientRule() {
 
 const styles = StyleSheet.create({
   wordmark: {
-    fontFamily: 'Gabarito_800ExtraBold',
+    fontFamily: 'Gabarito_600SemiBold',
     color: theme.text,
-    // Was -1.5 — tight enough that the letters ran together instead of reading as a word.
-    letterSpacing: -0.5,
+    letterSpacing: 0.5,
     textAlign: 'center',
   },
   wordmarkGhost: {

@@ -44,7 +44,7 @@ import {
 import { useSpace } from '@/context/space-context';
 import { useNotice } from '@/hooks/use-notice';
 import { usePalette } from '@/hooks/use-palette';
-import { uploadPhotoToCloudinary } from '@/lib/cloudinary';
+import { uploadFileToCloudinary } from '@/lib/cloudinary';
 import { db } from '@/lib/firebase';
 import { sendPushNotification } from '@/lib/push';
 
@@ -230,11 +230,12 @@ export default function HomeScreen() {
 
     setIsUploadingPhoto(true);
     try {
-      const uploadedPhoto = await uploadPhotoToCloudinary(result.assets[0].uri, spaceId);
+      const uploadedPhoto = await uploadFileToCloudinary(result.assets[0].uri, spaceId, 'image');
       await addDoc(collection(db, 'spaces', spaceId, 'photos'), {
         imageUrl: uploadedPhoto.imageUrl,
         cloudinaryPublicId: uploadedPhoto.publicId,
         uploadedByUid: user.uid,
+        kind: 'image',
         createdAt: serverTimestamp(),
       });
 

@@ -28,6 +28,7 @@ import { LightSignal, isSignalId, useSignalMeaning, type SignalId } from "@/comp
 import { MessageSkeletons } from "@/components/loading";
 import { MessageLight } from "@/components/message-light";
 import { SignalPicker } from "@/components/signal-picker";
+import { LinkifiedText } from "@/components/linkified-text";
 import { ThemedText } from "@/components/themed-text";
 import { Modal, ModalBackdrop, ModalContent } from "@/components/ui/modal";
 import { BottomTabInset, Colors, glow, MaxPinnedItems, Spacing } from "@/constants/theme";
@@ -340,7 +341,7 @@ export default function BoardScreen() {
             {viewing && (
               <View className={viewing.senderId === user?.uid ? "items-end" : "items-start"}>
                 <MessageLight color={palette.colorFor(viewing.senderId)} isMine={viewing.senderId === user?.uid}>
-                  <ThemedText className="text-2xl leading-8">{viewing.text}</ThemedText>
+                  <LinkifiedText text={viewing.text} className="text-2xl leading-8" />
                   {Object.entries(viewing.reactions).length > 0 && (
                     <View className="mt-4 flex-row gap-2">
                       {Object.entries(viewing.reactions).map(([uid, signal]) =>
@@ -424,7 +425,7 @@ function NoteBubble({
               up to 82%", never a fixed number. That circularity is what silently collapsed
               the text to nothing before: a badge overlaid in the corner sidesteps it
               entirely, since the text goes back to being the only thing in the flow. */}
-          <ThemedText className="pr-5 text-base leading-6">{note.text}</ThemedText>
+          <LinkifiedText text={note.text} className="pr-5 text-base leading-6" />
           <Pressable
             onPress={(event) => {
               event.stopPropagation();

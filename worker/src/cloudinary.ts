@@ -54,7 +54,12 @@ export async function signUpload(credentials: Credentials, spaceId: string) {
   };
 }
 
-async function destroyOne(credentials: Credentials, publicId: string, type: string) {
+async function destroyOne(
+  credentials: Credentials,
+  publicId: string,
+  type: string,
+  resourceType: string,
+) {
   const timestamp = Math.floor(Date.now() / 1000);
   const signature = await sign({ public_id: publicId, timestamp, type }, credentials.apiSecret);
 
@@ -66,7 +71,7 @@ async function destroyOne(credentials: Credentials, publicId: string, type: stri
   body.append('signature', signature);
 
   const response = await fetch(
-    `https://api.cloudinary.com/v1_1/${credentials.cloudName}/image/destroy`,
+    `https://api.cloudinary.com/v1_1/${credentials.cloudName}/${resourceType}/destroy`,
     { method: 'POST', body },
   );
 
@@ -80,9 +85,16 @@ async function destroyOne(credentials: Credentials, publicId: string, type: stri
  * Cloudinary deletes from one delivery type at a time, and it answers 'not found' rather
  * than failing when you name the wrong one — so asking for the wrong type would report
  * success and quietly leave the file up, which is the exact bug this Worker exists to end.
- * New photos are 'authenticated'; the ones from before this all began are 'upload'.
+ * New photos are 'authenticated'; the ones from before this all began are 'upload'. The
+ * resource type (`image` vs `raw`, for PDFs and other documents) came up from Firestore with
+ * the record, so there's no guessing that one — only the delivery type still needs trying
+ * both ways.
  */
-export async function destroyAsset(credentials: Credentials, publicId: string) {
-  if (await destroyOne(credentials, publicId, 'authenticated')) return true;
-  return destroyOne(credentials, publicId, 'upload');
+export async function destroyAsset(
+  credentials: Credentials,
+  publicId: string,
+  resourceType: 'image' | 'raw',
+) {
+  if (await destroyOne(credentials, publicId, 'authenticated', resourceType)) return true;
+  return destroyOne(credentials, publicId, 'upload', resourceType);
 }

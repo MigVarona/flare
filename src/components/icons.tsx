@@ -102,6 +102,24 @@ export function MoreGlyph({ color, size = 18 }: { color: string; size?: number }
   );
 }
 
+/** A page with a folded corner. What sits in the Archivo grid when the file isn't a photo —
+ * a PDF or a document can't be thumbnailed, so this stands in for it. */
+export function DocumentGlyph({ color, size = 24 }: { color: string; size?: number }) {
+  return (
+    <Svg width={size} height={size} viewBox="0 0 24 24">
+      <Path
+        d="M6.5 3h8l4 4v13.2c0 .5-.4.8-.8.8H6.5a.8.8 0 0 1-.8-.8V3.8c0-.4.4-.8.8-.8Z"
+        stroke={color}
+        strokeWidth={1.8}
+        strokeLinejoin="round"
+        fill="none"
+      />
+      <Path d="M14.2 3v4h4" stroke={color} strokeWidth={1.8} strokeLinejoin="round" fill="none" />
+      <Path d="M8.5 12.5h7M8.5 16h7" stroke={color} strokeWidth={1.6} strokeLinecap="round" />
+    </Svg>
+  );
+}
+
 /** A drawing pin. Marks a note on the Tablón as one that doesn't fade with the others. */
 export function PinGlyph({
   color,

@@ -1,3 +1,4 @@
+import * as DocumentPicker from 'expo-document-picker';
 import * as Haptics from 'expo-haptics';
 import { Image } from 'expo-image';
 import * as ImagePicker from 'expo-image-picker';
@@ -15,7 +16,7 @@ import {
   where,
 } from 'firebase/firestore';
 import { useEffect, useState } from 'react';
-import { FlatList, Pressable, StyleSheet, useWindowDimensions, View } from 'react-native';
+import { FlatList, Linking, Pressable, StyleSheet, useWindowDimensions, View } from 'react-native';
 import Animated, {
   useAnimatedReaction,
   useAnimatedStyle,
@@ -31,7 +32,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { Eyebrow, GhostButton, GlowCard, ScreenHeader } from '@/components/brand';
 import Svg, { Path } from 'react-native-svg';
 
-import { CloseGlyph, PinGlyph, TrashGlyph } from '@/components/icons';
+import { CloseGlyph, DocumentGlyph, PinGlyph, TrashGlyph } from '@/components/icons';
 import { LightSignal, isSignalId, useSignalMeaning, type SignalId } from '@/components/light-signals';
 import { PhotoGridSkeleton } from '@/components/loading';
 import { SignalPicker } from '@/components/signal-picker';
@@ -52,7 +53,7 @@ import { BottomTabInset, Colors, glow, MaxPinnedItems, neonBorder, Radius, Spaci
 import { useSpace } from '@/context/space-context';
 import { useNotice } from '@/hooks/use-notice';
 import { usePalette } from '@/hooks/use-palette';
-import { deletePhoto, uploadPhotoToCloudinary } from '@/lib/cloudinary';
+import { deletePhoto, uploadFileToCloudinary } from '@/lib/cloudinary';
 import { db } from '@/lib/firebase';
 import { sendPushNotification } from '@/lib/push';
 
@@ -69,6 +70,10 @@ type Photo = {
   reactions: Record<string, SignalId>;
   /** Pulled out of the timeline, so it's findable whatever else has piled up since. */
   pinned: boolean;
+  /** Absent on everything uploaded before documents existed — those were all photos. */
+  kind: 'image' | 'document';
+  /** Only documents carry this — a photo doesn't need a name, a PDF in a grid does. */
+  fileName?: string;
 };
 
 function readPhoto(docSnapshot: { id: string; data: () => Record<string, unknown> }): Photo {
@@ -80,6 +85,8 @@ function readPhoto(docSnapshot: { id: string; data: () => Record<string, unknown
     uploadedByUid: data.uploadedByUid as string,
     reactions: (data.reactions as Record<string, SignalId>) ?? {},
     pinned: (data.pinned as boolean | undefined) ?? false,
+    kind: (data.kind as 'image' | 'document' | undefined) ?? 'image',
+    fileName: data.fileName as string | undefined,
   };
 }
 
@@ -109,6 +116,8 @@ export default function ArchiveScreen() {
   const [isZoomed, setIsZoomed] = useState(false);
   const [actingOn, setActingOn] = useState<Photo | null>(null);
   const [reactingTo, setReactingTo] = useState<Photo | null>(null);
+  /** The "+" doesn't upload by itself any more — it asks foto or documento first. */
+  const [isAdding, setIsAdding] = useState(false);
   /**
    * How far back we're looking. The whole album used to arrive at once, which is fine with
    * twenty photos and a slow, expensive way to open the screen with five hundred.
@@ -140,28 +149,28 @@ export default function ArchiveScreen() {
     });
   }, [spaceId]);
 
-  const pickAndUploadPhoto = async () => {
-    const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
-    if (!permission.granted) return;
-
-    const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ['images'],
-      quality: 0.7,
-    });
-    if (result.canceled || !spaceId || !user) return;
+  const upload = async (
+    localUri: string,
+    kind: 'image' | 'document',
+    fileName?: string,
+  ) => {
+    if (!spaceId || !user) return;
 
     setIsUploading(true);
     try {
-      const uploadedPhoto = await uploadPhotoToCloudinary(result.assets[0].uri, spaceId);
+      const uploaded = await uploadFileToCloudinary(localUri, spaceId, kind);
       await addDoc(collection(db, 'spaces', spaceId, 'photos'), {
-        imageUrl: uploadedPhoto.imageUrl,
-        cloudinaryPublicId: uploadedPhoto.publicId,
+        imageUrl: uploaded.imageUrl,
+        cloudinaryPublicId: uploaded.publicId,
         uploadedByUid: user.uid,
+        kind,
+        ...(fileName ? { fileName } : {}),
         createdAt: serverTimestamp(),
       });
 
+      const label = kind === 'document' ? 'un documento nuevo' : 'una foto nueva';
       for (const member of otherMembers) {
-        sendPushNotification(spaceId, member.uid, 'Foto nueva', `${myName} ha subido una foto`, '/archive').then(
+        sendPushNotification(spaceId, member.uid, 'Archivo', `${myName} ha subido ${label}`, '/archive').then(
           (ok) => {
             if (!ok) notice('No hemos podido avisar a todos');
           },
@@ -172,6 +181,35 @@ export default function ArchiveScreen() {
     } finally {
       setIsUploading(false);
     }
+  };
+
+  const pickAndUploadPhoto = async () => {
+    setIsAdding(false);
+    const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (!permission.granted) return;
+
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ['images'],
+      quality: 0.7,
+    });
+    if (result.canceled) return;
+    await upload(result.assets[0].uri, 'image');
+  };
+
+  const pickAndUploadDocument = async () => {
+    setIsAdding(false);
+    const result = await DocumentPicker.getDocumentAsync({
+      type: [
+        'application/pdf',
+        'application/msword',
+        'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+        'application/vnd.ms-excel',
+        'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        'text/plain',
+      ],
+    });
+    if (result.canceled) return;
+    await upload(result.assets[0].uri, 'document', result.assets[0].name);
   };
 
   const react = async (photo: Photo, signal: SignalId | null) => {
@@ -277,11 +315,7 @@ export default function ArchiveScreen() {
                       <View
                         className="overflow-hidden rounded-3xl"
                         style={[{ width: pinnedSize, height: pinnedSize }, neonBorder(color, 'BB')]}>
-                        <Image
-                          source={{ uri: photo.imageUrl }}
-                          style={{ width: '100%', height: '100%' }}
-                          contentFit="cover"
-                        />
+                        <ArchiveThumbnail photo={photo} color={color} />
                         <View className="absolute right-2 top-2 rounded-full bg-background/70 p-1.5">
                           <PinGlyph color={color} filled size={12} />
                         </View>
@@ -330,11 +364,7 @@ export default function ArchiveScreen() {
                           <View
                             className="overflow-hidden rounded-3xl"
                             style={[{ height }, neonBorder(color, 'BB')]}>
-                            <Image
-                              source={{ uri: photo.imageUrl }}
-                              style={{ width: '100%', height: '100%' }}
-                              contentFit="cover"
-                            />
+                            <ArchiveThumbnail photo={photo} color={color} />
 
                             {signals.length > 0 && (
                               <View className="absolute right-2 bottom-2 flex-row gap-1.5 rounded-full bg-background/70 px-2 py-1.5">
@@ -375,7 +405,7 @@ export default function ArchiveScreen() {
       </Animated.ScrollView>
 
       <Fab
-        onPress={pickAndUploadPhoto}
+        onPress={() => setIsAdding(true)}
         isDisabled={isUploading}
         placement="bottom right"
         className="overflow-hidden rounded-full p-0"
@@ -438,7 +468,11 @@ export default function ArchiveScreen() {
                 style={{ height: viewerHeight }}
                 renderItem={({ item }) => (
                   <View style={{ width, height: viewerHeight, paddingHorizontal: Spacing[8] }}>
-                    <ZoomableImage uri={item.imageUrl} onZoomChange={setIsZoomed} />
+                    {item.kind === 'document' ? (
+                      <DocumentPreview photo={item} />
+                    ) : (
+                      <ZoomableImage uri={item.imageUrl} onZoomChange={setIsZoomed} />
+                    )}
                   </View>
                 )}
               />
@@ -496,14 +530,79 @@ export default function ArchiveScreen() {
             <ActionsheetDragIndicator />
           </ActionsheetDragIndicatorWrapper>
           <ActionsheetItem onPress={() => actingOn && removePhoto(actingOn)}>
-            <ActionsheetItemText className="text-destructive">Borrar foto</ActionsheetItemText>
+            <ActionsheetItemText className="text-destructive">
+              {actingOn?.kind === 'document' ? 'Borrar documento' : 'Borrar foto'}
+            </ActionsheetItemText>
           </ActionsheetItem>
           <ActionsheetItem onPress={() => setActingOn(null)}>
             <ActionsheetItemText>Cancelar</ActionsheetItemText>
           </ActionsheetItem>
         </ActionsheetContent>
       </Actionsheet>
+
+      <Actionsheet isOpen={isAdding} onClose={() => setIsAdding(false)}>
+        <ActionsheetBackdrop />
+        <ActionsheetContent>
+          <ActionsheetDragIndicatorWrapper>
+            <ActionsheetDragIndicator />
+          </ActionsheetDragIndicatorWrapper>
+          <ActionsheetItem onPress={pickAndUploadPhoto}>
+            <ActionsheetItemText>Foto</ActionsheetItemText>
+          </ActionsheetItem>
+          <ActionsheetItem onPress={pickAndUploadDocument}>
+            <ActionsheetItemText>Documento</ActionsheetItemText>
+          </ActionsheetItem>
+          <ActionsheetItem onPress={() => setIsAdding(false)}>
+            <ActionsheetItemText>Cancelar</ActionsheetItemText>
+          </ActionsheetItem>
+        </ActionsheetContent>
+      </Actionsheet>
     </>
+  );
+}
+
+/** The grid cell for one item — a cropped photo, or, for a document, a plain tile with an
+ * icon and its filename, since a PDF can't be thumbnailed the way a photo can. */
+function ArchiveThumbnail({ photo, color }: { photo: Photo; color: string }) {
+  if (photo.kind === 'document') {
+    return (
+      <View
+        className="h-full w-full items-center justify-center gap-2 px-3"
+        style={{ backgroundColor: theme.backgroundElement }}>
+        <DocumentGlyph color={color} size={28} />
+        {photo.fileName && (
+          <ThemedText type="small" numberOfLines={2} className="text-center text-muted-foreground">
+            {photo.fileName}
+          </ThemedText>
+        )}
+      </View>
+    );
+  }
+
+  return (
+    <Image
+      source={{ uri: photo.imageUrl }}
+      style={{ width: '100%', height: '100%' }}
+      contentFit="cover"
+    />
+  );
+}
+
+/** What the full-screen viewer shows for a document instead of a zoomable photo: its name,
+ * and a way out to whatever the phone already uses to open a PDF or a Word file. */
+function DocumentPreview({ photo }: { photo: Photo }) {
+  return (
+    <View className="flex-1 items-center justify-center gap-6 px-8">
+      <DocumentGlyph color={theme.textSecondary} size={64} />
+      {photo.fileName && (
+        <ThemedText type="headline" className="text-center">
+          {photo.fileName}
+        </ThemedText>
+      )}
+      <View className="w-full max-w-64">
+        <GhostButton title="Abrir" onPress={() => Linking.openURL(photo.imageUrl)} />
+      </View>
+    </View>
   );
 }
 

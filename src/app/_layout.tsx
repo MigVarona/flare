@@ -1,4 +1,4 @@
-import { Gabarito_800ExtraBold } from '@expo-google-fonts/gabarito';
+import { Gabarito_600SemiBold } from '@expo-google-fonts/gabarito';
 import {
   Outfit_400Regular,
   Outfit_500Medium,
@@ -25,6 +25,7 @@ import { ThemedText } from '@/components/themed-text';
 import { GluestackUIProvider } from '@/components/ui/gluestack-ui-provider';
 import { Colors } from '@/constants/theme';
 import { SpaceProvider, useSpace } from '@/context/space-context';
+import { markNavigationReady } from '@/lib/deep-link-queue';
 
 SplashScreen.preventAutoHideAsync();
 
@@ -97,13 +98,13 @@ export function ErrorBoundary({ error, retry }: ErrorBoundaryProps) {
 function RootNavigator() {
   // Solo-first: an account is all it takes to be inside. Your personal space exists from
   // the moment you sign in, so there is no pairing wall between the door and the app.
-  const { user, isLoading } = useSpace();
+  const { user, isLoading, justCreatedAccount } = useSpace();
   const isSignedIn = Boolean(user);
 
   const [fontsLoaded] = useFonts({
     // Gabarito is built on circles, like the mark — the wordmark rhymes with the logo. On
     // Android a custom font ignores fontWeight, so each weight has to be its own family.
-    Gabarito_800ExtraBold,
+    Gabarito_600SemiBold,
     Outfit_400Regular,
     Outfit_500Medium,
     Outfit_600SemiBold,
@@ -118,6 +119,14 @@ function RootNavigator() {
     }
   }, [isLoading, fontsLoaded]);
 
+  useEffect(() => {
+    // The moment the signed-in `(tabs)` branch below is actually the one on screen — not a
+    // beat earlier, while a notification tap on cold start might already be waiting to push.
+    if (fontsLoaded && !isLoading && isSignedIn && !justCreatedAccount) {
+      markNavigationReady();
+    }
+  }, [fontsLoaded, isLoading, isSignedIn, justCreatedAccount]);
+
   if (!fontsLoaded) return null;
 
   return (
@@ -129,7 +138,10 @@ function RootNavigator() {
       <Stack.Protected guard={!isSignedIn}>
         <Stack.Screen name="onboarding" />
       </Stack.Protected>
-      <Stack.Protected guard={isSignedIn}>
+      <Stack.Protected guard={isSignedIn && justCreatedAccount}>
+        <Stack.Screen name="intro" />
+      </Stack.Protected>
+      <Stack.Protected guard={isSignedIn && !justCreatedAccount}>
         <Stack.Screen name="(tabs)" />
         <Stack.Screen name="settings" options={{ presentation: 'modal' }} />
         <Stack.Screen name="spaces" options={{ presentation: 'modal' }} />

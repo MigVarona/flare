@@ -1,5 +1,4 @@
 import * as Notifications from 'expo-notifications';
-import { router } from 'expo-router';
 import {
   collection,
   doc,
@@ -15,6 +14,7 @@ import { Platform } from 'react-native';
 
 import { useSpace } from '@/context/space-context';
 import { formatDueDate, nextOccurrence, type RepeatFreq } from '@/lib/dates';
+import { goWhenReady } from '@/lib/deep-link-queue';
 import { db } from '@/lib/firebase';
 import { sendPushNotification } from '@/lib/push';
 import { nextRotationTarget, reminderDoneAudience, type Rotation } from '@/lib/reminders';
@@ -148,9 +148,9 @@ export function ReminderAlarms() {
         return;
       }
 
-      // A plain tap: go where the notification points.
+      // A plain tap: go where the notification points, once there's a navigator to receive it.
       if (typeof data.url === 'string') {
-        router.push(data.url as never);
+        goWhenReady(data.url);
       }
     };
 

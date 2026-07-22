@@ -11,10 +11,14 @@ import { callWorker } from '@/lib/worker';
  * space you actually belong to. The bytes still travel directly, so nothing gets slower.
  */
 
-export type UploadedCloudinaryPhoto = {
+export type UploadedCloudinaryFile = {
   imageUrl: string;
   publicId: string;
 };
+
+/** Cloudinary delivers photos and everything else through different endpoints and, on
+ * deletion, different verbs — this is the one thing that has to travel with the file. */
+export type CloudinaryKind = 'image' | 'document';
 
 type UploadPermission = {
   cloudName: string;
@@ -25,15 +29,20 @@ type UploadPermission = {
   signature: string;
 };
 
-export async function uploadPhotoToCloudinary(
+export async function uploadFileToCloudinary(
   localUri: string,
   spaceId: string,
-): Promise<UploadedCloudinaryPhoto> {
+  kind: CloudinaryKind,
+): Promise<UploadedCloudinaryFile> {
   const permission = await callWorker<UploadPermission>('/upload/sign', { spaceId });
+
+  // Cloudinary sorts a photo from a PDF by the endpoint you hit, not by anything in the
+  // signed parameters — a document uploaded through `image/upload` gets rejected outright.
+  const resourceType = kind === 'image' ? 'image' : 'raw';
 
   const file = new File(localUri);
   const response = await file.upload(
-    `https://api.cloudinary.com/v1_1/${permission.cloudName}/image/upload`,
+    `https://api.cloudinary.com/v1_1/${permission.cloudName}/${resourceType}/upload`,
     {
       uploadType: UploadType.MULTIPART,
       fieldName: 'file',
@@ -48,18 +57,18 @@ export async function uploadPhotoToCloudinary(
   );
 
   if (response.status < 200 || response.status >= 300) {
-    throw new Error('No se pudo subir la foto');
+    throw new Error('No se pudo subir el archivo');
   }
 
   const data = JSON.parse(response.body) as { secure_url?: string; public_id?: string };
 
   if (!data.secure_url || !data.public_id) {
-    throw new Error('Cloudinary no devolvió la foto completa');
+    throw new Error('Cloudinary no devolvió el archivo completo');
   }
 
-  // The photo went up as 'authenticated', so its plain URL answers 401 to anyone who tries
-  // it. What Cloudinary hands back here is already the signed link — unguessable, and kept
-  // in a document only the two of you can read. The photo is as private as the space.
+  // It went up as 'authenticated', so its plain URL answers 401 to anyone who tries it.
+  // What Cloudinary hands back here is already the signed link — unguessable, and kept in
+  // a document only the two of you can read. It's as private as the space.
   return { imageUrl: data.secure_url, publicId: data.public_id };
 }
 

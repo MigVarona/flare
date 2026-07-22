@@ -116,6 +116,9 @@ type SpaceContextValue = {
   deleteAccount: (password?: string) => Promise<void>;
   /** Whether this account signed in with Google, so we know how to prove identity again. */
   isGoogleAccount: boolean;
+  /** True for the one session right after signup, until the new-account intro is dismissed. */
+  justCreatedAccount: boolean;
+  dismissIntro: () => void;
 };
 
 const SpaceContext = createContext<SpaceContextValue | null>(null);
@@ -156,6 +159,8 @@ export function SpaceProvider({ children }: { children: ReactNode }) {
   const [isProfileLoading, setIsProfileLoading] = useState(true);
   const [myName, setMyName] = useState('');
   const [myPushToken, setMyPushToken] = useState<string | null>(null);
+  /** True for the one session right after signup, until the new-account intro is dismissed. */
+  const [justCreatedAccount, setJustCreatedAccount] = useState(false);
   /** null until the membership query answers for the first time. */
   const [spaces, setSpaces] = useState<Space[] | null>(null);
   const [activeSpaceId, setActiveSpaceId] = useState<string | null>(null);
@@ -168,6 +173,12 @@ export function SpaceProvider({ children }: { children: ReactNode }) {
         setSpaces(null);
         setActiveSpaceId(null);
         setIsProfileLoading(false);
+        // Otherwise the next account to sign in on this device inherits this one's name for
+        // the instant before its own profile snapshot arrives — long enough to leak into a
+        // personal space created from stale state.
+        setMyName('');
+        setMyPushToken(null);
+        setJustCreatedAccount(false);
       }
     });
   }, []);
@@ -285,6 +296,7 @@ export function SpaceProvider({ children }: { children: ReactNode }) {
       displayName: name.trim(),
       createdAt: Date.now(),
     });
+    setJustCreatedAccount(true);
   };
 
   const signIn = async (email: string, password: string) => {
@@ -304,6 +316,7 @@ export function SpaceProvider({ children }: { children: ReactNode }) {
         displayName: name,
         createdAt: Date.now(),
       });
+      setJustCreatedAccount(true);
     }
   };
 
@@ -545,9 +558,11 @@ export function SpaceProvider({ children }: { children: ReactNode }) {
       leaveSpace,
       deleteAccount,
       isGoogleAccount,
+      justCreatedAccount,
+      dismissIntro: () => setJustCreatedAccount(false),
     }),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [user, isLoading, spaces, space, myName, myPushToken, activeSpaceId],
+    [user, isLoading, spaces, space, myName, myPushToken, activeSpaceId, justCreatedAccount],
   );
 
   return <SpaceContext.Provider value={value}>{children}</SpaceContext.Provider>;

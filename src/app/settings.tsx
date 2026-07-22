@@ -169,7 +169,12 @@ export default function SettingsScreen() {
               </View>
             );
           })}
-          <View className="mt-1">
+          <View className="mt-1 gap-2">
+            <GhostButton
+              title="Crear un espacio"
+              color={palette.you}
+              onPress={() => router.push('/spaces?mode=create')}
+            />
             <GhostButton title="Gestionar espacios" onPress={() => router.push('/spaces')} />
           </View>
         </GlowCard>
@@ -235,7 +240,7 @@ export default function SettingsScreen() {
           </GlowCard>
         )}
 
-        <GlowCard>
+        <View className="gap-2 px-6">
           <Eyebrow>Legal</Eyebrow>
           <Pressable onPress={() => setShowTerms(true)} className="py-1 active:opacity-70">
             <ThemedText type="smallBold">Términos de uso</ThemedText>
@@ -243,7 +248,7 @@ export default function SettingsScreen() {
           <Pressable onPress={() => setShowPrivacy(true)} className="py-1 active:opacity-70">
             <ThemedText type="smallBold">Política de Privacidad</ThemedText>
           </Pressable>
-        </GlowCard>
+        </View>
 
         {/* Signing out is not dangerous — you come back and everything is where you left it.
             Putting it in with the irreversible things would cry wolf, and then nobody reads

@@ -1,4 +1,4 @@
-import { router } from 'expo-router';
+import { router, useLocalSearchParams } from 'expo-router';
 import { useState } from 'react';
 import { Pressable, ScrollView, Share, StyleSheet, TextInput, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -38,7 +38,8 @@ type Mode = 'list' | 'create' | 'join';
  */
 export default function SpacesScreen() {
   const insets = useSafeAreaInsets();
-  const [mode, setMode] = useState<Mode>('list');
+  const { mode: initialMode } = useLocalSearchParams<{ mode?: Mode }>();
+  const [mode, setMode] = useState<Mode>(initialMode === 'create' || initialMode === 'join' ? initialMode : 'list');
 
   return (
     <ScrollView
