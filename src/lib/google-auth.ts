@@ -43,7 +43,8 @@ export async function getGoogleCredential() {
   try {
     const silent = await GoogleSignin.signInSilently();
     if (silent.type === 'success' && silent.data.idToken) {
-      return GoogleAuthProvider.credential(silent.data.idToken);
+      const { accessToken } = await GoogleSignin.getTokens();
+      return GoogleAuthProvider.credential(silent.data.idToken, accessToken);
     }
   } catch {
     // No usable session. Falling through to ask is better than failing the deletion.
@@ -59,7 +60,8 @@ export async function getGoogleCredential() {
     throw new Error('Google no devolvió el token');
   }
 
-  return GoogleAuthProvider.credential(idToken);
+  const { accessToken } = await GoogleSignin.getTokens();
+  return GoogleAuthProvider.credential(idToken, accessToken);
 }
 
 export async function signInWithGoogle() {
@@ -82,7 +84,11 @@ export async function signInWithGoogle() {
       throw new Error('Google no devolvió el token');
     }
 
-    const credential = GoogleAuthProvider.credential(idToken);
+    // The native SDK's GoogleAuthProvider needs the access token as well as the ID token —
+    // the web SDK got away with the ID token alone, but the native Android credential
+    // exchange rejects sign-in without both.
+    const { accessToken } = await GoogleSignin.getTokens();
+    const credential = GoogleAuthProvider.credential(idToken, accessToken);
     const result = await signInWithCredential(auth, credential);
 
     return {
