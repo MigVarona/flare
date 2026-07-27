@@ -12,7 +12,7 @@ import {
   serverTimestamp,
   updateDoc,
   where,
-} from "firebase/firestore";
+} from "@react-native-firebase/firestore";
 import { useEffect, useRef, useState } from "react";
 import { Keyboard, Pressable, ScrollView, TextInput, View } from "react-native";
 // React Native's own keyboard handling broke on Android once Expo turned on edge-to-edge.

@@ -1,4 +1,3 @@
-import { FirebaseError } from 'firebase/app';
 import { useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -66,7 +65,7 @@ export default function WelcomeScreen() {
         await signIn(email.trim(), password);
       }
     } catch (err) {
-      const code = err instanceof FirebaseError ? err.code : null;
+      const code = err instanceof Error && 'code' in err ? String(err.code) : null;
       setError((code && errorMessages[code]) ?? 'Algo ha ido mal, inténtalo de nuevo');
     } finally {
       setIsSubmitting(false);

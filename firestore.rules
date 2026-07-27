@@ -294,8 +294,8 @@ service cloud.firestore {
           && request.resource.data.cloudinaryPublicId.size() <= 300
           && request.resource.data.uploadedByUid == request.auth.uid
           && isValidCreatedAt(request.resource.data.createdAt)
-          && (request.resource.data.kind == null || request.resource.data.kind in ['image', 'document'])
-          && isValidOptionalString(request.resource.data.fileName, 200);
+          && (!('kind' in request.resource.data) || request.resource.data.kind in ['image', 'document'])
+          && missingOrString(request.resource.data, 'fileName', 200);
         // Pinning, like on the Tablón, is a soft house rule the client keeps to two — not
         // something worth an aggregate query in the rules to enforce.
         allow update: if isMemberOf(spaceId)

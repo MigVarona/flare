@@ -8,7 +8,7 @@ import {
   Timestamp,
   updateDoc,
   where,
-} from 'firebase/firestore';
+} from '@react-native-firebase/firestore';
 import { useEffect, useRef } from 'react';
 import { Platform } from 'react-native';
 

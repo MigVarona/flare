@@ -1,4 +1,4 @@
-import { doc, updateDoc } from 'firebase/firestore';
+import { doc, updateDoc } from '@react-native-firebase/firestore';
 import { useEffect } from 'react';
 
 import { useSpace } from '@/context/space-context';

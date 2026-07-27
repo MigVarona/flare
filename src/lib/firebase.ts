@@ -1,23 +1,23 @@
-import { initializeApp } from 'firebase/app';
-// @ts-expect-error getReactNativePersistence exists in the RN bundle but is missing from firebase's published types (firebase-js-sdk#9316)
-import { getReactNativePersistence, initializeAuth } from 'firebase/auth';
-import { getFirestore } from 'firebase/firestore';
+import { getApp } from '@react-native-firebase/app';
+import { getAuth } from '@react-native-firebase/auth';
+import { getFirestore } from '@react-native-firebase/firestore';
 
-import { securePersistence } from './secure-persistence';
+/**
+ * The native SDK, not the web one.
+ *
+ * The web/JS SDK's React Native persistence layer has a known failure mode: if its own
+ * internal session-validation call hits any error — a network hiccup is enough — it clears
+ * the saved session instead of keeping it, so the app asks you to sign in again on the next
+ * launch. The native SDK doesn't reimplement that logic in JS at all; it delegates straight
+ * to the platform's own Firebase Auth, which persists the way every other native app's login
+ * does. Firestore moved over with it — the native Auth instance and the web Firestore client
+ * don't share a session, so keeping one on each SDK would mean every read and write loses its
+ * credentials the moment sign-in does.
+ *
+ * The app is already configured natively from `google-services.json`, so there's nothing to
+ * initialize here — just the same modular functions as the web SDK, pointed at it.
+ */
+const app = getApp();
 
-const firebaseConfig = {
-  apiKey: 'AIzaSyCBxaxX9i-SWD4qCqR4RNM1xmMFCcRnJi4',
-  authDomain: 'retiro360-51909.firebaseapp.com',
-  projectId: 'retiro360-51909',
-  storageBucket: 'retiro360-51909.firebasestorage.app',
-  messagingSenderId: '120685723840',
-  appId: '1:120685723840:web:09566e3fa264121fbaad25',
-};
-
-const app = initializeApp(firebaseConfig);
-
-export const auth = initializeAuth(app, {
-  persistence: getReactNativePersistence(securePersistence),
-});
-
+export const auth = getAuth(app);
 export const db = getFirestore(app);

@@ -1,4 +1,3 @@
-import { FirebaseError } from 'firebase/app';
 import { useEffect, useState } from 'react';
 import { Pressable, ScrollView, TextInput, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -126,7 +125,7 @@ export default function SettingsScreen() {
       await deleteAccount(password);
       // Nothing to route to: with no account, the app falls back to the welcome screen.
     } catch (err) {
-      const code = err instanceof FirebaseError ? err.code : null;
+      const code = err instanceof Error && 'code' in err ? String(err.code) : null;
       if (code === 'auth/invalid-credential' || code === 'auth/wrong-password') {
         setDeleteError('La contraseña no es correcta');
       } else if (code === 'auth/user-mismatch') {

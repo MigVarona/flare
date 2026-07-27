@@ -14,7 +14,7 @@ import {
   serverTimestamp,
   updateDoc,
   where,
-} from 'firebase/firestore';
+} from '@react-native-firebase/firestore';
 import { useEffect, useState } from 'react';
 import { FlatList, Linking, Pressable, StyleSheet, useWindowDimensions, View } from 'react-native';
 import Animated, {

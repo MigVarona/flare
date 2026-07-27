@@ -11,7 +11,7 @@ import {
   serverTimestamp,
   Timestamp,
   where,
-} from 'firebase/firestore';
+} from '@react-native-firebase/firestore';
 import { useEffect, useRef, useState } from 'react';
 import {
   NativeScrollEvent,
@@ -58,7 +58,19 @@ type Reminder = {
   createdByUid?: string;
 };
 type Message = { id: string; text: string; senderId: string; createdAt: Date | null };
-type HomePhoto = { id: string; imageUrl: string; uploadedByUid: string };
+type HomePhoto = {
+  id: string;
+  imageUrl: string;
+  uploadedByUid: string;
+  kind: 'image' | 'document';
+  fileName?: string;
+};
+
+/** "contrato-alquiler.pdf" → "PDF" — all this small a thumbnail can hold. */
+function fileFormat(fileName: string | undefined) {
+  const extension = fileName?.split('.').pop();
+  return extension ? extension.toUpperCase() : 'DOC';
+}
 
 /** A reminder with no date isn't due before anything: it waits at the end. */
 function dueTime(dueAt: Timestamp | null | undefined) {
@@ -184,6 +196,8 @@ export default function HomeScreen() {
             id: docSnapshot.id,
             imageUrl: data.imageUrl as string,
             uploadedByUid: data.uploadedByUid as string,
+            kind: (data.kind as 'image' | 'document' | undefined) ?? 'image',
+            fileName: data.fileName as string | undefined,
           };
         }),
       );
@@ -477,11 +491,23 @@ export default function HomeScreen() {
                           neonBorder(photoColor, '66'),
                           glow(photoColor, 12, '33'),
                         ]}>
-                        <Image
-                          source={{ uri: photo.imageUrl }}
-                          style={styles.photoImage}
-                          contentFit="cover"
-                        />
+                        {photo.kind === 'document' ? (
+                          <View
+                            style={[
+                              styles.photoImage,
+                              { alignItems: 'center', justifyContent: 'center' },
+                            ]}>
+                            <ThemedText type="smallBold" style={{ color: photoColor }}>
+                              {fileFormat(photo.fileName)}
+                            </ThemedText>
+                          </View>
+                        ) : (
+                          <Image
+                            source={{ uri: photo.imageUrl }}
+                            style={styles.photoImage}
+                            contentFit="cover"
+                          />
+                        )}
                       </View>
                     );
                   })}

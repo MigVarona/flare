@@ -8,7 +8,7 @@ import {
   signInWithEmailAndPassword,
   signOut as firebaseSignOut,
   type User,
-} from 'firebase/auth';
+} from '@react-native-firebase/auth';
 import {
   arrayUnion,
   collection,
@@ -23,7 +23,7 @@ import {
   Timestamp,
   updateDoc,
   where,
-} from 'firebase/firestore';
+} from '@react-native-firebase/firestore';
 import * as Crypto from 'expo-crypto';
 import * as Notifications from 'expo-notifications';
 import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from 'react';

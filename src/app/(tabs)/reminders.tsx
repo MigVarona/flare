@@ -11,7 +11,7 @@ import {
   query,
   Timestamp,
   updateDoc,
-} from "firebase/firestore";
+} from "@react-native-firebase/firestore";
 import { Linking } from "react-native";
 import { useEffect, useRef, useState } from "react";
 import { Pressable, ScrollView, StyleSheet, TextInput, View } from "react-native";
