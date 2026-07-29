@@ -1317,39 +1317,41 @@ export function FlareDashboard({ user }: { user: User }) {
       </aside>
 
       <section className="workspace">
-        <header className="topbar">
-          <div className="space-heading">
-            <p className="eyebrow">{activeSpace?.kind === 'personal' ? 'ESPACIO PERSONAL' : 'ESPACIO COMPARTIDO'}</p>
-            <select
-              className="space-select"
-              value={activeSpace?.id ?? ''}
-              onChange={(event) => selectSpace(event.target.value)}
-              aria-label="Espacio activo">
-              {spaces.filter((space) => !space.archived).map((space) => (
-                <option key={space.id} value={space.id}>{space.name}</option>
-              ))}
-            </select>
-          </div>
-          <div className="topbar-actions">
-            <button className="quiet-button" type="button" onClick={() => setSpaceDialog('join')}>
-              Entrar con llave
-            </button>
-            <button className="quiet-button" type="button" onClick={() => setSpaceDialog('create')}>
-              Nuevo espacio
-            </button>
-            <div className="people" aria-label="Miembros del espacio">
-              {members.map((member) => (
-                <span
-                  className="person dynamic"
-                  style={{ '--member-color': activePalette.lights[member.index] ?? '#6B7280' } as React.CSSProperties}
-                  title={member.name}
-                  key={member.uid}>
-                  {initials(member.name)}
-                </span>
-              ))}
+        {view !== 'space' && (
+          <header className="topbar">
+            <div className="space-heading">
+              <p className="eyebrow">{activeSpace?.kind === 'personal' ? 'ESPACIO PERSONAL' : 'ESPACIO COMPARTIDO'}</p>
+              <select
+                className="space-select"
+                value={activeSpace?.id ?? ''}
+                onChange={(event) => selectSpace(event.target.value)}
+                aria-label="Espacio activo">
+                {spaces.filter((space) => !space.archived).map((space) => (
+                  <option key={space.id} value={space.id}>{space.name}</option>
+                ))}
+              </select>
             </div>
-          </div>
-        </header>
+            <div className="topbar-actions">
+              <button className="quiet-button" type="button" onClick={() => setSpaceDialog('join')}>
+                Entrar con llave
+              </button>
+              <button className="quiet-button" type="button" onClick={() => setSpaceDialog('create')}>
+                Nuevo espacio
+              </button>
+              <div className="people" aria-label="Miembros del espacio">
+                {members.map((member) => (
+                  <span
+                    className="person dynamic"
+                    style={{ '--member-color': activePalette.lights[member.index] ?? '#6B7280' } as React.CSSProperties}
+                    title={member.name}
+                    key={member.uid}>
+                    {initials(member.name)}
+                  </span>
+                ))}
+              </div>
+            </div>
+          </header>
+        )}
 
         {notice && (
           <button className="notice-banner" type="button" onClick={() => setNotice('')}>
@@ -1390,7 +1392,10 @@ export function FlareDashboard({ user }: { user: User }) {
                   <p className="eyebrow">DONDE COLABORAS</p>
                   <h2 id="spaces-title">Tus espacios</h2>
                 </div>
-                <button type="button" onClick={() => setSpaceDialog('create')}>Nuevo espacio</button>
+                <span className="space-dashboard-heading-actions">
+                  <button type="button" onClick={() => setSpaceDialog('join')}>Entrar con llave</button>
+                  <button type="button" onClick={() => setSpaceDialog('create')}>Nuevo espacio</button>
+                </span>
               </div>
               <div className="space-card-grid">
                 {spaces.filter((space) => !space.archived).map((space) => {
