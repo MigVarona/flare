@@ -3,6 +3,7 @@
 import {
   browserLocalPersistence,
   createUserWithEmailAndPassword,
+  getAdditionalUserInfo,
   setPersistence,
   signInWithEmailAndPassword,
   signInWithPopup,
@@ -16,6 +17,7 @@ import { FlareBrand } from '@/components/flare-brand';
 import { LegalModal } from '@/components/legal-modal';
 import { auth, db, googleProvider } from '@/lib/firebase';
 import { readableFirebaseError } from '@/lib/firebase-errors';
+import { queueWebOnboarding } from '@/lib/onboarding';
 import { PrivacyMarkdown } from '../../../mobile/src/constants/privacy';
 import { TermsMarkdown } from '../../../mobile/src/constants/terms';
 
@@ -96,6 +98,7 @@ export function AuthScreen() {
         const cleanName = name.trim();
         if (!cleanName) throw new Error('Escribe tu nombre.');
         const credential = await createUserWithEmailAndPassword(auth, email.trim(), password);
+        queueWebOnboarding(credential.user.uid);
         await updateProfile(credential.user, { displayName: cleanName });
         await setDoc(doc(db, 'users', credential.user.uid), {
           email: credential.user.email ?? email.trim(),
@@ -116,6 +119,9 @@ export function AuthScreen() {
     try {
       await setPersistence(auth, browserLocalPersistence);
       const credential = await signInWithPopup(auth, googleProvider);
+      if (getAdditionalUserInfo(credential)?.isNewUser) {
+        queueWebOnboarding(credential.user.uid);
+      }
       const profileRef = doc(db, 'users', credential.user.uid);
       const profile = await getDoc(profileRef);
       if (!profile.exists()) {

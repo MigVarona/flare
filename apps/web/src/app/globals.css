@@ -1402,6 +1402,147 @@ button:disabled {
   font-weight: 600;
 }
 
+.onboarding-tour {
+  position: fixed;
+  z-index: 200;
+  inset: 0;
+  pointer-events: auto;
+}
+
+.onboarding-spotlight {
+  position: fixed;
+  z-index: 1;
+  border: 2px solid color-mix(in srgb, var(--space-second) 72%, white);
+  border-radius: 22px;
+  box-shadow:
+    0 0 0 9999px rgba(2, 4, 15, 0.82),
+    0 0 0 5px color-mix(in srgb, var(--space-second) 12%, transparent);
+  pointer-events: none;
+  transition:
+    top 240ms ease,
+    left 240ms ease,
+    width 240ms ease,
+    height 240ms ease;
+}
+
+.onboarding-popover {
+  position: fixed;
+  z-index: 2;
+  display: grid;
+  gap: 10px;
+  padding: 22px;
+  border: 1px solid color-mix(in srgb, var(--space-second) 34%, var(--border));
+  border-radius: 20px;
+  color: var(--text);
+  background: #0d1325;
+  box-shadow: 0 24px 80px rgba(0, 0, 0, 0.48);
+  outline: none;
+  transition: top 240ms ease, left 240ms ease;
+}
+
+.onboarding-popover-header,
+.onboarding-actions,
+.onboarding-actions > span {
+  display: flex;
+  align-items: center;
+}
+
+.onboarding-popover-header {
+  justify-content: space-between;
+  margin-bottom: 2px;
+}
+
+.onboarding-glyph {
+  width: 36px;
+  height: 36px;
+  display: grid;
+  place-items: center;
+  border: 1px solid color-mix(in srgb, var(--space-second) 36%, var(--border));
+  border-radius: 11px;
+  color: var(--space-second);
+  background: color-mix(in srgb, var(--space-second) 9%, #0d1325);
+  font-size: 16px;
+  font-weight: 700;
+}
+
+.onboarding-progress {
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.onboarding-popover .eyebrow {
+  margin-top: 4px;
+  color: var(--space-second);
+}
+
+.onboarding-popover h2 {
+  font-size: 23px;
+  font-weight: 600;
+  line-height: 28px;
+  letter-spacing: -0.35px;
+}
+
+.onboarding-popover > p:not(.eyebrow) {
+  color: var(--text-soft);
+  font-size: 13px;
+  line-height: 19px;
+}
+
+.onboarding-dots {
+  display: flex;
+  gap: 6px;
+  margin: 3px 0 2px;
+}
+
+.onboarding-dots i {
+  width: 18px;
+  height: 3px;
+  border-radius: 999px;
+  background: var(--border);
+}
+
+.onboarding-dots i.active {
+  background: var(--space-second);
+}
+
+.onboarding-actions {
+  justify-content: space-between;
+  gap: 14px;
+  margin-top: 4px;
+}
+
+.onboarding-actions > span {
+  gap: 7px;
+}
+
+.onboarding-actions button {
+  min-height: 38px;
+  padding: 0 12px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  color: var(--text-soft);
+  background: var(--surface-raised);
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.onboarding-actions .onboarding-skip {
+  padding-inline: 2px;
+  border-color: transparent;
+  color: var(--muted);
+  background: transparent;
+}
+
+.onboarding-actions .primary-button {
+  display: inline-flex;
+  gap: 8px;
+  color: white;
+  border-color: transparent;
+  background: linear-gradient(115deg, var(--space-first), var(--space-second));
+}
+
 .space-card-copy {
   min-width: 0;
   grid-column: 1 / -1;
@@ -3277,6 +3418,34 @@ fieldset legend {
 
   .android-access-actions a {
     width: 100%;
+  }
+
+  .onboarding-spotlight {
+    border-radius: 17px;
+  }
+
+  .onboarding-popover {
+    right: 16px;
+    bottom: 16px;
+    left: 16px !important;
+    top: auto !important;
+    width: auto !important;
+    padding: 18px;
+    border-radius: 18px;
+  }
+
+  .onboarding-popover h2 {
+    font-size: 21px;
+    line-height: 26px;
+  }
+
+  .onboarding-actions {
+    align-items: flex-end;
+  }
+
+  .onboarding-actions > span {
+    justify-content: flex-end;
+    flex-wrap: wrap;
   }
 }
 

@@ -42,6 +42,7 @@ import {
   type SignalId,
 } from '@/components/signal-picker';
 import { SettingsPanel } from '@/components/settings-panel';
+import { WebOnboardingTour } from '@/components/web-onboarding-tour';
 import { auth, db } from '@/lib/firebase';
 import { readableFirebaseError } from '@/lib/firebase-errors';
 import { GifPicker } from '@/components/gif-picker';
@@ -53,6 +54,11 @@ import {
 } from '@/lib/giphy';
 import { deleteUploadedFile, uploadFile } from '@/lib/uploads';
 import { paletteById } from '@/lib/palettes';
+import {
+  completeWebOnboarding,
+  hasPendingWebOnboarding,
+  webOnboardingEventName,
+} from '@/lib/onboarding';
 
 type MemberProfile = { name: string; expoPushToken?: string };
 type Space = {
@@ -215,6 +221,9 @@ function readPhoto(id: string, data: Record<string, unknown>): RecentPhoto {
 
 export function FlareDashboard({ user }: { user: User }) {
   const [profileName, setProfileName] = useState(user.displayName?.trim() || 'Tú');
+  const [showWebOnboarding, setShowWebOnboarding] = useState(
+    () => hasPendingWebOnboarding(user.uid),
+  );
   const [spaces, setSpaces] = useState<Space[]>([]);
   const [spacesLoaded, setSpacesLoaded] = useState(false);
   const [activeSpaceId, setActiveSpaceId] = useState('');
@@ -264,6 +273,17 @@ export function FlareDashboard({ user }: { user: User }) {
   useEffect(() => () => {
     for (const timeout of pendingReminderDeletes.current.values()) clearTimeout(timeout);
   }, []);
+
+  useEffect(() => {
+    const showQueuedOnboarding = (event: Event) => {
+      if ((event as CustomEvent<{ uid?: string }>).detail?.uid === user.uid) {
+        setShowWebOnboarding(true);
+      }
+    };
+    window.addEventListener(webOnboardingEventName, showQueuedOnboarding);
+    if (hasPendingWebOnboarding(user.uid)) setShowWebOnboarding(true);
+    return () => window.removeEventListener(webOnboardingEventName, showQueuedOnboarding);
+  }, [user.uid]);
 
   const showBrowserNotification = (title: string, body: string) => {
     if (browserNotificationPermission !== 'granted' || typeof Notification === 'undefined') return;
@@ -1386,7 +1406,10 @@ export function FlareDashboard({ user }: { user: User }) {
               )}
             </header>
 
-            <section className="space-switcher" aria-labelledby="spaces-title">
+            <section
+              className="space-switcher"
+              data-onboarding="spaces"
+              aria-labelledby="spaces-title">
               <div className="space-dashboard-section-heading">
                 <div>
                   <p className="eyebrow">DONDE COLABORAS</p>
@@ -1432,7 +1455,7 @@ export function FlareDashboard({ user }: { user: User }) {
             </section>
 
             <div className="space-dashboard-grid">
-              <section className="space-dashboard-panel">
+              <section className="space-dashboard-panel" data-onboarding="reminders">
                 <div className="space-dashboard-section-heading compact">
                   <div>
                     <p className="eyebrow">PRÓXIMO</p>
@@ -1482,7 +1505,7 @@ export function FlareDashboard({ user }: { user: User }) {
                 )}
               </section>
 
-              <section className="space-dashboard-panel">
+              <section className="space-dashboard-panel" data-onboarding="messages">
                 <div className="space-dashboard-section-heading compact">
                   <div>
                     <p className="eyebrow">CONVERSACIÓN</p>
@@ -1521,7 +1544,7 @@ export function FlareDashboard({ user }: { user: User }) {
               </section>
             </div>
 
-            <section className="space-dashboard-panel files">
+            <section className="space-dashboard-panel files" data-onboarding="files">
               <div className="space-dashboard-section-heading compact">
                 <div>
                   <p className="eyebrow">COMPARTIDO</p>
@@ -2050,6 +2073,14 @@ export function FlareDashboard({ user }: { user: User }) {
         onClose={() => setIsGifPickerOpen(false)}
         onSelect={sendGif}
       />
+      {showWebOnboarding && view === 'space' && (
+        <WebOnboardingTour
+          onFinish={() => {
+            completeWebOnboarding(user.uid);
+            setShowWebOnboarding(false);
+          }}
+        />
+      )}
     </main>
   );
 }
