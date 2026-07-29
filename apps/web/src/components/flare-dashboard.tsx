@@ -8,6 +8,7 @@ import {
 } from '@flare/core/dates';
 import {
   nextRotationTarget,
+  reminderDoneAudience,
   type Rotation,
 } from '@flare/core/reminders';
 import { signOut, type User } from 'firebase/auth';
@@ -16,6 +17,7 @@ import {
   arrayUnion,
   collection,
   deleteDoc,
+  deleteField,
   doc,
   limit,
   onSnapshot,
@@ -31,7 +33,14 @@ import Image from 'next/image';
 import { ChangeEvent, FormEvent, Fragment, useEffect, useMemo, useRef, useState } from 'react';
 
 import { FlareBrand } from '@/components/flare-brand';
+import { LinkifiedText } from '@/components/linkified-text';
 import { ReminderDateTimePicker } from '@/components/reminder-date-time-picker';
+import {
+  isSignalId,
+  SignalMark,
+  SignalPicker,
+  type SignalId,
+} from '@/components/signal-picker';
 import { SettingsPanel } from '@/components/settings-panel';
 import { auth, db } from '@/lib/firebase';
 import { readableFirebaseError } from '@/lib/firebase-errors';
@@ -42,7 +51,7 @@ import {
   type GifMessage,
   type GiphyGif,
 } from '@/lib/giphy';
-import { uploadPhoto } from '@/lib/uploads';
+import { deleteUploadedFile, uploadFile } from '@/lib/uploads';
 import { paletteById } from '@/lib/palettes';
 
 type MemberProfile = { name: string; expoPushToken?: string };
@@ -75,6 +84,8 @@ type RecentMessage = {
   gif?: GifMessage;
   senderId: string;
   createdAt: Date | null;
+  reactions: Record<string, SignalId>;
+  pinned: boolean;
 };
 type RecentPhoto = {
   id: string;
@@ -82,9 +93,20 @@ type RecentPhoto = {
   uploadedByUid: string;
   kind: 'image' | 'document';
   fileName?: string;
+  createdAt: Date | null;
+  reactions: Record<string, SignalId>;
+  pinned: boolean;
 };
 
+type ReactionTarget =
+  | { kind: 'message'; item: RecentMessage }
+  | { kind: 'photo'; item: RecentPhoto };
+
 const alphabet = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+const messagePageStep = 40;
+const photoPageStep = 30;
+const maxPinnedItems = 2;
+const undoWindowMs = 4000;
 const workerUrl =
   process.env.NEXT_PUBLIC_WORKER_URL ?? 'https://churri-photos.migvarona.workers.dev';
 
@@ -152,6 +174,45 @@ function readSpace(id: string, data: Record<string, unknown>): Space {
   };
 }
 
+function readReactions(value: unknown) {
+  if (!value || typeof value !== 'object') return {};
+  return Object.fromEntries(
+    Object.entries(value).filter((entry): entry is [string, SignalId] => isSignalId(entry[1])),
+  );
+}
+
+function readMessage(id: string, data: Record<string, unknown>): RecentMessage {
+  const gif = data.gif as { title?: string } | undefined;
+  return {
+    id,
+    text:
+      typeof data.text === 'string'
+        ? data.text
+        : gif?.title
+          ? `GIF · ${gif.title}`
+          : 'GIF',
+    kind: data.kind === 'gif' && gif ? 'gif' : 'text',
+    gif: gif as GifMessage | undefined,
+    senderId: data.senderId as string,
+    createdAt: (data.createdAt as Timestamp | undefined)?.toDate() ?? null,
+    reactions: readReactions(data.reactions),
+    pinned: data.pinned === true,
+  };
+}
+
+function readPhoto(id: string, data: Record<string, unknown>): RecentPhoto {
+  return {
+    id,
+    imageUrl: data.imageUrl as string,
+    uploadedByUid: data.uploadedByUid as string,
+    kind: (data.kind as RecentPhoto['kind'] | undefined) ?? 'image',
+    fileName: data.fileName as string | undefined,
+    createdAt: (data.createdAt as Timestamp | undefined)?.toDate() ?? null,
+    reactions: readReactions(data.reactions),
+    pinned: data.pinned === true,
+  };
+}
+
 export function FlareDashboard({ user }: { user: User }) {
   const [profileName, setProfileName] = useState(user.displayName?.trim() || 'Tú');
   const [spaces, setSpaces] = useState<Space[]>([]);
@@ -160,15 +221,27 @@ export function FlareDashboard({ user }: { user: User }) {
   const [reminders, setReminders] = useState<Reminder[]>([]);
   const [remindersLoading, setRemindersLoading] = useState(true);
   const [recentMessages, setRecentMessages] = useState<RecentMessage[]>([]);
+  const [pinnedMessages, setPinnedMessages] = useState<RecentMessage[]>([]);
+  const [messagePageSize, setMessagePageSize] = useState(messagePageStep);
   const [recentPhotos, setRecentPhotos] = useState<RecentPhoto[]>([]);
+  const [pinnedPhotos, setPinnedPhotos] = useState<RecentPhoto[]>([]);
+  const [photoPageSize, setPhotoPageSize] = useState(photoPageStep);
   const [view, setView] = useState<DashboardView>('space');
   const [messageDraft, setMessageDraft] = useState('');
   const [isSendingMessage, setIsSendingMessage] = useState(false);
   const [isGifPickerOpen, setIsGifPickerOpen] = useState(false);
   const [gifMedia, setGifMedia] = useState<Record<string, GiphyGif>>({});
-  const [isUploadingPhoto, setIsUploadingPhoto] = useState(false);
-  const photoInputRef = useRef<HTMLInputElement>(null);
+  const [isUploadingFile, setIsUploadingFile] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [uploadKind, setUploadKind] = useState<'image' | 'document'>('image');
+  const [viewingMessage, setViewingMessage] = useState<RecentMessage | null>(null);
+  const [viewingPhoto, setViewingPhoto] = useState<RecentPhoto | null>(null);
+  const [isPhotoZoomed, setIsPhotoZoomed] = useState(false);
+  const [reactionTarget, setReactionTarget] = useState<ReactionTarget | null>(null);
   const [notice, setNotice] = useState('');
+  const [browserNotificationPermission, setBrowserNotificationPermission] = useState<
+    NotificationPermission | 'unsupported'
+  >(() => typeof Notification === 'undefined' ? 'unsupported' : Notification.permission);
 
   const [showReminderForm, setShowReminderForm] = useState(false);
   const [title, setTitle] = useState('');
@@ -177,11 +250,37 @@ export function FlareDashboard({ user }: { user: User }) {
   const [repeatFreq, setRepeatFreq] = useState<RepeatFreq | ''>('');
   const [rotate, setRotate] = useState(false);
   const [isSavingReminder, setIsSavingReminder] = useState(false);
+  const [postponingReminder, setPostponingReminder] = useState<Reminder | null>(null);
+  const [postponeInput, setPostponeInput] = useState('');
+  const [hiddenReminderIds, setHiddenReminderIds] = useState<Set<string>>(new Set());
+  const [undoReminders, setUndoReminders] = useState<Reminder[]>([]);
+  const pendingReminderDeletes = useRef(new Map<string, ReturnType<typeof setTimeout>>());
 
   const [spaceDialog, setSpaceDialog] = useState<'create' | 'join' | null>(null);
   const [spaceName, setSpaceName] = useState('');
   const [joinCode, setJoinCode] = useState('');
   const [isSavingSpace, setIsSavingSpace] = useState(false);
+
+  useEffect(() => () => {
+    for (const timeout of pendingReminderDeletes.current.values()) clearTimeout(timeout);
+  }, []);
+
+  const showBrowserNotification = (title: string, body: string) => {
+    if (browserNotificationPermission !== 'granted' || typeof Notification === 'undefined') return;
+    if (document.visibilityState === 'visible') return;
+    try {
+      new Notification(title, { body, icon: '/icon.png', tag: `flare-${Date.now()}` });
+    } catch {
+      // Some mobile browsers expose the API but only allow notifications through a
+      // service worker. The synchronized content still arrives normally.
+    }
+  };
+
+  const requestBrowserNotifications = async () => {
+    if (typeof Notification === 'undefined') return;
+    const permission = await Notification.requestPermission();
+    setBrowserNotificationPermission(permission);
+  };
 
   useEffect(() => {
     const profileRef = doc(db, 'users', user.uid);
@@ -280,6 +379,20 @@ export function FlareDashboard({ user }: { user: User }) {
     return onSnapshot(
       remindersQuery,
       (snapshot) => {
+        for (const change of snapshot.docChanges()) {
+          if (change.type !== 'added') continue;
+          const data = change.doc.data();
+          const createdAt = (data.createdAt as Timestamp | undefined)?.toDate();
+          const targets = (data.targetUids as string[] | undefined) ?? [];
+          if (
+            data.createdByUid !== user.uid &&
+            targets.includes(user.uid) &&
+            createdAt &&
+            Date.now() - createdAt.getTime() < 15_000
+          ) {
+            showBrowserNotification('Nuevo aviso en Flare', data.title as string);
+          }
+        }
         const next = snapshot.docs
           .flatMap((entry) => {
             const data = entry.data();
@@ -308,7 +421,7 @@ export function FlareDashboard({ user }: { user: User }) {
         setRemindersLoading(false);
       },
     );
-  }, [activeSpace]);
+  }, [activeSpace, browserNotificationPermission, user.uid]);
 
   useEffect(() => {
     if (!activeSpace) {
@@ -318,34 +431,52 @@ export function FlareDashboard({ user }: { user: User }) {
     const messagesQuery = query(
       collection(db, 'spaces', activeSpace.id, 'messages'),
       orderBy('createdAt', 'desc'),
-      limit(40),
+      limit(messagePageSize),
     );
     return onSnapshot(
       messagesQuery,
       (snapshot) => {
+        for (const change of snapshot.docChanges()) {
+          if (change.type !== 'added') continue;
+          const data = change.doc.data();
+          const createdAt = (data.createdAt as Timestamp | undefined)?.toDate();
+          if (
+            data.senderId !== user.uid &&
+            createdAt &&
+            Date.now() - createdAt.getTime() < 15_000
+          ) {
+            showBrowserNotification(
+              activeSpace.name,
+              data.kind === 'gif' ? 'Te han enviado un GIF' : data.text as string,
+            );
+          }
+        }
         setRecentMessages(
           snapshot.docs
-            .map((entry) => {
-              const data = entry.data();
-              const gif = data.gif as { title?: string } | undefined;
-              return {
-                id: entry.id,
-                text:
-                  typeof data.text === 'string'
-                    ? data.text
-                    : gif?.title
-                      ? `GIF · ${gif.title}`
-                      : 'GIF',
-                kind: data.kind === 'gif' && gif ? 'gif' as const : 'text' as const,
-                gif: gif as GifMessage | undefined,
-                senderId: data.senderId as string,
-                createdAt: (data.createdAt as Timestamp | undefined)?.toDate() ?? null,
-              };
-            })
+            .map((entry) => readMessage(entry.id, entry.data()))
             .reverse(),
         );
       },
       () => setNotice('No se ha podido cargar el tablón.'),
+    );
+  }, [activeSpace, browserNotificationPermission, messagePageSize, user.uid]);
+
+  useEffect(() => {
+    if (!activeSpace) {
+      setPinnedMessages([]);
+      return undefined;
+    }
+    return onSnapshot(
+      query(
+        collection(db, 'spaces', activeSpace.id, 'messages'),
+        where('pinned', '==', true),
+      ),
+      (snapshot) => setPinnedMessages(
+        snapshot.docs
+          .map((entry) => readMessage(entry.id, entry.data()))
+          .sort((a, b) => (b.createdAt?.getTime() ?? 0) - (a.createdAt?.getTime() ?? 0)),
+      ),
+      () => setNotice('No se han podido cargar los mensajes fijados.'),
     );
   }, [activeSpace]);
 
@@ -357,27 +488,73 @@ export function FlareDashboard({ user }: { user: User }) {
     const photosQuery = query(
       collection(db, 'spaces', activeSpace.id, 'photos'),
       orderBy('createdAt', 'desc'),
-      limit(30),
+      limit(photoPageSize),
     );
     return onSnapshot(
       photosQuery,
       (snapshot) => {
+        for (const change of snapshot.docChanges()) {
+          if (change.type !== 'added') continue;
+          const data = change.doc.data();
+          const createdAt = (data.createdAt as Timestamp | undefined)?.toDate();
+          if (
+            data.uploadedByUid !== user.uid &&
+            createdAt &&
+            Date.now() - createdAt.getTime() < 15_000
+          ) {
+            showBrowserNotification(
+              activeSpace.name,
+              data.kind === 'document' ? 'Han subido un documento' : 'Han subido una foto',
+            );
+          }
+        }
         setRecentPhotos(
-          snapshot.docs.map((entry) => {
-            const data = entry.data();
-            return {
-              id: entry.id,
-              imageUrl: data.imageUrl as string,
-              uploadedByUid: data.uploadedByUid as string,
-              kind: (data.kind as RecentPhoto['kind'] | undefined) ?? 'image',
-              fileName: data.fileName as string | undefined,
-            };
-          }),
+          snapshot.docs.map((entry) => readPhoto(entry.id, entry.data())),
         );
       },
       () => setNotice('No se ha podido cargar el archivo.'),
     );
+  }, [activeSpace, browserNotificationPermission, photoPageSize, user.uid]);
+
+  useEffect(() => {
+    if (!activeSpace) {
+      setPinnedPhotos([]);
+      return undefined;
+    }
+    return onSnapshot(
+      query(
+        collection(db, 'spaces', activeSpace.id, 'photos'),
+        where('pinned', '==', true),
+      ),
+      (snapshot) => setPinnedPhotos(
+        snapshot.docs
+          .map((entry) => readPhoto(entry.id, entry.data()))
+          .sort((a, b) => (b.createdAt?.getTime() ?? 0) - (a.createdAt?.getTime() ?? 0)),
+      ),
+      () => setNotice('No se han podido cargar los archivos fijados.'),
+    );
   }, [activeSpace]);
+
+  useEffect(() => {
+    setMessagePageSize(messagePageStep);
+    setPhotoPageSize(photoPageStep);
+    setViewingMessage(null);
+    setViewingPhoto(null);
+  }, [activeSpace?.id]);
+
+  useEffect(() => {
+    if (!viewingMessage) return;
+    const updated = [...recentMessages, ...pinnedMessages]
+      .find((message) => message.id === viewingMessage.id);
+    if (updated) setViewingMessage(updated);
+  }, [pinnedMessages, recentMessages, viewingMessage?.id]);
+
+  useEffect(() => {
+    if (!viewingPhoto) return;
+    const updated = [...recentPhotos, ...pinnedPhotos]
+      .find((photo) => photo.id === viewingPhoto.id);
+    if (updated) setViewingPhoto(updated);
+  }, [pinnedPhotos, recentPhotos, viewingPhoto?.id]);
 
   useEffect(() => {
     setGifMedia({});
@@ -385,7 +562,7 @@ export function FlareDashboard({ user }: { user: User }) {
 
   useEffect(() => {
     const ids = [...new Set(
-      recentMessages
+      [...recentMessages, ...pinnedMessages]
         .filter((message) => message.kind === 'gif' && message.gif)
         .map((message) => message.gif!.giphyId),
     )];
@@ -399,7 +576,7 @@ export function FlareDashboard({ user }: { user: User }) {
     return () => {
       active = false;
     };
-  }, [activeSpace?.id, recentMessages]);
+  }, [activeSpace?.id, pinnedMessages, recentMessages]);
 
   const members = useMemo(
     () =>
@@ -520,11 +697,53 @@ export function FlareDashboard({ user }: { user: User }) {
     }
   };
 
+  const notifyReminderCompleted = async (reminder: Reminder) => {
+    if (!activeSpace) return;
+    const audience = reminderDoneAudience(reminder.createdByUid, reminder.targetUids, user.uid);
+    if (audience.length === 0) return;
+    const token = await user.getIdToken();
+    await Promise.all(
+      audience.map((recipientUid) =>
+        fetch(`${workerUrl}/push/send`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify({
+            spaceId: activeSpace.id,
+            recipientUid,
+            title: 'Hecho',
+            message: `${profileName} ha completado «${reminder.title}»`,
+            url: '/reminders',
+          }),
+        }).catch(() => undefined),
+      ),
+    );
+  };
+
+  const finalizeReminder = async (reminder: Reminder) => {
+    if (!activeSpace) return;
+    pendingReminderDeletes.current.delete(reminder.id);
+    setUndoReminders((current) => current.filter((item) => item.id !== reminder.id));
+    try {
+      await deleteDoc(doc(db, 'spaces', activeSpace.id, 'reminders', reminder.id));
+      await notifyReminderCompleted(reminder);
+    } catch (caught) {
+      setHiddenReminderIds((current) => {
+        const next = new Set(current);
+        next.delete(reminder.id);
+        return next;
+      });
+      setNotice(readableFirebaseError(caught));
+    }
+  };
+
   const completeReminder = async (reminder: Reminder) => {
     if (!activeSpace) return;
-    try {
-      const reminderRef = doc(db, 'spaces', activeSpace.id, 'reminders', reminder.id);
-      if (reminder.repeat && reminder.dueAt) {
+    const reminderRef = doc(db, 'spaces', activeSpace.id, 'reminders', reminder.id);
+    if (reminder.repeat && reminder.dueAt) {
+      try {
         const next = nextOccurrence(reminder.dueAt, reminder.repeat.freq);
         const nextTarget = reminder.rotation
           ? nextRotationTarget(reminder.rotation, reminder.targetUids, activeSpace.memberIds)
@@ -532,28 +751,74 @@ export function FlareDashboard({ user }: { user: User }) {
         await updateDoc(reminderRef, {
           dueAt: Timestamp.fromDate(next),
           dueLabel: formatDueDate(next),
+          status: 'pending',
           ...(nextTarget ? { targetUids: [nextTarget] } : {}),
         });
-      } else {
-        await deleteDoc(reminderRef);
+        await notifyReminderCompleted(reminder);
+        setNotice(
+          nextTarget
+            ? `Hecho. El siguiente turno ya está asignado.`
+            : `Hecho. Vuelve ${formatDueDate(next).toLowerCase()}.`,
+        );
+      } catch (caught) {
+        setNotice(readableFirebaseError(caught));
       }
+      return;
+    }
+
+    setHiddenReminderIds((current) => new Set(current).add(reminder.id));
+    setUndoReminders((current) => [...current.filter((item) => item.id !== reminder.id), reminder]);
+    const timeout = setTimeout(() => void finalizeReminder(reminder), undoWindowMs);
+    pendingReminderDeletes.current.set(reminder.id, timeout);
+  };
+
+  const undoCompleteReminder = (reminder: Reminder) => {
+    const timeout = pendingReminderDeletes.current.get(reminder.id);
+    if (timeout) clearTimeout(timeout);
+    pendingReminderDeletes.current.delete(reminder.id);
+    setHiddenReminderIds((current) => {
+      const next = new Set(current);
+      next.delete(reminder.id);
+      return next;
+    });
+    setUndoReminders((current) => current.filter((item) => item.id !== reminder.id));
+  };
+
+  const openPostponeReminder = (reminder: Reminder) => {
+    const initial = new Date(Math.max(Date.now(), reminder.dueAt?.getTime() ?? 0) + 30 * 60_000);
+    const pad = (value: number) => String(value).padStart(2, '0');
+    setPostponeInput(
+      `${initial.getFullYear()}-${pad(initial.getMonth() + 1)}-${pad(initial.getDate())}T${pad(initial.getHours())}:${pad(initial.getMinutes())}`,
+    );
+    setPostponingReminder(reminder);
+  };
+
+  const postponeReminder = async () => {
+    if (!activeSpace || !postponingReminder || !postponeInput) return;
+    const next = new Date(postponeInput);
+    if (Number.isNaN(next.getTime()) || next.getTime() < Date.now()) return;
+    try {
+      await updateDoc(doc(db, 'spaces', activeSpace.id, 'reminders', postponingReminder.id), {
+        dueAt: Timestamp.fromDate(next),
+        dueLabel: formatDueDate(next),
+        status: 'pending',
+      });
+      setPostponingReminder(null);
     } catch (caught) {
       setNotice(readableFirebaseError(caught));
     }
   };
 
-  const postponeReminder = async (reminder: Reminder) => {
-    if (!activeSpace) return;
-    const next = new Date(Math.max(Date.now(), reminder.dueAt?.getTime() ?? 0) + 30 * 60_000);
-    try {
-      await updateDoc(doc(db, 'spaces', activeSpace.id, 'reminders', reminder.id), {
-        dueAt: Timestamp.fromDate(next),
-        dueLabel: formatDueDate(next),
-        status: 'pending',
-      });
-    } catch (caught) {
-      setNotice(readableFirebaseError(caught));
-    }
+  const sendReminderToCalendar = (reminder: Reminder) => {
+    if (!reminder.dueAt) return;
+    const stamp = (date: Date) => date.toISOString().replace(/[-:]|\.\d{3}/g, '');
+    const end = new Date(reminder.dueAt.getTime() + 30 * 60_000);
+    const url =
+      'https://calendar.google.com/calendar/render?action=TEMPLATE' +
+      `&text=${encodeURIComponent(reminder.title)}` +
+      `&dates=${stamp(reminder.dueAt)}/${stamp(end)}` +
+      `&details=${encodeURIComponent('Aviso de Flare')}`;
+    window.open(url, '_blank', 'noopener,noreferrer');
   };
 
   const removeReminder = async (reminder: Reminder) => {
@@ -646,39 +911,130 @@ export function FlareDashboard({ user }: { user: User }) {
     }
   };
 
-  const uploadSelectedPhoto = async (event: ChangeEvent<HTMLInputElement>) => {
+  const reactToContent = async (signal: SignalId | null) => {
+    if (!activeSpace || !reactionTarget) return;
+    const collectionName = reactionTarget.kind === 'message' ? 'messages' : 'photos';
+    try {
+      await updateDoc(
+        doc(db, 'spaces', activeSpace.id, collectionName, reactionTarget.item.id),
+        { [`reactions.${user.uid}`]: signal ?? deleteField() },
+      );
+      setReactionTarget(null);
+    } catch (caught) {
+      setNotice(readableFirebaseError(caught));
+    }
+  };
+
+  const toggleMessagePin = async (message: RecentMessage) => {
+    if (!activeSpace) return;
+    if (!message.pinned && pinnedMessages.length >= maxPinnedItems) {
+      setNotice(`Ya hay ${maxPinnedItems} mensajes fijados. Desfija uno para poner otro.`);
+      return;
+    }
+    try {
+      await updateDoc(doc(db, 'spaces', activeSpace.id, 'messages', message.id), {
+        pinned: !message.pinned,
+      });
+      setViewingMessage((current) =>
+        current?.id === message.id ? { ...current, pinned: !current.pinned } : current,
+      );
+    } catch (caught) {
+      setNotice(readableFirebaseError(caught));
+    }
+  };
+
+  const deleteMessage = async (message: RecentMessage) => {
+    if (!activeSpace || !confirm('El mensaje desaparecerá para todos. ¿Quieres eliminarlo?')) return;
+    try {
+      await deleteDoc(doc(db, 'spaces', activeSpace.id, 'messages', message.id));
+      setViewingMessage(null);
+    } catch (caught) {
+      setNotice(readableFirebaseError(caught));
+    }
+  };
+
+  const togglePhotoPin = async (photo: RecentPhoto) => {
+    if (!activeSpace) return;
+    if (!photo.pinned && pinnedPhotos.length >= maxPinnedItems) {
+      setNotice(`Ya hay ${maxPinnedItems} archivos fijados. Desfija uno para poner otro.`);
+      return;
+    }
+    try {
+      await updateDoc(doc(db, 'spaces', activeSpace.id, 'photos', photo.id), {
+        pinned: !photo.pinned,
+      });
+      setViewingPhoto((current) =>
+        current?.id === photo.id ? { ...current, pinned: !current.pinned } : current,
+      );
+    } catch (caught) {
+      setNotice(readableFirebaseError(caught));
+    }
+  };
+
+  const deletePhoto = async (photo: RecentPhoto) => {
+    if (!activeSpace || photo.uploadedByUid !== user.uid) return;
+    const label = photo.kind === 'document' ? 'documento' : 'foto';
+    if (!confirm(`¿Borrar ${label}? Desaparecerá para todos.`)) return;
+    try {
+      await deleteUploadedFile(activeSpace.id, photo.id);
+      setViewingPhoto(null);
+    } catch (caught) {
+      setNotice(readableFirebaseError(caught));
+    }
+  };
+
+  const chooseUpload = (kind: 'image' | 'document') => {
+    setUploadKind(kind);
+    window.setTimeout(() => fileInputRef.current?.click(), 0);
+  };
+
+  const uploadSelectedFile = async (event: ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     event.target.value = '';
-    if (!activeSpace || !file || isUploadingPhoto) return;
-    if (!file.type.startsWith('image/')) {
+    if (!activeSpace || !file || isUploadingFile) return;
+    if (uploadKind === 'image' && !file.type.startsWith('image/')) {
       setNotice('Selecciona una imagen.');
       return;
     }
+    const documentTypes = new Set([
+      'application/pdf',
+      'application/msword',
+      'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+      'application/vnd.ms-excel',
+      'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+      'text/plain',
+    ]);
+    if (uploadKind === 'document' && !documentTypes.has(file.type)) {
+      setNotice('Selecciona un PDF, Word, Excel o archivo de texto.');
+      return;
+    }
     if (file.size > 15 * 1024 * 1024) {
-      setNotice('La foto no puede superar 15 MB.');
+      setNotice('El archivo no puede superar 15 MB.');
       return;
     }
 
-    setIsUploadingPhoto(true);
+    setIsUploadingFile(true);
     try {
-      const uploaded = await uploadPhoto(file, activeSpace.id);
+      const uploaded = await uploadFile(file, activeSpace.id, uploadKind);
       await addDoc(collection(db, 'spaces', activeSpace.id, 'photos'), {
         imageUrl: uploaded.imageUrl,
         cloudinaryPublicId: uploaded.publicId,
         uploadedByUid: user.uid,
-        kind: 'image',
+        kind: uploadKind,
+        ...(uploadKind === 'document' ? { fileName: file.name.slice(0, 200) } : {}),
         createdAt: serverTimestamp(),
       });
-      const delivered = await notifyOtherMemberPhones('Ha subido una foto nueva', '/archive');
+      const label = uploadKind === 'document' ? 'un documento nuevo' : 'una foto nueva';
+      const delivered = await notifyOtherMemberPhones(`Ha subido ${label}`, '/archive');
       setNotice(
         delivered
-          ? 'Foto subida.'
-          : 'Foto subida, pero algún teléfono no tiene las notificaciones activadas.',
+          ? `${uploadKind === 'document' ? 'Documento' : 'Foto'} subido.`
+          : 'Archivo subido, pero algún teléfono no tiene las notificaciones activadas.',
       );
     } catch (caught) {
       setNotice(readableFirebaseError(caught));
     } finally {
-      setIsUploadingPhoto(false);
+      setIsUploadingFile(false);
     }
   };
 
@@ -752,6 +1108,171 @@ export function FlareDashboard({ user }: { user: User }) {
     day: 'numeric',
     month: 'long',
   }).format(new Date());
+  const visibleReminders = reminders.filter((reminder) => !hiddenReminderIds.has(reminder.id));
+  const regularMessages = recentMessages.filter((message) => !message.pinned);
+  const regularPhotos = recentPhotos.filter((photo) => !photo.pinned);
+  const viewingPhotoList = viewingPhoto?.pinned ? pinnedPhotos : regularPhotos;
+  const viewingPhotoIndex = viewingPhoto
+    ? viewingPhotoList.findIndex((photo) => photo.id === viewingPhoto.id)
+    : -1;
+  const movePhotoViewer = (offset: number) => {
+    if (viewingPhotoList.length === 0 || viewingPhotoIndex < 0) return;
+    const nextIndex = (viewingPhotoIndex + offset + viewingPhotoList.length) % viewingPhotoList.length;
+    setIsPhotoZoomed(false);
+    setViewingPhoto(viewingPhotoList[nextIndex]);
+  };
+  const renderChatMessage = (
+    message: RecentMessage,
+    index: number,
+    list: RecentMessage[],
+  ) => {
+    const previous = list[index - 1];
+    const next = list[index + 1];
+    const sender = members.find((member) => member.uid === message.senderId);
+    const color = activePalette.lights[sender?.index ?? -1] ?? '#6B7280';
+    const gif = message.gif ? gifMedia[message.gif.giphyId] : undefined;
+    const isMine = message.senderId === user.uid;
+    const startsGroup = !sameMessageGroup(previous, message);
+    const endsGroup = !sameMessageGroup(message, next);
+    const startsDay = index === 0 || !sameCalendarDay(previous?.createdAt ?? null, message.createdAt);
+    const classes = [
+      'chat-message',
+      isMine ? 'mine' : 'theirs',
+      startsGroup ? 'group-start' : '',
+      endsGroup ? 'group-end' : '',
+      message.kind === 'gif' ? 'has-gif' : '',
+    ].filter(Boolean).join(' ');
+
+    return (
+      <Fragment key={message.id}>
+        {startsDay && (
+          <div className="chat-day">
+            <span>{messageDay(message.createdAt)}</span>
+          </div>
+        )}
+        <article className={classes} style={{ '--member-color': color } as React.CSSProperties}>
+          {!isMine && (
+            endsGroup ? (
+              <span className="chat-avatar" title={sender?.name ?? 'Alguien'} aria-hidden="true">
+                {initials(sender?.name ?? 'A')}
+              </span>
+            ) : (
+              <span className="chat-avatar-placeholder" aria-hidden="true" />
+            )
+          )}
+          <div className="chat-message-content">
+            {!isMine && startsGroup && <span className="chat-sender">{sender?.name ?? 'Alguien'}</span>}
+            <div
+              className="chat-bubble"
+              role="button"
+              tabIndex={0}
+              onClick={() => setViewingMessage(message)}
+              onKeyDown={(event) => {
+                if (event.key === 'Enter' || event.key === ' ') setViewingMessage(message);
+              }}>
+              {message.kind === 'gif' && message.gif ? (
+                gif ? (
+                  <span
+                    className="board-gif"
+                    style={{ aspectRatio: `${message.gif.width} / ${message.gif.height}` }}>
+                    <Image
+                      src={gif.mediaUrl}
+                      alt={message.gif.altText}
+                      fill
+                      sizes="(max-width: 640px) 72vw, 360px"
+                      unoptimized
+                    />
+                  </span>
+                ) : (
+                  <p className="chat-text">{message.text}</p>
+                )
+              ) : (
+                <p className="chat-text"><LinkifiedText text={message.text} /></p>
+              )}
+              <time className="chat-time" dateTime={message.createdAt?.toISOString()}>
+                {messageTime(message.createdAt)}
+              </time>
+            </div>
+            {Object.keys(message.reactions).length > 0 && (
+              <div className="content-reactions">
+                {Object.entries(message.reactions).map(([uid, signal]) => (
+                  <SignalMark
+                    id={signal}
+                    color={activePalette.lights[members.find((member) => member.uid === uid)?.index ?? -1] ?? '#6B7280'}
+                    key={uid}
+                  />
+                ))}
+              </div>
+            )}
+            <div className="content-actions">
+              <button type="button" onClick={() => setReactionTarget({ kind: 'message', item: message })}>
+                Responder
+              </button>
+              <button type="button" onClick={() => toggleMessagePin(message)}>
+                {message.pinned ? 'Desfijar' : 'Fijar'}
+              </button>
+              <button className="danger" type="button" onClick={() => deleteMessage(message)}>
+                Eliminar
+              </button>
+            </div>
+          </div>
+        </article>
+      </Fragment>
+    );
+  };
+  const renderArchiveItem = (photo: RecentPhoto) => {
+    const uploader = members.find((member) => member.uid === photo.uploadedByUid);
+    const color = activePalette.lights[uploader?.index ?? -1] ?? '#6B7280';
+    return (
+      <article
+        className="archive-preview-item"
+        style={{ '--member-color': color } as React.CSSProperties}
+        key={photo.id}>
+        <button
+          className="archive-open"
+          type="button"
+          onClick={() => {
+            setIsPhotoZoomed(false);
+            setViewingPhoto(photo);
+          }}>
+          {photo.kind === 'document' ? (
+            <>
+              <strong>{fileFormat(photo.fileName)}</strong>
+              <small>{photo.fileName ?? 'Documento'}</small>
+            </>
+          ) : (
+            <Image
+              src={photo.imageUrl}
+              alt={`Foto subida por ${uploader?.name ?? 'un miembro'}`}
+              fill
+              sizes="(max-width: 640px) 45vw, 240px"
+              unoptimized
+            />
+          )}
+        </button>
+        {photo.pinned && <span className="pin-badge" title="Fijado">⌖</span>}
+        {Object.keys(photo.reactions).length > 0 && (
+          <div className="archive-reactions">
+            {Object.entries(photo.reactions).map(([uid, signal]) => (
+              <SignalMark
+                id={signal}
+                color={activePalette.lights[members.find((member) => member.uid === uid)?.index ?? -1] ?? '#6B7280'}
+                key={uid}
+              />
+            ))}
+          </div>
+        )}
+        <div className="archive-item-actions">
+          <button type="button" onClick={() => setReactionTarget({ kind: 'photo', item: photo })}>
+            Responder
+          </button>
+          <button type="button" onClick={() => togglePhotoPin(photo)}>
+            {photo.pinned ? 'Desfijar' : 'Fijar'}
+          </button>
+        </div>
+      </article>
+    );
+  };
 
   return (
     <main className="app-shell" style={dashboardStyle}>
@@ -827,6 +1348,12 @@ export function FlareDashboard({ user }: { user: User }) {
             {notice}<span>×</span>
           </button>
         )}
+        {undoReminders.map((reminder) => (
+          <div className="undo-banner" role="status" key={reminder.id}>
+            <span>Aviso completado</span>
+            <button type="button" onClick={() => undoCompleteReminder(reminder)}>Deshacer</button>
+          </div>
+        ))}
 
         {view === 'space' && <div className="welcome">
           <div>
@@ -863,27 +1390,32 @@ export function FlareDashboard({ user }: { user: User }) {
               </button>
               {remindersLoading ? (
                 <div className="overview-card skeleton" />
-              ) : reminders.length === 0 ? (
+              ) : visibleReminders.length === 0 ? (
                 <button className="overview-card empty-overview" type="button" onClick={() => setView('reminders')}>
                   Nada pendiente por ahora.
                 </button>
               ) : (
                 <div className="overview-reminders">
-                  {reminders.slice(0, 3).map((reminder) => {
+                  {visibleReminders.slice(0, 3).map((reminder) => {
                     const creator = members.find((member) => member.uid === reminder.createdByUid);
                     const color = activePalette.lights[creator?.index ?? -1] ?? '#6B7280';
                     return (
-                      <button
-                        className="overview-reminder"
-                        type="button"
-                        onClick={() => setView('reminders')}
-                        key={reminder.id}>
+                      <div className="overview-reminder" key={reminder.id}>
                         <i style={{ background: color, boxShadow: `0 0 12px ${color}` }} />
-                        <span>
+                        <button type="button" onClick={() => setView('reminders')}>
                           <strong>{reminder.title}</strong>
                           <small>{reminder.dueAt ? formatDueDate(reminder.dueAt) : reminder.dueLabel}</small>
-                        </span>
-                      </button>
+                        </button>
+                        {reminder.dueAt && (
+                          <button
+                            className="overview-calendar"
+                            type="button"
+                            onClick={() => sendReminderToCalendar(reminder)}
+                            aria-label={`Añadir ${reminder.title} al calendario`}>
+                            +
+                          </button>
+                        )}
+                      </div>
                     );
                   })}
                 </div>
@@ -891,13 +1423,18 @@ export function FlareDashboard({ user }: { user: User }) {
             </section>
 
             <section className="overview-section">
-              <button className="overview-heading" type="button" onClick={() => setView('archive')}>
+              <div className="overview-heading">
                 <span>
                   <span className="eyebrow">ÚLTIMOS ARCHIVOS</span>
                   <strong>Archivo</strong>
                 </span>
-                <span>Ver todo →</span>
-              </button>
+                <span className="overview-heading-actions">
+                  <button type="button" onClick={() => chooseUpload('image')} disabled={isUploadingFile}>
+                    {isUploadingFile ? 'Subiendo…' : 'Subir foto'}
+                  </button>
+                  <button type="button" onClick={() => setView('archive')}>Ver todo →</button>
+                </span>
+              </div>
               {recentPhotos.length === 0 ? (
                 <button className="overview-card empty-overview" type="button" onClick={() => setView('archive')}>
                   Todavía no habéis subido ninguna.
@@ -932,7 +1469,7 @@ export function FlareDashboard({ user }: { user: User }) {
                 </span>
                 <span>Ver todo →</span>
               </button>
-              {recentMessages.length === 0 ? (
+              {regularMessages.length === 0 && pinnedMessages.length === 0 ? (
                 <button className="overview-card empty-overview" type="button" onClick={() => setView('board')}>
                   Todavía nada. El primero sigue libre.
                 </button>
@@ -964,9 +1501,23 @@ export function FlareDashboard({ user }: { user: User }) {
               <p className="eyebrow">PARA QUIEN TÚ ELIJAS</p>
               <h2>Avisos</h2>
             </div>
-            <button className="primary-button" type="button" onClick={openReminder}>
-              Nuevo aviso
-            </button>
+            <div className="section-heading-actions">
+              {browserNotificationPermission !== 'unsupported' &&
+                browserNotificationPermission !== 'granted' && (
+                  <button
+                    className="quiet-button"
+                    type="button"
+                    disabled={browserNotificationPermission === 'denied'}
+                    onClick={requestBrowserNotifications}>
+                    {browserNotificationPermission === 'denied'
+                      ? 'Avisos web bloqueados'
+                      : 'Activar avisos web'}
+                  </button>
+                )}
+              <button className="primary-button" type="button" onClick={openReminder}>
+                Nuevo aviso
+              </button>
+            </div>
           </div>
 
           {showReminderForm && (
@@ -1045,7 +1596,7 @@ export function FlareDashboard({ user }: { user: User }) {
             <div className="reminder-grid">
               {[0, 1, 2].map((item) => <div className="reminder-card skeleton" key={item} />)}
             </div>
-          ) : reminders.length === 0 ? (
+          ) : visibleReminders.length === 0 ? (
             <article className="empty-state panel">
               <div className="orbit" aria-hidden="true"><i /><i /></div>
               <h3>Nada pendiente por ahora.</h3>
@@ -1053,7 +1604,7 @@ export function FlareDashboard({ user }: { user: User }) {
             </article>
           ) : (
             <div className="reminder-grid">
-              {reminders.map((reminder) => {
+              {visibleReminders.map((reminder) => {
                 const target = members.find((member) => member.uid === reminder.targetUids[0]);
                 const color = activePalette.lights[target?.index ?? -1] ?? '#6B7280';
                 return (
@@ -1076,7 +1627,10 @@ export function FlareDashboard({ user }: { user: User }) {
                     </div>
                     <div className="reminder-actions">
                       <button type="button" onClick={() => completeReminder(reminder)}>Hecho</button>
-                      <button type="button" onClick={() => postponeReminder(reminder)}>+30 min</button>
+                      <button type="button" onClick={() => openPostponeReminder(reminder)}>Posponer</button>
+                      {reminder.dueAt && (
+                        <button type="button" onClick={() => sendReminderToCalendar(reminder)}>Calendario</button>
+                      )}
                       <button className="danger" type="button" onClick={() => removeReminder(reminder)}>Borrar</button>
                     </div>
                   </article>
@@ -1108,82 +1662,25 @@ export function FlareDashboard({ user }: { user: User }) {
                   role="log"
                   aria-label="Conversación"
                   aria-live="polite">
-                  {recentMessages.map((message, index) => {
-                    const previous = recentMessages[index - 1];
-                    const next = recentMessages[index + 1];
-                    const sender = members.find((member) => member.uid === message.senderId);
-                    const color = activePalette.lights[sender?.index ?? -1] ?? '#6B7280';
-                    const gif = message.gif ? gifMedia[message.gif.giphyId] : undefined;
-                    const isMine = message.senderId === user.uid;
-                    const startsGroup = !sameMessageGroup(previous, message);
-                    const endsGroup = !sameMessageGroup(message, next);
-                    const startsDay =
-                      index === 0 || !sameCalendarDay(previous?.createdAt ?? null, message.createdAt);
-                    const classes = [
-                      'chat-message',
-                      isMine ? 'mine' : 'theirs',
-                      startsGroup ? 'group-start' : '',
-                      endsGroup ? 'group-end' : '',
-                      message.kind === 'gif' ? 'has-gif' : '',
-                    ].filter(Boolean).join(' ');
-
-                    return (
-                      <Fragment key={message.id}>
-                        {startsDay && (
-                          <div className="chat-day">
-                            <span>{messageDay(message.createdAt)}</span>
-                          </div>
-                        )}
-                        <article
-                          className={classes}
-                          style={{ '--member-color': color } as React.CSSProperties}>
-                          {!isMine && (
-                            endsGroup ? (
-                              <span
-                                className="chat-avatar"
-                                title={sender?.name ?? 'Alguien'}
-                                aria-hidden="true">
-                                {initials(sender?.name ?? 'A')}
-                              </span>
-                            ) : (
-                              <span className="chat-avatar-placeholder" aria-hidden="true" />
-                            )
-                          )}
-                          <div className="chat-message-content">
-                            {!isMine && startsGroup && (
-                              <span className="chat-sender">{sender?.name ?? 'Alguien'}</span>
-                            )}
-                            <div className="chat-bubble">
-                              {message.kind === 'gif' && message.gif ? (
-                                gif ? (
-                                  <span
-                                    className="board-gif"
-                                    style={{ aspectRatio: `${message.gif.width} / ${message.gif.height}` }}>
-                                    <Image
-                                      src={gif.mediaUrl}
-                                      alt={message.gif.altText}
-                                      fill
-                                      sizes="(max-width: 640px) 72vw, 360px"
-                                      unoptimized
-                                    />
-                                  </span>
-                                ) : (
-                                  <p className="chat-text">{message.text}</p>
-                                )
-                              ) : (
-                                <p className="chat-text">{message.text}</p>
-                              )}
-                              <time
-                                className="chat-time"
-                                dateTime={message.createdAt?.toISOString()}>
-                                {messageTime(message.createdAt)}
-                              </time>
-                            </div>
-                          </div>
-                        </article>
-                      </Fragment>
-                    );
-                  })}
+                  {pinnedMessages.length > 0 && (
+                    <div className="pinned-content">
+                      <span className="eyebrow">FIJADOS</span>
+                      {pinnedMessages.map((message, index) =>
+                        renderChatMessage(message, index, pinnedMessages),
+                      )}
+                    </div>
+                  )}
+                  {regularMessages.map((message, index) =>
+                    renderChatMessage(message, index, regularMessages),
+                  )}
+                  {recentMessages.length >= messagePageSize && (
+                    <button
+                      className="load-more-button"
+                      type="button"
+                      onClick={() => setMessagePageSize((current) => current + messagePageStep)}>
+                      Ver mensajes anteriores
+                    </button>
+                  )}
                 </div>
               )}
               <form className="message-composer" onSubmit={sendMessage}>
@@ -1219,48 +1716,50 @@ export function FlareDashboard({ user }: { user: User }) {
                 <p className="eyebrow">FOTOS Y DOCUMENTOS</p>
                 <h2>Archivo</h2>
               </div>
-              <button
-                className="primary-button"
-                type="button"
-                disabled={isUploadingPhoto}
-                onClick={() => photoInputRef.current?.click()}>
-                {isUploadingPhoto ? 'Subiendo…' : 'Subir foto'}
-              </button>
+              <div className="section-heading-actions">
+                <button
+                  className="quiet-button"
+                  type="button"
+                  disabled={isUploadingFile}
+                  onClick={() => chooseUpload('document')}>
+                  Subir documento
+                </button>
+                <button
+                  className="primary-button"
+                  type="button"
+                  disabled={isUploadingFile}
+                  onClick={() => chooseUpload('image')}>
+                  {isUploadingFile ? 'Subiendo…' : 'Subir foto'}
+                </button>
+              </div>
             </div>
-            <input
-              className="visually-hidden"
-              ref={photoInputRef}
-              type="file"
-              accept="image/*"
-              onChange={uploadSelectedPhoto}
-              tabIndex={-1}
-            />
-            {recentPhotos.length === 0 ? (
+            {regularPhotos.length === 0 && pinnedPhotos.length === 0 ? (
               <article className="empty-state panel">
                 <h3>Todavía no hay archivos.</h3>
-                <p>Las fotos y documentos del móvil aparecerán aquí en tiempo real.</p>
+                <p>Sube una foto o un documento para compartirlo con el espacio.</p>
               </article>
             ) : (
-              <div className="archive-preview-grid">
-                {recentPhotos.map((photo) => (
-                  <article className="archive-preview-item" key={photo.id}>
-                    {photo.kind === 'document' ? (
-                      <>
-                        <strong>{fileFormat(photo.fileName)}</strong>
-                        <small>{photo.fileName ?? 'Documento'}</small>
-                      </>
-                    ) : (
-                      <Image
-                        src={photo.imageUrl}
-                        alt=""
-                        fill
-                        sizes="(max-width: 640px) 45vw, 240px"
-                        unoptimized
-                      />
-                    )}
-                  </article>
-                ))}
-              </div>
+              <>
+                {pinnedPhotos.length > 0 && (
+                  <div className="archive-pinned">
+                    <span className="eyebrow">FIJADOS</span>
+                    <div className="archive-preview-grid">
+                      {pinnedPhotos.map(renderArchiveItem)}
+                    </div>
+                  </div>
+                )}
+                <div className="archive-preview-grid">
+                  {regularPhotos.map(renderArchiveItem)}
+                </div>
+                {recentPhotos.length >= photoPageSize && (
+                  <button
+                    className="load-more-button"
+                    type="button"
+                    onClick={() => setPhotoPageSize((current) => current + photoPageStep)}>
+                    Ver archivos anteriores
+                  </button>
+                )}
+              </>
             )}
           </section>
         )}
@@ -1316,6 +1815,158 @@ export function FlareDashboard({ user }: { user: User }) {
               {isSavingSpace ? 'Un momento…' : spaceDialog === 'create' ? 'Crear espacio' : 'Entrar'}
             </button>
           </form>
+        </div>
+      )}
+      <input
+        className="visually-hidden"
+        ref={fileInputRef}
+        type="file"
+        accept={
+          uploadKind === 'image'
+            ? 'image/*'
+            : '.pdf,.doc,.docx,.xls,.xlsx,.txt,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,text/plain'
+        }
+        onChange={uploadSelectedFile}
+        tabIndex={-1}
+      />
+      {reactionTarget && (
+        <SignalPicker
+          current={reactionTarget.item.reactions[user.uid] ?? null}
+          onPick={reactToContent}
+          onClose={() => setReactionTarget(null)}
+        />
+      )}
+      {postponingReminder && (
+        <div className="modal-backdrop" role="presentation" onMouseDown={() => setPostponingReminder(null)}>
+          <section
+            className="modal-card postpone-dialog"
+            role="dialog"
+            aria-modal="true"
+            aria-label="Posponer aviso"
+            onMouseDown={(event) => event.stopPropagation()}>
+            <button className="icon-button modal-close" type="button" onClick={() => setPostponingReminder(null)}>×</button>
+            <p className="eyebrow">POSPONER AVISO</p>
+            <h2>{postponingReminder.title}</h2>
+            <ReminderDateTimePicker
+              value={postponeInput}
+              onChange={setPostponeInput}
+              min={new Date()}
+            />
+            <div className="form-actions">
+              <button className="quiet-button" type="button" onClick={() => setPostponingReminder(null)}>Cancelar</button>
+              <button className="primary-button" type="button" disabled={!postponeInput} onClick={postponeReminder}>
+                Guardar nueva fecha
+              </button>
+            </div>
+          </section>
+        </div>
+      )}
+      {viewingMessage && (
+        <div className="modal-backdrop content-viewer-backdrop" role="presentation" onMouseDown={() => setViewingMessage(null)}>
+          <section
+            className="content-viewer message-viewer"
+            role="dialog"
+            aria-modal="true"
+            aria-label="Mensaje"
+            onMouseDown={(event) => event.stopPropagation()}>
+            <button className="icon-button viewer-close" type="button" onClick={() => setViewingMessage(null)}>×</button>
+            <div className="message-viewer-body">
+              {viewingMessage.kind === 'gif' && viewingMessage.gif && gifMedia[viewingMessage.gif.giphyId] ? (
+                <Image
+                  src={gifMedia[viewingMessage.gif.giphyId].mediaUrl}
+                  alt={viewingMessage.gif.altText}
+                  fill
+                  sizes="90vw"
+                  unoptimized
+                />
+              ) : (
+                <p><LinkifiedText text={viewingMessage.text} /></p>
+              )}
+            </div>
+            <div className="viewer-toolbar">
+              <div className="viewer-reactions">
+                {Object.entries(viewingMessage.reactions).map(([uid, signal]) => (
+                  <SignalMark
+                    id={signal}
+                    color={activePalette.lights[members.find((member) => member.uid === uid)?.index ?? -1] ?? '#6B7280'}
+                    key={uid}
+                  />
+                ))}
+              </div>
+              <button type="button" onClick={() => setReactionTarget({ kind: 'message', item: viewingMessage })}>
+                Responder
+              </button>
+              <button type="button" onClick={() => toggleMessagePin(viewingMessage)}>
+                {viewingMessage.pinned ? 'Desfijar' : 'Fijar'}
+              </button>
+              <button className="danger" type="button" onClick={() => deleteMessage(viewingMessage)}>
+                Eliminar
+              </button>
+            </div>
+          </section>
+        </div>
+      )}
+      {viewingPhoto && (
+        <div className="modal-backdrop content-viewer-backdrop" role="presentation" onMouseDown={() => setViewingPhoto(null)}>
+          <section
+            className="content-viewer archive-viewer"
+            role="dialog"
+            aria-modal="true"
+            aria-label={viewingPhoto.kind === 'document' ? 'Documento' : 'Foto'}
+            onMouseDown={(event) => event.stopPropagation()}>
+            <button className="icon-button viewer-close" type="button" onClick={() => setViewingPhoto(null)}>×</button>
+            {viewingPhotoList.length > 1 && (
+              <>
+                <button className="viewer-arrow previous" type="button" onClick={() => movePhotoViewer(-1)} aria-label="Anterior">‹</button>
+                <button className="viewer-arrow next" type="button" onClick={() => movePhotoViewer(1)} aria-label="Siguiente">›</button>
+              </>
+            )}
+            {viewingPhoto.kind === 'document' ? (
+              <div className="document-viewer">
+                <strong>{fileFormat(viewingPhoto.fileName)}</strong>
+                <h2>{viewingPhoto.fileName ?? 'Documento'}</h2>
+                <a className="primary-button" href={viewingPhoto.imageUrl} target="_blank" rel="noreferrer">
+                  Abrir documento
+                </a>
+              </div>
+            ) : (
+              <button
+                className={isPhotoZoomed ? 'image-viewer zoomed' : 'image-viewer'}
+                type="button"
+                aria-label={isPhotoZoomed ? 'Reducir foto' : 'Ampliar foto'}
+                onClick={() => setIsPhotoZoomed((current) => !current)}>
+                <Image
+                  src={viewingPhoto.imageUrl}
+                  alt=""
+                  fill
+                  sizes="95vw"
+                  unoptimized
+                />
+              </button>
+            )}
+            <div className="viewer-toolbar">
+              <div className="viewer-reactions">
+                {Object.entries(viewingPhoto.reactions).map(([uid, signal]) => (
+                  <SignalMark
+                    id={signal}
+                    color={activePalette.lights[members.find((member) => member.uid === uid)?.index ?? -1] ?? '#6B7280'}
+                    key={uid}
+                  />
+                ))}
+              </div>
+              <button type="button" onClick={() => setReactionTarget({ kind: 'photo', item: viewingPhoto })}>
+                Responder
+              </button>
+              <button type="button" onClick={() => togglePhotoPin(viewingPhoto)}>
+                {viewingPhoto.pinned ? 'Desfijar' : 'Fijar'}
+              </button>
+              {viewingPhoto.uploadedByUid === user.uid && (
+                <button className="danger" type="button" onClick={() => deletePhoto(viewingPhoto)}>
+                  Eliminar
+                </button>
+              )}
+            </div>
+          </section>
         </div>
       )}
       <GifPicker

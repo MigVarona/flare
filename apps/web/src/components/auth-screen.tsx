@@ -12,8 +12,11 @@ import { doc, getDoc, serverTimestamp, setDoc } from 'firebase/firestore';
 import { FormEvent, useState } from 'react';
 
 import { FlareBrand } from '@/components/flare-brand';
+import { LegalModal } from '@/components/legal-modal';
 import { auth, db, googleProvider } from '@/lib/firebase';
 import { readableFirebaseError } from '@/lib/firebase-errors';
+import { PrivacyMarkdown } from '../../../mobile/src/constants/privacy';
+import { TermsMarkdown } from '../../../mobile/src/constants/terms';
 
 function GoogleMark() {
   return (
@@ -33,6 +36,7 @@ export function AuthScreen() {
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [isBusy, setIsBusy] = useState(false);
+  const [legal, setLegal] = useState<'terms' | 'privacy' | null>(null);
 
   const submit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -199,6 +203,14 @@ export function AuthScreen() {
             <button className="primary-button auth-submit" type="submit" disabled={isBusy}>
               {isBusy ? 'Un momento…' : mode === 'login' ? 'Entrar' : 'Crear cuenta'}
             </button>
+            {mode === 'register' && (
+              <p className="auth-legal-copy">
+                Al crear una cuenta, confirmas que tienes 16 años o más y aceptas los{' '}
+                <button type="button" onClick={() => setLegal('terms')}>Términos de uso</button>
+                {' '}y la{' '}
+                <button type="button" onClick={() => setLegal('privacy')}>Política de Privacidad</button>.
+              </p>
+            )}
           </form>
 
           <div className="form-divider"><span>o</span></div>
@@ -212,6 +224,13 @@ export function AuthScreen() {
           </p>
         </div>
       </section>
+      {legal && (
+        <LegalModal
+          title={legal === 'terms' ? 'Términos de uso' : 'Política de Privacidad'}
+          markdown={legal === 'terms' ? TermsMarkdown : PrivacyMarkdown}
+          onClose={() => setLegal(null)}
+        />
+      )}
     </main>
   );
 }
