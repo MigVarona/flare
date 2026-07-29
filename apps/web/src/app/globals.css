@@ -1394,12 +1394,16 @@ button:disabled {
   height: 46px;
   display: grid;
   place-items: center;
-  border: 1px solid color-mix(in srgb, var(--card-accent) 30%, transparent);
+  overflow: hidden;
+  border: 0;
   border-radius: 14px;
   color: white;
   background: linear-gradient(135deg, var(--card-first), var(--card-second));
+  background-clip: border-box;
   font-size: 16px;
   font-weight: 600;
+  line-height: 1;
+  -webkit-font-smoothing: antialiased;
 }
 
 .onboarding-tour {
