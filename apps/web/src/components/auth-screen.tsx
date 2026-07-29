@@ -57,7 +57,7 @@ function AndroidAccessCard({
         <p>La app ya está disponible en Google Play para un grupo limitado de testers.</p>
         <div className="android-access-actions">
           <a
-            href="https://mail.google.com/mail/?view=cm&fs=1&to=info%40wearecapa.es&su=Solicitud%20de%20acceso%20a%20Flare%20para%20Android"
+            href="https://mail.google.com/mail/?view=cm&fs=1&to=hola%40wearecapa.es&su=Solicitud%20de%20acceso%20a%20Flare%20para%20Android"
             target="_blank"
             rel="noreferrer">
             Solicitar acceso
