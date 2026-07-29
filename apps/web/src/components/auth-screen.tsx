@@ -30,6 +30,50 @@ function GoogleMark() {
   );
 }
 
+function AndroidAccessCard({
+  className,
+  titleId,
+}: {
+  className: string;
+  titleId: string;
+}) {
+  return (
+    <aside className={`android-access-card ${className}`} aria-labelledby={titleId}>
+      <div className="android-access-visual" aria-hidden="true">
+        <span className="android-access-glow" />
+        <Image
+          src="/android-head.svg"
+          alt=""
+          width={152}
+          height={89}
+          className="android-access-logo"
+        />
+      </div>
+      <div className="android-access-content">
+        <small>APP PARA ANDROID™ · PRUEBA CERRADA</small>
+        <h3 id={titleId}>Lleva Flare contigo</h3>
+        <p>La app ya está disponible en Google Play para un grupo limitado de testers.</p>
+        <div className="android-access-actions">
+          <a href="mailto:info@wearecapa.es?subject=Solicitud%20de%20acceso%20a%20Flare%20para%20Android">
+            Solicitar acceso
+            <span aria-hidden="true">→</span>
+          </a>
+          <a
+            href="https://play.google.com/apps/testing/com.mivarona.churriapp"
+            target="_blank"
+            rel="noreferrer">
+            Ya tengo acceso <span aria-hidden="true">↗</span>
+          </a>
+        </div>
+      </div>
+      <p className="android-attribution">
+        El robot Android se reproduce a partir del trabajo creado y compartido por Google y se usa
+        conforme a la licencia Creative Commons 3.0 Atribución. Android es una marca de Google LLC.
+      </p>
+    </aside>
+  );
+}
+
 export function AuthScreen() {
   const [mode, setMode] = useState<'login' | 'register'>('login');
   const [name, setName] = useState('');
@@ -110,40 +154,10 @@ export function AuthScreen() {
             <li><span aria-hidden="true">◇</span> Comunidades</li>
           </ul>
 
-          <aside className="android-access-card" aria-labelledby="android-access-title">
-            <div className="android-access-visual" aria-hidden="true">
-              <span className="android-access-glow" />
-              <Image
-                src="/android-head.svg"
-                alt=""
-                width={152}
-                height={89}
-                className="android-access-logo"
-              />
-            </div>
-            <div className="android-access-content">
-              <small>APP PARA ANDROID™ · PRUEBA CERRADA</small>
-              <h3 id="android-access-title">Lleva Flare contigo</h3>
-              <p>La app ya está disponible en Google Play para un grupo limitado de testers.</p>
-              <div className="android-access-actions">
-                <a href="mailto:info@wearecapa.es?subject=Solicitud%20de%20acceso%20a%20Flare%20para%20Android">
-                  Solicitar acceso
-                  <span aria-hidden="true">→</span>
-                </a>
-                <a
-                  href="https://play.google.com/apps/testing/com.mivarona.churriapp"
-                  target="_blank"
-                  rel="noreferrer">
-                  Ya tengo acceso <span aria-hidden="true">↗</span>
-                </a>
-              </div>
-            </div>
-            <p className="android-attribution">
-              El robot Android se reproduce a partir del trabajo creado y compartido por Google y
-              se usa conforme a la licencia Creative Commons 3.0 Atribución. Android es una marca
-              de Google LLC.
-            </p>
-          </aside>
+          <AndroidAccessCard
+            className="android-access-desktop"
+            titleId="android-access-title-desktop"
+          />
         </div>
 
         <div className="auth-collab-card" aria-label="Ejemplo de actividad en un espacio compartido">
@@ -259,6 +273,10 @@ export function AuthScreen() {
               La misma cuenta funciona en la web y en la app móvil.
             </p>
         </div>
+        <AndroidAccessCard
+          className="android-access-mobile"
+          titleId="android-access-title-mobile"
+        />
       </section>
       {legal && (
         <LegalModal
