@@ -19,36 +19,36 @@ type HighlightRect = {
 
 const steps: TourStep[] = [
   {
-    selector: '[data-onboarding="spaces"]',
-    eyebrow: 'TUS ESPACIOS',
-    title: 'Muévete entre tus grupos',
+    selector: '[data-onboarding="create-space"]',
+    eyebrow: 'EMPIEZA AQUÍ',
+    title: 'Crea y comparte un espacio',
     description:
-      'Aquí puedes cambiar de espacio, crear uno nuevo o entrar en otro mediante una llave.',
+      'Pulsa «Nuevo espacio», ponle nombre y Flare generará una llave para que invites a quien quieras.',
+    glyph: '+',
+  },
+  {
+    selector: '[data-onboarding="join-space"]',
+    eyebrow: 'LLAVES',
+    title: 'Únete a otros espacios',
+    description:
+      'Cuando alguien comparta una llave contigo, introdúcela aquí para entrar directamente en su espacio.',
+    glyph: '↗',
+  },
+  {
+    selector: '[data-onboarding="spaces"]',
+    eyebrow: 'TUS GRUPOS',
+    title: 'Cada espacio, en su sitio',
+    description:
+      'Cambia entre tus espacios desde estas tarjetas. Cada uno conserva sus propios mensajes, avisos y archivos.',
     glyph: '◉',
   },
   {
-    selector: '[data-onboarding="reminders"]',
-    eyebrow: 'AVISOS',
-    title: 'Que nada se quede atrás',
+    selector: '[data-onboarding="navigation"]',
+    eyebrow: 'NAVEGACIÓN',
+    title: 'Todo lo demás, a un clic',
     description:
-      'Crea recordatorios para ti o para otras personas y consulta qué es lo siguiente.',
-    glyph: '!',
-  },
-  {
-    selector: '[data-onboarding="messages"]',
-    eyebrow: 'CONVERSACIÓN',
-    title: 'Todo el grupo al día',
-    description:
-      'Los últimos mensajes aparecen aquí. Entra para conversar, enviar fotos o compartir GIFs.',
+      'Usa esta barra para abrir los avisos, conversar, consultar archivos o cambiar tus ajustes.',
     glyph: '≡',
-  },
-  {
-    selector: '[data-onboarding="files"]',
-    eyebrow: 'ARCHIVOS',
-    title: 'Lo compartido, siempre a mano',
-    description:
-      'Encuentra las fotos y documentos recientes o abre el archivo completo del espacio.',
-    glyph: '□',
   },
 ];
 
@@ -112,16 +112,30 @@ export function WebOnboardingTour({ onFinish }: { onFinish: () => void }) {
 
   const cardWidth = typeof window === 'undefined' ? 360 : Math.min(360, window.innerWidth - 32);
   const estimatedCardHeight = 260;
-  const cardStyle: CSSProperties = highlight
-    ? {
-        width: cardWidth,
-        left: clamp(highlight.left, 16, window.innerWidth - cardWidth - 16),
-        top:
-          highlight.top + highlight.height + 18 + estimatedCardHeight < window.innerHeight
-            ? highlight.top + highlight.height + 18
-            : Math.max(16, highlight.top - estimatedCardHeight - 18),
-      }
-    : { width: cardWidth, left: 16, top: 16 };
+  const isNavigationStep = step.selector === '[data-onboarding="navigation"]';
+  let cardStyle: CSSProperties = { width: cardWidth, left: 16, top: 16 };
+  if (highlight && typeof window !== 'undefined') {
+    const hasRoomOnRight =
+      window.innerWidth - highlight.left - highlight.width >= cardWidth + 34;
+    cardStyle = isNavigationStep && hasRoomOnRight
+      ? {
+          width: cardWidth,
+          left: highlight.left + highlight.width + 18,
+          top: clamp(
+            highlight.top + (highlight.height - estimatedCardHeight) / 2,
+            16,
+            window.innerHeight - estimatedCardHeight - 16,
+          ),
+        }
+      : {
+          width: cardWidth,
+          left: clamp(highlight.left, 16, window.innerWidth - cardWidth - 16),
+          top:
+            highlight.top + highlight.height + 18 + estimatedCardHeight < window.innerHeight
+              ? highlight.top + highlight.height + 18
+              : Math.max(16, highlight.top - estimatedCardHeight - 18),
+        };
+  }
 
   const finishStep = () => {
     if (stepIndex === steps.length - 1) {
@@ -146,7 +160,7 @@ export function WebOnboardingTour({ onFinish }: { onFinish: () => void }) {
         />
       )}
       <section
-        className="onboarding-popover"
+        className={isNavigationStep ? 'onboarding-popover navigation-step' : 'onboarding-popover'}
         style={cardStyle}
         role="dialog"
         aria-modal="true"
@@ -174,9 +188,9 @@ export function WebOnboardingTour({ onFinish }: { onFinish: () => void }) {
                 Atrás
               </button>
             )}
-            <button className="primary-button" type="button" onClick={finishStep}>
+            <button className="onboarding-next" type="button" onClick={finishStep}>
               {stepIndex === steps.length - 1 ? 'Empezar' : 'Siguiente'}
-              <span aria-hidden="true">→</span>
+              <span className="onboarding-next-icon" aria-hidden="true">→</span>
             </button>
           </span>
         </footer>

@@ -1296,7 +1296,7 @@ export function FlareDashboard({ user }: { user: User }) {
 
   return (
     <main className="app-shell" style={dashboardStyle}>
-      <aside className="sidebar">
+      <aside className="sidebar" data-onboarding="navigation">
         <a
           className="brand"
           href="/"
@@ -1416,8 +1416,18 @@ export function FlareDashboard({ user }: { user: User }) {
                   <h2 id="spaces-title">Tus espacios</h2>
                 </div>
                 <span className="space-dashboard-heading-actions">
-                  <button type="button" onClick={() => setSpaceDialog('join')}>Entrar con llave</button>
-                  <button type="button" onClick={() => setSpaceDialog('create')}>Nuevo espacio</button>
+                  <button
+                    data-onboarding="join-space"
+                    type="button"
+                    onClick={() => setSpaceDialog('join')}>
+                    Entrar con llave
+                  </button>
+                  <button
+                    data-onboarding="create-space"
+                    type="button"
+                    onClick={() => setSpaceDialog('create')}>
+                    Nuevo espacio
+                  </button>
                 </span>
               </div>
               <div className="space-card-grid">
@@ -1455,7 +1465,7 @@ export function FlareDashboard({ user }: { user: User }) {
             </section>
 
             <div className="space-dashboard-grid">
-              <section className="space-dashboard-panel" data-onboarding="reminders">
+              <section className="space-dashboard-panel">
                 <div className="space-dashboard-section-heading compact">
                   <div>
                     <p className="eyebrow">PRÓXIMO</p>
@@ -1505,7 +1515,7 @@ export function FlareDashboard({ user }: { user: User }) {
                 )}
               </section>
 
-              <section className="space-dashboard-panel" data-onboarding="messages">
+              <section className="space-dashboard-panel">
                 <div className="space-dashboard-section-heading compact">
                   <div>
                     <p className="eyebrow">CONVERSACIÓN</p>
@@ -1544,7 +1554,7 @@ export function FlareDashboard({ user }: { user: User }) {
               </section>
             </div>
 
-            <section className="space-dashboard-panel files" data-onboarding="files">
+            <section className="space-dashboard-panel files">
               <div className="space-dashboard-section-heading compact">
                 <div>
                   <p className="eyebrow">COMPARTIDO</p>

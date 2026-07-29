@@ -1535,12 +1535,43 @@ button:disabled {
   background: transparent;
 }
 
-.onboarding-actions .primary-button {
+.onboarding-actions .onboarding-next {
   display: inline-flex;
+  align-items: center;
+  min-height: 40px;
+  padding: 0 9px 0 14px;
   gap: 8px;
   color: white;
-  border-color: transparent;
-  background: linear-gradient(115deg, var(--space-first), var(--space-second));
+  border-color: color-mix(in srgb, var(--space-second) 52%, var(--border));
+  background: color-mix(in srgb, var(--space-second) 12%, var(--surface-raised));
+  box-shadow: none;
+  transition:
+    border-color 160ms ease,
+    background 160ms ease,
+    transform 160ms ease;
+}
+
+.onboarding-actions .onboarding-next:hover {
+  border-color: var(--space-second);
+  background: color-mix(in srgb, var(--space-second) 19%, var(--surface-raised));
+  transform: translateY(-1px);
+}
+
+.onboarding-actions .onboarding-next:focus-visible {
+  outline: 2px solid color-mix(in srgb, var(--space-second) 78%, white);
+  outline-offset: 2px;
+}
+
+.onboarding-next-icon {
+  width: 24px;
+  height: 24px;
+  display: grid;
+  place-items: center;
+  border-radius: 8px;
+  color: #07101d;
+  background: var(--space-second);
+  font-size: 14px;
+  line-height: 1;
 }
 
 .space-card-copy {
@@ -3432,6 +3463,11 @@ fieldset legend {
     width: auto !important;
     padding: 18px;
     border-radius: 18px;
+  }
+
+  .onboarding-popover.navigation-step {
+    top: 16px !important;
+    bottom: auto;
   }
 
   .onboarding-popover h2 {
