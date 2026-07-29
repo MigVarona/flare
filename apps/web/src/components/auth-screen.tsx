@@ -277,16 +277,42 @@ export function AuthScreen() {
               <GoogleMark />
               <span>Continuar con Google</span>
             </button>
-
-            <p className="auth-sync-note">
-              La misma cuenta funciona en la web y en la app móvil.
-            </p>
         </div>
         <AndroidAccessCard
           className="android-access-mobile"
           titleId="android-access-title-mobile"
         />
       </section>
+
+      <footer className="auth-footer">
+        <div className="auth-footer-inner">
+          <div className="auth-footer-credit">
+            <span>Diseño y desarrollo por</span>
+            <a
+              href="https://www.wearecapa.es"
+              target="_blank"
+              rel="noopener noreferrer"
+              aria-label="We Are Capa">
+              <Image
+                src="/wearecapa_header_white.png"
+                alt="We Are Capa"
+                width={100}
+                height={24}
+              />
+            </a>
+          </div>
+
+          <nav className="auth-footer-links" aria-label="Información legal">
+            <button type="button" onClick={() => setLegal('terms')}>Términos</button>
+            <button type="button" onClick={() => setLegal('privacy')}>Privacidad</button>
+          </nav>
+
+          <p className="auth-footer-copyright">
+            © {new Date().getFullYear()} Flare
+          </p>
+        </div>
+      </footer>
+
       {legal && (
         <LegalModal
           title={legal === 'terms' ? 'Términos de uso' : 'Política de Privacidad'}
