@@ -1626,7 +1626,10 @@ export function FlareDashboard({ user }: { user: User }) {
                       : 'Activar avisos web'}
                   </button>
                 )}
-              <button className="primary-button" type="button" onClick={openReminder}>
+              <button
+                className="primary-button reminder-create-button"
+                type="button"
+                onClick={openReminder}>
                 Nuevo aviso
               </button>
             </div>

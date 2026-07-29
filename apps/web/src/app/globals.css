@@ -422,6 +422,17 @@ h1 {
   box-shadow: 0 0 16px color-mix(in srgb, var(--space-first) 24%, transparent);
 }
 
+.app-shell .reminder-create-button {
+  border-color: color-mix(in srgb, var(--space-first) 42%, var(--border));
+  background: linear-gradient(
+    115deg,
+    color-mix(in srgb, var(--space-first) 68%, var(--surface-raised)),
+    color-mix(in srgb, var(--space-accent) 58%, var(--surface-raised)) 52%,
+    color-mix(in srgb, var(--space-second) 65%, var(--surface-raised))
+  );
+  box-shadow: 0 7px 18px color-mix(in srgb, var(--space-first) 11%, transparent);
+}
+
 .reminder-grid {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
