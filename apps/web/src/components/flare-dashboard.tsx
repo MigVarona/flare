@@ -242,7 +242,7 @@ export function FlareDashboard({ user }: { user: User }) {
   const [gifMedia, setGifMedia] = useState<Record<string, GiphyGif>>({});
   const [isUploadingFile, setIsUploadingFile] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const [uploadKind, setUploadKind] = useState<'image' | 'document'>('image');
+  const [uploadKind, setUploadKind] = useState<'image' | 'document' | 'file'>('image');
   const [viewingMessage, setViewingMessage] = useState<RecentMessage | null>(null);
   const [viewingPhoto, setViewingPhoto] = useState<RecentPhoto | null>(null);
   const [isPhotoZoomed, setIsPhotoZoomed] = useState(false);
@@ -1003,7 +1003,7 @@ export function FlareDashboard({ user }: { user: User }) {
     }
   };
 
-  const chooseUpload = (kind: 'image' | 'document') => {
+  const chooseUpload = (kind: 'image' | 'document' | 'file') => {
     setUploadKind(kind);
     window.setTimeout(() => fileInputRef.current?.click(), 0);
   };
@@ -1012,7 +1012,10 @@ export function FlareDashboard({ user }: { user: User }) {
     const file = event.target.files?.[0];
     event.target.value = '';
     if (!activeSpace || !file || isUploadingFile) return;
-    if (uploadKind === 'image' && !file.type.startsWith('image/')) {
+    const selectedKind = uploadKind === 'file'
+      ? file.type.startsWith('image/') ? 'image' : 'document'
+      : uploadKind;
+    if (selectedKind === 'image' && !file.type.startsWith('image/')) {
       setNotice('Selecciona una imagen.');
       return;
     }
@@ -1024,7 +1027,7 @@ export function FlareDashboard({ user }: { user: User }) {
       'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
       'text/plain',
     ]);
-    if (uploadKind === 'document' && !documentTypes.has(file.type)) {
+    if (selectedKind === 'document' && !documentTypes.has(file.type)) {
       setNotice('Selecciona un PDF, Word, Excel o archivo de texto.');
       return;
     }
@@ -1035,20 +1038,20 @@ export function FlareDashboard({ user }: { user: User }) {
 
     setIsUploadingFile(true);
     try {
-      const uploaded = await uploadFile(file, activeSpace.id, uploadKind);
+      const uploaded = await uploadFile(file, activeSpace.id, selectedKind);
       await addDoc(collection(db, 'spaces', activeSpace.id, 'photos'), {
         imageUrl: uploaded.imageUrl,
         cloudinaryPublicId: uploaded.publicId,
         uploadedByUid: user.uid,
-        kind: uploadKind,
-        ...(uploadKind === 'document' ? { fileName: file.name.slice(0, 200) } : {}),
+        kind: selectedKind,
+        ...(selectedKind === 'document' ? { fileName: file.name.slice(0, 200) } : {}),
         createdAt: serverTimestamp(),
       });
-      const label = uploadKind === 'document' ? 'un documento nuevo' : 'una foto nueva';
+      const label = selectedKind === 'document' ? 'un documento nuevo' : 'una foto nueva';
       const delivered = await notifyOtherMemberPhones(`Ha subido ${label}`, '/archive');
       setNotice(
         delivered
-          ? `${uploadKind === 'document' ? 'Documento' : 'Foto'} subido.`
+          ? `${selectedKind === 'document' ? 'Documento' : 'Foto'} subido.`
           : 'Archivo subido, pero algún teléfono no tiene las notificaciones activadas.',
       );
     } catch (caught) {
@@ -1561,8 +1564,8 @@ export function FlareDashboard({ user }: { user: User }) {
                   <h2>Archivos recientes</h2>
                 </div>
                 <span className="space-dashboard-heading-actions">
-                  <button type="button" onClick={() => chooseUpload('image')} disabled={isUploadingFile}>
-                    {isUploadingFile ? 'Subiendo…' : 'Subir foto'}
+                  <button type="button" onClick={() => chooseUpload('file')} disabled={isUploadingFile}>
+                    {isUploadingFile ? 'Subiendo…' : 'Subir archivo'}
                   </button>
                   <button type="button" onClick={() => setView('archive')}>Ver todos</button>
                 </span>
@@ -1933,6 +1936,8 @@ export function FlareDashboard({ user }: { user: User }) {
         accept={
           uploadKind === 'image'
             ? 'image/*'
+            : uploadKind === 'file'
+              ? 'image/*,.pdf,.doc,.docx,.xls,.xlsx,.txt,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,text/plain'
             : '.pdf,.doc,.docx,.xls,.xlsx,.txt,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,text/plain'
         }
         onChange={uploadSelectedFile}
