@@ -9,6 +9,7 @@ import {
   updateProfile,
 } from 'firebase/auth';
 import { doc, getDoc, serverTimestamp, setDoc } from 'firebase/firestore';
+import Image from 'next/image';
 import { FormEvent, useState } from 'react';
 
 import { FlareBrand } from '@/components/flare-brand';
@@ -226,25 +227,38 @@ export function AuthScreen() {
           </div>
 
           <aside className="android-access-card" aria-labelledby="android-access-title">
-            <div className="android-access-heading">
-              <span className="android-access-mark" aria-hidden="true">A</span>
-              <span>
-                <small>ANDROID · PRUEBA CERRADA</small>
-                <strong id="android-access-title">Flare también está en Android</strong>
-              </span>
+            <div className="android-access-visual" aria-hidden="true">
+              <span className="android-access-glow" />
+              <Image
+                src="/android-head.svg"
+                alt=""
+                width={152}
+                height={89}
+                className="android-access-logo"
+              />
             </div>
-            <p>Acceso anticipado para un grupo limitado de testers.</p>
-            <div className="android-access-actions">
-              <a href="mailto:info@wearecapa.es?subject=Solicitud%20de%20acceso%20a%20Flare%20para%20Android">
-                Solicitar acceso
-              </a>
-              <a
-                href="https://play.google.com/apps/testing/com.mivarona.churriapp"
-                target="_blank"
-                rel="noreferrer">
-                Ya soy tester <span aria-hidden="true">↗</span>
-              </a>
+            <div className="android-access-content">
+              <small>APP PARA ANDROID™ · PRUEBA CERRADA</small>
+              <h3 id="android-access-title">Lleva Flare contigo</h3>
+              <p>La app ya está disponible en Google Play para un grupo limitado de testers.</p>
+              <div className="android-access-actions">
+                <a href="mailto:info@wearecapa.es?subject=Solicitud%20de%20acceso%20a%20Flare%20para%20Android">
+                  Solicitar acceso
+                  <span aria-hidden="true">→</span>
+                </a>
+                <a
+                  href="https://play.google.com/apps/testing/com.mivarona.churriapp"
+                  target="_blank"
+                  rel="noreferrer">
+                  Ya tengo acceso <span aria-hidden="true">↗</span>
+                </a>
+              </div>
             </div>
+            <p className="android-attribution">
+              El robot Android se reproduce a partir del trabajo creado y compartido por Google y
+              se usa conforme a la licencia Creative Commons 3.0 Atribución. Android es una marca
+              de Google LLC.
+            </p>
           </aside>
         </div>
       </section>
