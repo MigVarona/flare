@@ -819,6 +819,12 @@ h1 {
   padding: 48px clamp(28px, 5vw, 72px);
 }
 
+.auth-panel-stack {
+  width: min(440px, 100%);
+  display: grid;
+  gap: 14px;
+}
+
 .auth-card {
   width: min(440px, 100%);
   padding: 32px;
@@ -829,6 +835,99 @@ h1 {
     var(--surface-panel);
   box-shadow: 0 28px 90px rgba(0, 0, 0, 0.3);
   backdrop-filter: blur(24px);
+}
+
+.auth-panel-stack .auth-card {
+  width: 100%;
+}
+
+.android-access-card {
+  display: grid;
+  gap: 12px;
+  padding: 18px 20px;
+  border: 1px solid color-mix(in srgb, #3ddc84 22%, var(--border));
+  border-radius: 19px;
+  background:
+    radial-gradient(circle at 10% 0, rgba(61, 220, 132, 0.08), transparent 9rem),
+    var(--surface-panel);
+  box-shadow: inset 0 1px rgba(255, 255, 255, 0.02);
+}
+
+.android-access-heading {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+}
+
+.android-access-heading > span:last-child {
+  min-width: 0;
+  display: grid;
+  gap: 1px;
+}
+
+.android-access-heading small {
+  color: #78dca5;
+  font-size: 9px;
+  font-weight: 600;
+  line-height: 13px;
+  letter-spacing: 1.1px;
+}
+
+.android-access-heading strong {
+  font-size: 14px;
+  line-height: 19px;
+}
+
+.android-access-mark {
+  width: 36px;
+  height: 36px;
+  flex: 0 0 auto;
+  display: grid;
+  place-items: center;
+  border: 1px solid rgba(61, 220, 132, 0.28);
+  border-radius: 11px;
+  color: #8ae5b3;
+  background: rgba(61, 220, 132, 0.1);
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.android-access-card > p {
+  margin: 0;
+  color: var(--muted);
+  font-size: 11px;
+  line-height: 16px;
+}
+
+.android-access-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.android-access-actions a {
+  min-height: 34px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 11px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  color: var(--text-soft);
+  background: rgba(255, 255, 255, 0.025);
+  font-size: 11px;
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.android-access-actions a:first-child {
+  color: #dff8e9;
+  border-color: rgba(61, 220, 132, 0.26);
+  background: rgba(61, 220, 132, 0.08);
+}
+
+.android-access-actions a:hover {
+  border-color: color-mix(in srgb, #3ddc84 44%, var(--border));
 }
 
 .auth-account-switch {

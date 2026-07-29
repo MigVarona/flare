@@ -136,92 +136,116 @@ export function AuthScreen() {
       </section>
 
       <section className="auth-panel">
-        <div className="auth-card">
-          <div className="auth-account-switch">
-            <span>{mode === 'login' ? '¿Aún no tienes cuenta?' : '¿Ya tienes cuenta?'}</span>
-            <button
-              className="auth-mode-link"
-              type="button"
-              onClick={() => {
-                setMode((current) => current === 'login' ? 'register' : 'login');
-                setError('');
-              }}>
-              {mode === 'login' ? 'Crear cuenta' : 'Iniciar sesión'}
-              <span aria-hidden="true">→</span>
-            </button>
-          </div>
+        <div className="auth-panel-stack">
+          <div className="auth-card">
+            <div className="auth-account-switch">
+              <span>{mode === 'login' ? '¿Aún no tienes cuenta?' : '¿Ya tienes cuenta?'}</span>
+              <button
+                className="auth-mode-link"
+                type="button"
+                onClick={() => {
+                  setMode((current) => current === 'login' ? 'register' : 'login');
+                  setError('');
+                }}>
+                {mode === 'login' ? 'Crear cuenta' : 'Iniciar sesión'}
+                <span aria-hidden="true">→</span>
+              </button>
+            </div>
 
-          <p className="eyebrow">
-            {mode === 'login' ? 'INICIA SESIÓN' : 'EMPIEZA EN FLARE'}
-          </p>
-          <h2>{mode === 'login' ? 'Entra en Flare' : 'Crea una cuenta'}</h2>
-          <p className="form-intro">
-            {mode === 'login'
-              ? 'Usa tu cuenta para acceder a todos tus espacios.'
-              : 'Crea un espacio para cualquier grupo o únete a uno con su llave.'}
-          </p>
+            <p className="eyebrow">
+              {mode === 'login' ? 'INICIA SESIÓN' : 'EMPIEZA EN FLARE'}
+            </p>
+            <h2>{mode === 'login' ? 'Entra en Flare' : 'Crea una cuenta'}</h2>
+            <p className="form-intro">
+              {mode === 'login'
+                ? 'Usa tu cuenta para acceder a todos tus espacios.'
+                : 'Crea un espacio para cualquier grupo o únete a uno con su llave.'}
+            </p>
 
-          <form onSubmit={submit} className="auth-form">
-            {mode === 'register' && (
+            <form onSubmit={submit} className="auth-form">
+              {mode === 'register' && (
+                <label>
+                  Nombre
+                  <input
+                    value={name}
+                    onChange={(event) => setName(event.target.value)}
+                    maxLength={20}
+                    autoComplete="name"
+                    required
+                  />
+                </label>
+              )}
               <label>
-                Nombre
+                Correo
                 <input
-                  value={name}
-                  onChange={(event) => setName(event.target.value)}
-                  maxLength={20}
-                  autoComplete="name"
+                  type="email"
+                  placeholder="tu@correo.com"
+                  value={email}
+                  onChange={(event) => setEmail(event.target.value)}
+                  autoComplete="email"
                   required
                 />
               </label>
-            )}
-            <label>
-              Correo
-              <input
-                type="email"
-                placeholder="tu@correo.com"
-                value={email}
-                onChange={(event) => setEmail(event.target.value)}
-                autoComplete="email"
-                required
-              />
-            </label>
-            <label>
-              Contraseña
-              <input
-                type="password"
-                placeholder="Mínimo 6 caracteres"
-                value={password}
-                onChange={(event) => setPassword(event.target.value)}
-                autoComplete={mode === 'login' ? 'current-password' : 'new-password'}
-                minLength={6}
-                required
-              />
-            </label>
+              <label>
+                Contraseña
+                <input
+                  type="password"
+                  placeholder="Mínimo 6 caracteres"
+                  value={password}
+                  onChange={(event) => setPassword(event.target.value)}
+                  autoComplete={mode === 'login' ? 'current-password' : 'new-password'}
+                  minLength={6}
+                  required
+                />
+              </label>
 
-            {error && <p className="form-error" role="alert">{error}</p>}
+              {error && <p className="form-error" role="alert">{error}</p>}
 
-            <button className="primary-button auth-submit" type="submit" disabled={isBusy}>
-              {isBusy ? 'Un momento…' : mode === 'login' ? 'Entrar' : 'Crear cuenta'}
+              <button className="primary-button auth-submit" type="submit" disabled={isBusy}>
+                {isBusy ? 'Un momento…' : mode === 'login' ? 'Entrar' : 'Crear cuenta'}
+              </button>
+              {mode === 'register' && (
+                <p className="auth-legal-copy">
+                  Al crear una cuenta, confirmas que tienes 16 años o más y aceptas los{' '}
+                  <button type="button" onClick={() => setLegal('terms')}>Términos de uso</button>
+                  {' '}y la{' '}
+                  <button type="button" onClick={() => setLegal('privacy')}>Política de Privacidad</button>.
+                </p>
+              )}
+            </form>
+
+            <div className="form-divider"><span>o</span></div>
+            <button className="google-button" type="button" onClick={continueWithGoogle} disabled={isBusy}>
+              <GoogleMark />
+              <span>Continuar con Google</span>
             </button>
-            {mode === 'register' && (
-              <p className="auth-legal-copy">
-                Al crear una cuenta, confirmas que tienes 16 años o más y aceptas los{' '}
-                <button type="button" onClick={() => setLegal('terms')}>Términos de uso</button>
-                {' '}y la{' '}
-                <button type="button" onClick={() => setLegal('privacy')}>Política de Privacidad</button>.
-              </p>
-            )}
-          </form>
 
-          <div className="form-divider"><span>o</span></div>
-          <button className="google-button" type="button" onClick={continueWithGoogle} disabled={isBusy}>
-            <GoogleMark />
-            <span>Continuar con Google</span>
-          </button>
+            <p className="auth-sync-note">
+              La misma cuenta funciona en la web y en la app móvil.
+            </p>
+          </div>
 
-          <p className="auth-sync-note">
-            La misma cuenta funciona en la web y en la app móvil.
-          </p>
+          <aside className="android-access-card" aria-labelledby="android-access-title">
+            <div className="android-access-heading">
+              <span className="android-access-mark" aria-hidden="true">A</span>
+              <span>
+                <small>ANDROID · PRUEBA CERRADA</small>
+                <strong id="android-access-title">Flare también está en Android</strong>
+              </span>
+            </div>
+            <p>Acceso anticipado para un grupo limitado de testers.</p>
+            <div className="android-access-actions">
+              <a href="mailto:info@wearecapa.es?subject=Solicitud%20de%20acceso%20a%20Flare%20para%20Android">
+                Solicitar acceso
+              </a>
+              <a
+                href="https://play.google.com/apps/testing/com.mivarona.churriapp"
+                target="_blank"
+                rel="noreferrer">
+                Ya soy tester <span aria-hidden="true">↗</span>
+              </a>
+            </div>
+          </aside>
         </div>
       </section>
       {legal && (
