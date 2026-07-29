@@ -8,7 +8,7 @@
   <img src="docs/screenshots/churri-closeup-03-mensajes-avisos.png" width="250" alt="Mensajes y avisos" />
 </p>
 
-Flare es una aplicación móvil (Expo / React Native) organizada en **espacios**: círculos privados de 1 a 8 personas — tú solo, tu casa, tu familia, un viaje. Su primitivo central es el **aviso dirigido**: pides algo y suena en el móvil de quien tiene que hacerlo, a la hora exacta, con "Hecho" y "+30 min" desde la propia notificación. No hay feed, no hay audiencia, no hay historial infinito: a un espacio compartido se entra con una llave, y cada persona lleva un color que dice *quién* en todo lo que crea.
+Flare es una aplicación multiplataforma organizada en **espacios**: círculos privados de 1 a 8 personas — tú solo, tu casa, tu familia, un viaje. El repositorio es un monorepo con la aplicación móvil en Expo / React Native y la aplicación web en Next.js. Su primitivo central es el **aviso dirigido**: pides algo y suena en el móvil de quien tiene que hacerlo, a la hora exacta, con "Hecho" y "+30 min" desde la propia notificación. No hay feed, no hay audiencia, no hay historial infinito: a un espacio compartido se entra con una llave, y cada persona lleva un color que dice *quién* en todo lo que crea.
 
 El proyecto está construido con especial atención a la seguridad y a la coherencia del sistema de diseño: cada decisión de arquitectura —desde cómo se firman las subidas de fotos hasta cómo se cifra la sesión en disco— está tomada para que la privacidad no dependa de la buena fe de un cliente, sino de reglas verificables en el servidor.
 
@@ -17,7 +17,7 @@ El proyecto está construido con especial atención a la seguridad y a la cohere
 ## Arquitectura
 
 ```
-App (Expo / React Native)
+Apps (Expo móvil + Next.js web)
   │
   ├── Firebase Auth ──────── registro y login
   ├── Cloud Firestore ────── espacios, avisos, fotos, mensajes
@@ -34,7 +34,7 @@ App (Expo / React Native)
 
 1. **Avisos**: se crean en Firestore con destinatarios explícitos (`targetUids`: para mí, para alguien, para todos); cada teléfono destinatario programa una alarma local (`expo-notifications`) que se mantiene sincronizada en tiempo real, en todos los espacios a la vez.
 2. **Fotos**: el cliente pide una firma de subida al Worker (que verifica el token de Firebase y la pertenencia al espacio) y sube directamente a Cloudinary; la API key de Cloudinary nunca llega al dispositivo.
-3. **Mensajes**: el espacio conserva un máximo de cinco; al llegar el sexto se borra el más antiguo, para todos a la vez.
+3. **Mensajes**: las notas admiten texto y GIFs buscados directamente en GIPHY; solo se guarda en Firestore la referencia devuelta por el proveedor.
 4. **Notificaciones push**: la app llama al Worker, que verifica membresía y lee el token del destinatario del propio documento del espacio antes de reenviar a la Expo Push API.
 
 ---
@@ -50,8 +50,8 @@ Un aviso suena en el móvil de quien tiene que hacerlo — el tuyo, el de otra p
 **Fotos privadas**
 Almacenamiento cifrado en tránsito y servido en modo `authenticated` en Cloudinary — sin enlaces públicos. Cada foto queda asociada al color de quien la subió.
 
-**Chat de capacidad fija**
-El espacio guarda solo los cinco últimos mensajes; el más antiguo se apaga cuando llega uno nuevo. El límite es de capacidad, no de frecuencia.
+**Tablón con texto y GIFs**
+Las notas admiten texto, reacciones y GIFs animados buscados directamente en GIPHY.
 
 **Reacciones luminosas**
 Seis señales animadas (parpadeo, chispazo, bengala, apagón, cortocircuito, fundido) para reaccionar a mensajes y fotos sin gastar un mensaje.
@@ -69,7 +69,7 @@ Cada persona lleva un color fijo; todo lo que crea en el espacio lo lleva. El co
 - El perfil de cada cuenta (email incluido) es legible solo por su dueño: lo que otros miembros necesitan — nombre y token de push — viaja en el mapa `members` del propio espacio, donde cada uno solo puede escribir su entrada.
 - El Worker de Cloudflare verifica cada petición contra las claves públicas de Google (JWKS) antes de firmar cualquier operación sobre Cloudinary.
 - La sesión de Firebase se cifra con AES-256 antes de escribirse en disco; la clave vive en el Keychain/Keystore del sistema (`expo-secure-store`).
-- Sin publicidad, sin analítica de terceros, sin venta de datos. Al eliminar la cuenta o salir del espacio, los datos y los archivos en Cloudinary se borran de forma efectiva.
+- Sin publicidad ni venta de datos. GIPHY recibe las búsquedas y solicitudes técnicas necesarias para mostrar su catálogo de GIFs.
 
 ---
 
@@ -77,17 +77,19 @@ Cada persona lleva un color fijo; todo lo que crea en el espacio lo lleva. El co
 
 | Capa | Tecnología |
 |---|---|
-| Framework | [Expo SDK 57](https://docs.expo.dev/versions/v57.0.0/) + React Native 0.86 |
+| Framework móvil | [Expo SDK 57](https://docs.expo.dev/versions/v57.0.0/) + React Native 0.86 |
+| Framework web | Next.js 16, App Router |
 | Lenguaje | TypeScript (strict mode) |
 | UI | gluestack-ui v5, Tailwind CSS v4 (Uniwind), react-native-reanimated |
 | Autenticación | Firebase Auth (email + Google Sign-In) |
 | Base de datos | Cloud Firestore |
 | Proxy de autorización | Cloudflare Workers |
 | Almacenamiento de fotos | Cloudinary (modo authenticated) |
+| Buscador de GIFs | GIPHY API |
 | Notificaciones push | Expo Push API |
 | Backend serverless | Firebase Cloud Functions (Node 22) |
 | Rutas | expo-router (file-based) |
-| Plataforma | Android (Google Play) |
+| Plataformas | Android (Google Play) y web |
 
 ---
 
@@ -104,6 +106,7 @@ invites/{code}                               ├── members: Map<uid, {name, 
 
 spaces/{spaceId}/reminders/{id}            spaces/{spaceId}/messages/{id}
   ├── title, dueAt, status                   ├── text (max 500)
+  │                                          ├── o kind: 'gif' + gif: Map
   ├── createdByUid                           ├── senderId
   └── targetUids: string[]                   └── reactions: Map<uid, SignalId>
 
@@ -121,34 +124,22 @@ El espacio personal tiene id determinista (`personal_{uid}`): su creación es id
 
 ```
 churriapp/
-├── src/
-│   ├── app/                  # Screens (file-based routing)
-│   │   ├── _layout.tsx       # Layout raíz (providers, guards, error boundary)
-│   │   ├── settings.tsx      # Ajustes
-│   │   ├── spaces.tsx        # Espacios: cambiar, crear, entrar con llave
-│   │   ├── (tabs)/           # Tabs principales
-│   │   │   ├── index.tsx     # Espacio (home)
-│   │   │   ├── chat.tsx      # Mensajes
-│   │   │   ├── gallery.tsx   # Fotos
-│   │   │   └── reminders.tsx # Avisos
-│   │   └── onboarding/       # Registro (solo-first: sin pared de emparejamiento)
-│   ├── components/           # UI atómica
-│   │   ├── brand.tsx         # Logo, wordmark, GlowCard, botones
-│   │   ├── app-tabs.tsx      # Barra de tabs inferior
-│   │   ├── light-signals.tsx # Señales luminosas animadas
-│   │   ├── message-light.tsx # Burbuja de mensaje animada
-│   │   ├── reminder-alarms.tsx # Sincronizador de alarmas locales
-│   │   └── ui/                # Componentes gluestack-ui
-│   ├── context/
-│   │   └── space-context.tsx # Contexto principal (auth + espacios)
-│   ├── hooks/                # Custom hooks
-│   ├── lib/                  # Firebase, Cloudinary, push, auth, persistencia
-│   └── constants/             # Tema, paletas, textos legales
+├── apps/
+│   ├── mobile/               # Expo SDK 57 / React Native
+│   │   ├── src/              # Rutas, componentes, contexto y adaptadores nativos
+│   │   ├── assets/           # Iconos e imágenes de la aplicación
+│   │   ├── app.json          # Configuración Expo
+│   │   └── eas.json          # Build, Update y Submit (ejecutar EAS desde aquí)
+│   └── web/                  # Next.js 16 / App Router
+│       ├── src/app/          # Layouts y rutas web
+│       └── public/           # Assets públicos
+├── packages/
+│   └── core/                 # Lógica compartida: fechas, repetición y rotaciones
 ├── worker/                   # Cloudflare Worker
 ├── functions/                # Firebase Functions
 ├── store/                    # Assets para Google Play
-├── web/                      # Páginas de privacidad y eliminación de cuenta
-└── assets/                   # Imágenes, iconos, fuentes
+├── web/                      # Sitio estático anterior (se retirará al migrar sus rutas)
+└── package.json              # npm workspaces y comandos del monorepo
 ```
 
 ---
@@ -159,8 +150,27 @@ churriapp/
 # Instalar dependencias
 npm install
 
-# Iniciar servidor de desarrollo
-npx expo start
+# Configurar GIPHY para la aplicación móvil
+cp apps/mobile/.env.example apps/mobile/.env.local
+
+# Iniciar Expo
+npm run dev:mobile
+
+# Iniciar Next.js (otro terminal)
+npm run dev:web
+
+# Comprobar todos los workspaces
+npm run typecheck
+
+# Build web de producción
+npm run build:web
+```
+
+Los comandos EAS se ejecutan desde la raíz de la aplicación móvil, por ejemplo:
+
+```bash
+cd apps/mobile
+eas update --branch production --platform android --environment production
 ```
 
 ### Requisitos
@@ -170,6 +180,7 @@ npx expo start
 - Una cuenta de Firebase con proyecto configurado (Auth + Firestore)
 - Una cuenta de Cloudinary
 - Una cuenta de Cloudflare (para el Worker)
+- Una cuenta de desarrollador de GIPHY
 
 ---
 

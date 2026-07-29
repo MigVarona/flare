@@ -28,12 +28,18 @@ const InviteAttemptWindowSeconds = 15 * 60;
 function json(body: unknown, status = 200) {
   return new Response(JSON.stringify(body), {
     status,
-    headers: { 'content-type': 'application/json' },
+    headers: {
+      'content-type': 'application/json',
+      'access-control-allow-origin': '*',
+      'access-control-allow-headers': 'authorization, content-type',
+      'access-control-allow-methods': 'POST, OPTIONS',
+    },
   });
 }
 
 export default {
   async fetch(request: Request, env: Env): Promise<Response> {
+    if (request.method === 'OPTIONS') return json({ ok: true });
     if (request.method !== 'POST') return json({ error: 'method' }, 405);
 
     const token = request.headers.get('authorization')?.replace(/^Bearer /, '');

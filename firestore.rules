@@ -27,6 +27,33 @@ service cloud.firestore {
       return value is timestamp || value is number;
     }
 
+    function isValidGiphyGif(gif) {
+      return gif is map
+        && gif.keys().hasOnly([
+          'giphyId',
+          'sourceUrl',
+          'title',
+          'altText',
+          'username',
+          'width',
+          'height'
+        ])
+        && isValidName(gif.giphyId, 100)
+        && gif.sourceUrl is string
+        && gif.sourceUrl.size() <= 2000
+        && gif.sourceUrl.matches('^https://giphy[.]com/gifs/.*$')
+        && isValidName(gif.title, 200)
+        && isValidName(gif.altText, 500)
+        && gif.username is string
+        && gif.username.size() <= 100
+        && gif.width is int
+        && gif.width > 0
+        && gif.width <= 4000
+        && gif.height is int
+        && gif.height > 0
+        && gif.height <= 4000;
+    }
+
     function isValidRepeat(value) {
       return value == null
         || (value is map
@@ -312,10 +339,27 @@ service cloud.firestore {
       match /messages/{messageId} {
         allow read: if isMemberOf(spaceId);
         allow create: if isMemberOf(spaceId)
-          && request.resource.data.keys().hasOnly(['text', 'senderId', 'createdAt'])
-          && isValidName(request.resource.data.text, 500)
+          && request.resource.data.keys().hasOnly([
+            'text',
+            'kind',
+            'gif',
+            'senderId',
+            'createdAt'
+          ])
           && request.resource.data.senderId == request.auth.uid
-          && isValidCreatedAt(request.resource.data.createdAt);
+          && isValidCreatedAt(request.resource.data.createdAt)
+          && (
+            (
+              (!('kind' in request.resource.data) || request.resource.data.kind == 'text')
+              && isValidName(request.resource.data.text, 500)
+              && !('gif' in request.resource.data)
+            )
+            || (
+              request.resource.data.kind == 'gif'
+              && !('text' in request.resource.data)
+              && isValidGiphyGif(request.resource.data.gif)
+            )
+          );
         allow update: if isMemberOf(spaceId)
           && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['reactions', 'pinned'])
           && (!('pinned' in request.resource.data.diff(resource.data).affectedKeys())

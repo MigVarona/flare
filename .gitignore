@@ -3,6 +3,10 @@
 # dependencies
 node_modules/
 
+# Next.js
+.next/
+out/
+
 # Expo
 .expo/
 dist/
@@ -25,6 +29,7 @@ expo-env.d.ts
 npm-debug.*
 yarn-debug.*
 yarn-error.*
+firebase-debug.log
 
 # macOS
 .DS_Store
@@ -45,6 +50,7 @@ example
 # generated native folders
 /ios
 /android
+/apps/mobile/android
 
 # local build artifacts
 *.apk
