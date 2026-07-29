@@ -1363,94 +1363,188 @@ export function FlareDashboard({ user }: { user: User }) {
           </div>
         ))}
 
-        {view === 'space' && <div className="welcome">
-          <div>
-            <p className="eyebrow">{today.toUpperCase()}</p>
-            <h1>Todo el espacio, al día.</h1>
-            <p>
-              {activeSpace?.kind === 'personal'
-                ? 'Tu lugar para acordarte de lo que importa.'
-                : `${members.length} personas colaboran en este espacio en tiempo real.`}
-            </p>
-          </div>
-          {activeSpace?.kind === 'shared' && activeSpace.inviteCode && (
-            <button
-              className="invite-pill"
-              type="button"
-              onClick={() => {
-                void navigator.clipboard.writeText(activeSpace.inviteCode ?? '');
-                setNotice('Llave copiada.');
-              }}>
-              Llave · {activeSpace.inviteCode}
-            </button>
-          )}
-        </div>}
-
         {view === 'space' && (
-          <div className="space-overview">
-            <section className="overview-section">
-              <button className="overview-heading" type="button" onClick={() => setView('reminders')}>
-                <span>
-                  <span className="eyebrow">PRÓXIMO</span>
-                  <strong>Avisos</strong>
-                </span>
-                <span>Ver todos →</span>
-              </button>
-              {remindersLoading ? (
-                <div className="overview-card skeleton" />
-              ) : visibleReminders.length === 0 ? (
-                <button className="overview-card empty-overview" type="button" onClick={() => setView('reminders')}>
-                  Nada pendiente por ahora.
+          <div className="space-dashboard">
+            <header className="space-dashboard-hero">
+              <div>
+                <p className="eyebrow">{today.toUpperCase()}</p>
+                <h1>Espacio</h1>
+                <p>Todo lo que compartís, en un mismo lugar.</p>
+              </div>
+              {activeSpace?.kind === 'shared' && activeSpace.inviteCode && (
+                <button
+                  className="invite-pill"
+                  type="button"
+                  onClick={() => {
+                    void navigator.clipboard.writeText(activeSpace.inviteCode ?? '');
+                    setNotice('Llave copiada.');
+                  }}>
+                  Llave · {activeSpace.inviteCode}
                 </button>
-              ) : (
-                <div className="overview-reminders">
-                  {visibleReminders.slice(0, 3).map((reminder) => {
-                    const creator = members.find((member) => member.uid === reminder.createdByUid);
-                    const color = activePalette.lights[creator?.index ?? -1] ?? '#6B7280';
-                    return (
-                      <div className="overview-reminder" key={reminder.id}>
-                        <i style={{ background: color, boxShadow: `0 0 12px ${color}` }} />
-                        <button type="button" onClick={() => setView('reminders')}>
-                          <strong>{reminder.title}</strong>
-                          <small>{reminder.dueAt ? formatDueDate(reminder.dueAt) : reminder.dueLabel}</small>
-                        </button>
-                        {reminder.dueAt && (
-                          <button
-                            className="overview-calendar"
-                            type="button"
-                            onClick={() => sendReminderToCalendar(reminder)}
-                            aria-label={`Añadir ${reminder.title} al calendario`}>
-                            +
-                          </button>
-                        )}
-                      </div>
-                    );
-                  })}
-                </div>
               )}
+            </header>
+
+            <section className="space-switcher" aria-labelledby="spaces-title">
+              <div className="space-dashboard-section-heading">
+                <div>
+                  <p className="eyebrow">DONDE COLABORAS</p>
+                  <h2 id="spaces-title">Tus espacios</h2>
+                </div>
+                <button type="button" onClick={() => setSpaceDialog('create')}>Nuevo espacio</button>
+              </div>
+              <div className="space-card-grid">
+                {spaces.filter((space) => !space.archived).map((space) => {
+                  const palette = paletteById(space.palette);
+                  const spaceStyle = {
+                    '--card-first': palette.lights[0],
+                    '--card-second': palette.lights[1],
+                    '--card-accent': palette.lens,
+                  } as React.CSSProperties;
+                  return (
+                    <button
+                      className={space.id === activeSpace?.id ? 'space-card active' : 'space-card'}
+                      style={spaceStyle}
+                      type="button"
+                      onClick={() => selectSpace(space.id)}
+                      aria-pressed={space.id === activeSpace?.id}
+                      key={space.id}>
+                      <span className="space-card-icon" aria-hidden="true">
+                        {space.kind === 'personal' ? initials(profileName) : initials(space.name)}
+                      </span>
+                      <span className="space-card-copy">
+                        <strong>{space.name}</strong>
+                        <small>
+                          {space.kind === 'personal'
+                            ? 'Tu espacio personal'
+                            : `${space.memberIds.length} ${space.memberIds.length === 1 ? 'integrante' : 'integrantes'}`}
+                        </small>
+                      </span>
+                      <span className="space-card-status" aria-hidden="true">•••</span>
+                    </button>
+                  );
+                })}
+              </div>
             </section>
 
-            <section className="overview-section">
-              <div className="overview-heading">
-                <span>
-                  <span className="eyebrow">ÚLTIMOS ARCHIVOS</span>
-                  <strong>Archivo</strong>
-                </span>
-                <span className="overview-heading-actions">
+            <div className="space-dashboard-grid">
+              <section className="space-dashboard-panel">
+                <div className="space-dashboard-section-heading compact">
+                  <div>
+                    <p className="eyebrow">PRÓXIMO</p>
+                    <h2>Avisos recientes</h2>
+                  </div>
+                  <button type="button" onClick={() => setView('reminders')}>Ver todos</button>
+                </div>
+                {remindersLoading ? (
+                  <div className="dashboard-empty skeleton" />
+                ) : visibleReminders.length === 0 ? (
+                  <button className="dashboard-empty" type="button" onClick={() => setView('reminders')}>
+                    <span className="dashboard-empty-icon" aria-hidden="true">!</span>
+                    <span><strong>Nada pendiente</strong><small>Crea el primer aviso del espacio.</small></span>
+                  </button>
+                ) : (
+                  <div className="dashboard-list">
+                    {visibleReminders.slice(0, 3).map((reminder) => {
+                      const creator = members.find((member) => member.uid === reminder.createdByUid);
+                      const color = activePalette.lights[creator?.index ?? -1] ?? '#6B7280';
+                      return (
+                        <article className="dashboard-list-item" key={reminder.id}>
+                          <button
+                            className="dashboard-list-icon"
+                            style={{ '--item-color': color } as React.CSSProperties}
+                            type="button"
+                            onClick={() => setView('reminders')}
+                            aria-label={`Abrir aviso ${reminder.title}`}>
+                            !
+                          </button>
+                          <button className="dashboard-list-copy" type="button" onClick={() => setView('reminders')}>
+                            <strong>{reminder.title}</strong>
+                            <small>{reminder.dueAt ? formatDueDate(reminder.dueAt) : reminder.dueLabel}</small>
+                          </button>
+                          {reminder.dueAt && (
+                            <button
+                              className="dashboard-list-action"
+                              type="button"
+                              onClick={() => sendReminderToCalendar(reminder)}
+                              aria-label={`Añadir ${reminder.title} al calendario`}>
+                              +
+                            </button>
+                          )}
+                        </article>
+                      );
+                    })}
+                  </div>
+                )}
+              </section>
+
+              <section className="space-dashboard-panel">
+                <div className="space-dashboard-section-heading compact">
+                  <div>
+                    <p className="eyebrow">CONVERSACIÓN</p>
+                    <h2>Mensajes</h2>
+                  </div>
+                  <button type="button" onClick={() => setView('board')}>Ver todos</button>
+                </div>
+                {regularMessages.length === 0 && pinnedMessages.length === 0 ? (
+                  <button className="dashboard-empty" type="button" onClick={() => setView('board')}>
+                    <span className="dashboard-empty-icon blue" aria-hidden="true">≡</span>
+                    <span><strong>Empieza la conversación</strong><small>El primer mensaje sigue libre.</small></span>
+                  </button>
+                ) : (
+                  <div className="dashboard-list">
+                    {recentMessages.slice(-4).reverse().map((message) => {
+                      const sender = members.find((member) => member.uid === message.senderId);
+                      const color = activePalette.lights[sender?.index ?? -1] ?? '#6B7280';
+                      return (
+                        <button
+                          className="dashboard-list-item message"
+                          style={{ '--item-color': color } as React.CSSProperties}
+                          type="button"
+                          onClick={() => setView('board')}
+                          key={message.id}>
+                          <span className="dashboard-message-avatar">{initials(sender?.name ?? 'Alguien')}</span>
+                          <span className="dashboard-list-copy">
+                            <strong>{sender?.name ?? 'Alguien'}</strong>
+                            <small>{previewText(message.text, 58)}</small>
+                          </span>
+                          <time>{messageTime(message.createdAt)}</time>
+                        </button>
+                      );
+                    })}
+                  </div>
+                )}
+              </section>
+            </div>
+
+            <section className="space-dashboard-panel files">
+              <div className="space-dashboard-section-heading compact">
+                <div>
+                  <p className="eyebrow">COMPARTIDO</p>
+                  <h2>Archivos recientes</h2>
+                </div>
+                <span className="space-dashboard-heading-actions">
                   <button type="button" onClick={() => chooseUpload('image')} disabled={isUploadingFile}>
                     {isUploadingFile ? 'Subiendo…' : 'Subir foto'}
                   </button>
-                  <button type="button" onClick={() => setView('archive')}>Ver todo →</button>
+                  <button type="button" onClick={() => setView('archive')}>Ver todos</button>
                 </span>
               </div>
               {recentPhotos.length === 0 ? (
-                <button className="overview-card empty-overview" type="button" onClick={() => setView('archive')}>
-                  Todavía no habéis subido ninguna.
+                <button className="dashboard-empty horizontal" type="button" onClick={() => setView('archive')}>
+                  <span className="dashboard-empty-icon blue" aria-hidden="true">□</span>
+                  <span><strong>Aún no hay archivos</strong><small>Comparte una foto o un documento con el espacio.</small></span>
                 </button>
               ) : (
-                <div className="photo-preview">
-                  {recentPhotos.slice(0, 4).map((photo) => (
-                    <div className="photo-preview-item" key={photo.id}>
+                <div className="dashboard-file-grid">
+                  {recentPhotos.slice(0, 5).map((photo) => (
+                    <button
+                      className="dashboard-file"
+                      type="button"
+                      onClick={() => {
+                        setIsPhotoZoomed(false);
+                        setViewingPhoto(photo);
+                      }}
+                      key={photo.id}>
                       {photo.kind === 'document' ? (
                         <strong>{fileFormat(photo.fileName)}</strong>
                       ) : (
@@ -1458,44 +1552,13 @@ export function FlareDashboard({ user }: { user: User }) {
                           src={photo.imageUrl}
                           alt=""
                           fill
-                          sizes="(max-width: 640px) 22vw, 100px"
+                          sizes="(max-width: 640px) 42vw, 150px"
                           unoptimized
                         />
                       )}
-                    </div>
+                      <span>{photo.fileName ?? (photo.kind === 'image' ? 'Foto compartida' : 'Documento')}</span>
+                    </button>
                   ))}
-                  {recentPhotos.length > 4 && <span className="photo-more">+{recentPhotos.length - 4}</span>}
-                </div>
-              )}
-            </section>
-
-            <section className="overview-section overview-board">
-              <button className="overview-heading" type="button" onClick={() => setView('board')}>
-                <span>
-                  <span className="eyebrow">ÚLTIMOS MENSAJES</span>
-                  <strong>Mensajes</strong>
-                </span>
-                <span>Ver todo →</span>
-              </button>
-              {regularMessages.length === 0 && pinnedMessages.length === 0 ? (
-                <button className="overview-card empty-overview" type="button" onClick={() => setView('board')}>
-                  Todavía nada. El primero sigue libre.
-                </button>
-              ) : (
-                <div className="message-preview">
-                  {recentMessages.slice(-5).map((message) => {
-                    const sender = members.find((member) => member.uid === message.senderId);
-                    const color = activePalette.lights[sender?.index ?? -1] ?? '#6B7280';
-                    return (
-                      <article style={{ '--member-color': color } as React.CSSProperties} key={message.id}>
-                        <span>
-                          <strong>{previewText(message.text)}</strong>
-                          <small>{messageTime(message.createdAt)}</small>
-                        </span>
-                        <i />
-                      </article>
-                    );
-                  })}
                 </div>
               )}
             </section>
