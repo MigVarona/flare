@@ -1277,7 +1277,15 @@ export function FlareDashboard({ user }: { user: User }) {
   return (
     <main className="app-shell" style={dashboardStyle}>
       <aside className="sidebar">
-        <a className="brand" href="#" aria-label="Flare">
+        <a
+          className="brand"
+          href="/"
+          aria-label="Ir a Espacio"
+          onClick={(event) => {
+            event.preventDefault();
+            setView('space');
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+          }}>
           <FlareBrand size={42} />
         </a>
         <nav aria-label="Navegación principal">
