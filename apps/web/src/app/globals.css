@@ -2821,12 +2821,13 @@ fieldset legend {
   }
 
   .auth-story {
-    gap: 32px;
-    padding: 26px 20px 30px;
+    grid-template-rows: auto auto;
+    gap: 18px;
+    padding: 24px 20px 12px;
   }
 
   .auth-story-content {
-    padding-top: 18px;
+    padding-top: 4px;
   }
 
   .auth-story h1 {
@@ -2841,32 +2842,13 @@ fieldset legend {
     line-height: 21px;
   }
 
-  .auth-feature-list {
-    gap: 7px;
-    margin-top: 22px;
-  }
-
-  .auth-feature-list li {
-    min-height: 33px;
-    padding-inline: 11px;
-    font-size: 12px;
-  }
-
+  .auth-feature-list,
   .auth-collab-card {
-    padding: 15px;
-    border-radius: 18px;
-  }
-
-  .auth-collab-grid {
-    grid-template-columns: 1fr;
-  }
-
-  .auth-collab-item:nth-child(2) {
     display: none;
   }
 
   .auth-panel {
-    padding: 30px 16px 42px;
+    padding: 18px 16px 42px;
   }
 
   .auth-card {
