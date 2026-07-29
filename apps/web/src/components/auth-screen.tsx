@@ -56,9 +56,12 @@ function AndroidAccessCard({
         <h3 id={titleId}>Lleva Flare contigo</h3>
         <p>La app ya está disponible en Google Play para un grupo limitado de testers.</p>
         <div className="android-access-actions">
-          <a href="mailto:info@wearecapa.es?subject=Solicitud%20de%20acceso%20a%20Flare%20para%20Android">
+          <a
+            href="https://mail.google.com/mail/?view=cm&fs=1&to=info%40wearecapa.es&su=Solicitud%20de%20acceso%20a%20Flare%20para%20Android"
+            target="_blank"
+            rel="noreferrer">
             Solicitar acceso
-            <span aria-hidden="true">→</span>
+            <span aria-hidden="true">↗</span>
           </a>
           <a
             href="https://play.google.com/apps/testing/com.mivarona.churriapp"
