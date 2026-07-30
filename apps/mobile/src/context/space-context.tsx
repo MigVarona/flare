@@ -165,6 +165,7 @@ export function SpaceProvider({ children }: { children: ReactNode }) {
   /** null until the membership query answers for the first time. */
   const [spaces, setSpaces] = useState<Space[] | null>(null);
   const [activeSpaceId, setActiveSpaceId] = useState<string | null>(null);
+  const [profileActiveSpaceId, setProfileActiveSpaceId] = useState<string | null>(null);
 
   useEffect(() => {
     return onAuthStateChanged(auth, (firebaseUser) => {
@@ -179,6 +180,7 @@ export function SpaceProvider({ children }: { children: ReactNode }) {
         // personal space created from stale state.
         setMyName('');
         setMyPushToken(null);
+        setProfileActiveSpaceId(null);
         setJustCreatedAccount(false);
       }
     });
@@ -188,8 +190,10 @@ export function SpaceProvider({ children }: { children: ReactNode }) {
     if (!user) return undefined;
     setIsProfileLoading(true);
     return onSnapshot(doc(db, 'users', user.uid), (snapshot) => {
-      setMyName((snapshot.data()?.displayName as string | undefined) ?? '');
-      setMyPushToken((snapshot.data()?.expoPushToken as string | undefined) ?? null);
+      const profile = snapshot.data();
+      setMyName((profile?.displayName as string | undefined) ?? '');
+      setMyPushToken((profile?.expoPushToken as string | undefined) ?? null);
+      setProfileActiveSpaceId((profile?.activeSpaceId as string | undefined) ?? null);
       setIsProfileLoading(false);
     });
   }, [user]);
@@ -269,18 +273,29 @@ export function SpaceProvider({ children }: { children: ReactNode }) {
 
   const setActiveSpace = (id: string) => {
     setActiveSpaceId(id);
-    if (user) void AsyncStorage.setItem(`flare.activeSpace.${user.uid}`, id);
+    setProfileActiveSpaceId(id);
+    if (!user) return;
+    void AsyncStorage.setItem(`flare.activeSpace.${user.uid}`, id);
+    void updateDoc(doc(db, 'users', user.uid), { activeSpaceId: id }).catch(() => undefined);
   };
 
   // The active space: the chosen one, unless it's just been archived — from this phone or
   // another — in which case there's nothing left to show, so it falls back like it would
   // if you'd left. Your personal space otherwise.
-  const chosen = spaces?.find((entry) => entry.id === activeSpaceId);
+  const chosen =
+    spaces?.find((entry) => entry.id === profileActiveSpaceId && !entry.archived) ??
+    spaces?.find((entry) => entry.id === activeSpaceId && !entry.archived);
   const space =
-    (chosen && !chosen.archived ? chosen : undefined) ??
+    chosen ??
     spaces?.find((entry) => entry.kind === 'personal') ??
     spaces?.[0] ??
     null;
+
+  useEffect(() => {
+    if (!user || !space || space.id === activeSpaceId) return;
+    setActiveSpaceId(space.id);
+    void AsyncStorage.setItem(`flare.activeSpace.${user.uid}`, space.id);
+  }, [activeSpaceId, space, user]);
 
   const members: SpaceMember[] = (space?.memberIds ?? []).map((uid, index) => ({
     uid,

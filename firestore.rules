@@ -101,19 +101,25 @@ service cloud.firestore {
           'email',
           'displayName',
           'createdAt',
-          'expoPushToken'
+          'expoPushToken',
+          'activeSpaceId'
         ])
         && missingOrString(request.resource.data, 'email', 320)
         && isValidName(request.resource.data.displayName, 20)
+        && missingOrString(request.resource.data, 'activeSpaceId', 128)
         && isValidCreatedAt(request.resource.data.createdAt);
       allow update: if isSignedIn()
         && request.auth.uid == uid
         && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
           'displayName',
-          'expoPushToken'
+          'expoPushToken',
+          'activeSpaceId'
         ])
         && isValidName(request.resource.data.displayName, 20)
-        && missingOrString(request.resource.data, 'expoPushToken', 220);
+        && missingOrString(request.resource.data, 'expoPushToken', 220)
+        && missingOrString(request.resource.data, 'activeSpaceId', 128)
+        && (!('activeSpaceId' in request.resource.data.diff(resource.data).affectedKeys())
+            || isMemberOf(request.resource.data.activeSpaceId));
       allow delete: if isSignedIn() && request.auth.uid == uid;
     }
 

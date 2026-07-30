@@ -227,6 +227,7 @@ export function FlareDashboard({ user }: { user: User }) {
   const [spaces, setSpaces] = useState<Space[]>([]);
   const [spacesLoaded, setSpacesLoaded] = useState(false);
   const [activeSpaceId, setActiveSpaceId] = useState('');
+  const [profileActiveSpaceId, setProfileActiveSpaceId] = useState('');
   const [reminders, setReminders] = useState<Reminder[]>([]);
   const [remindersLoading, setRemindersLoading] = useState(true);
   const [recentMessages, setRecentMessages] = useState<RecentMessage[]>([]);
@@ -306,9 +307,12 @@ export function FlareDashboard({ user }: { user: User }) {
     const profileRef = doc(db, 'users', user.uid);
     return onSnapshot(profileRef, (snapshot) => {
       if (snapshot.exists()) {
-        setProfileName((snapshot.data().displayName as string | undefined) ?? 'Tú');
+        const profile = snapshot.data();
+        setProfileName((profile.displayName as string | undefined) ?? 'Tú');
+        setProfileActiveSpaceId((profile.activeSpaceId as string | undefined) ?? '');
         return;
       }
+      setProfileActiveSpaceId('');
       void setDoc(profileRef, {
         email: user.email ?? '',
         displayName: user.displayName?.trim() || 'Tú',
@@ -372,11 +376,12 @@ export function FlareDashboard({ user }: { user: User }) {
 
   const activeSpace = useMemo(
     () =>
+      spaces.find((space) => space.id === profileActiveSpaceId && !space.archived) ??
       spaces.find((space) => space.id === activeSpaceId && !space.archived) ??
       spaces.find((space) => space.kind === 'personal') ??
       spaces.find((space) => !space.archived) ??
       null,
-    [activeSpaceId, spaces],
+    [activeSpaceId, profileActiveSpaceId, spaces],
   );
 
   useEffect(() => {
@@ -621,9 +626,15 @@ export function FlareDashboard({ user }: { user: User }) {
     '--my-color': myColor,
   } as React.CSSProperties;
 
-  const selectSpace = (id: string) => {
+  const rememberActiveSpace = (id: string) => {
     setActiveSpaceId(id);
+    setProfileActiveSpaceId(id);
     localStorage.setItem(`flare.web.activeSpace.${user.uid}`, id);
+    void updateDoc(doc(db, 'users', user.uid), { activeSpaceId: id }).catch(() => undefined);
+  };
+
+  const selectSpace = (id: string) => {
+    rememberActiveSpace(id);
   };
 
   const openReminder = () => {
@@ -892,6 +903,7 @@ export function FlareDashboard({ user }: { user: User }) {
     const text = messageDraft.trim();
     setMessageDraft('');
     setIsSendingMessage(true);
+    rememberActiveSpace(activeSpace.id);
     try {
       await addDoc(collection(db, 'spaces', activeSpace.id, 'messages'), {
         text,
@@ -912,6 +924,7 @@ export function FlareDashboard({ user }: { user: User }) {
 
   const sendGif = async (selectedGif: GiphyGif) => {
     if (!activeSpace) return false;
+    rememberActiveSpace(activeSpace.id);
     try {
       await addDoc(collection(db, 'spaces', activeSpace.id, 'messages'), {
         kind: 'gif',

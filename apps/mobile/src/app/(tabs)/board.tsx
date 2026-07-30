@@ -93,7 +93,7 @@ function readNote(docSnapshot: { id: string; data: () => Record<string, unknown>
  */
 export default function BoardScreen() {
   const insets = useSafeAreaInsets();
-  const { user, spaceId, otherMembers, myName, isAlone } = useSpace();
+  const { user, space, spaceId, setActiveSpace, otherMembers, myName, isAlone } = useSpace();
   const palette = usePalette();
   const notice = useNotice();
   const showSignalMeaning = useSignalMeaning();
@@ -199,6 +199,7 @@ export default function BoardScreen() {
     if (!spaceId || !user || !draft.trim()) return;
     const text = draft.trim();
     setDraft("");
+    setActiveSpace(spaceId);
 
     try {
       await addDoc(collection(db, "spaces", spaceId, "messages"), {
@@ -223,6 +224,7 @@ export default function BoardScreen() {
   const sendGif = async (selectedGif: GiphyGif) => {
     if (!spaceId || !user) return false;
     const gif = toGifMessage(selectedGif);
+    setActiveSpace(spaceId);
 
     try {
       await addDoc(collection(db, "spaces", spaceId, "messages"), {
@@ -288,8 +290,11 @@ export default function BoardScreen() {
         className="w-full max-w-200 flex-1 self-center"
         style={{ paddingTop: insets.top + Spacing[24] }}
       >
-        <View className="px-6">
+        <View className="gap-2 px-6">
           <ScreenHeader title="Tablón" />
+          <Eyebrow color={palette.accent}>
+            {space?.kind === "personal" ? "Personal" : space?.name ?? "Espacio"}
+          </Eyebrow>
         </View>
 
         <Animated.ScrollView
